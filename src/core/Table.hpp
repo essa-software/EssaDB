@@ -9,9 +9,15 @@
 
 namespace Db::Core {
 
+struct Filter {
+    std::string column;
+    Value expected_value;
+};
+
 struct Query {
     std::set<std::string> columns {};
     bool select_all = false;
+    std::optional<Filter> filter = {};
 };
 
 class Table : public Util::NonCopyable {

@@ -20,6 +20,9 @@ Db::Core::DbErrorOr<void> run_query(Db::Core::Database& db) {
     std::cout << "SELECT number FROM test" << std::endl;
     table->select({ .columns = { "number" } }).display();
 
+    std::cout << "SELECT number FROM test WHERE id = 2" << std::endl;
+    table->select({ .columns = { "number" }, .filter = Db::Core::Filter { .column = "id", .expected_value = 3 } }).display();
+
     return {};
 }
 
