@@ -15,6 +15,8 @@ public:
 
     std::vector<std::string> column_names() const { return m_column_names; }
 
+    void display() const;
+
 private:
     std::vector<std::string> m_column_names;
     std::vector<Row> m_rows;
