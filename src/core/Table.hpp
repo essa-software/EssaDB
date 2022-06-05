@@ -4,9 +4,15 @@
 #include "DbError.hpp"
 #include "SelectResult.hpp"
 
+#include <set>
 #include <util/NonCopyable.hpp>
 
 namespace Db::Core {
+
+struct Query {
+    std::set<std::string> columns {};
+    bool select_all = false;
+};
 
 class Table : public Util::NonCopyable {
 public:
@@ -16,7 +22,8 @@ public:
 
     DbErrorOr<void> add_column(Column);
     DbErrorOr<void> insert(RowWithColumnNames::MapType);
-    SelectResult select() const;
+
+    SelectResult select(Query = { .select_all = true }) const;
 
 private:
     std::vector<Row> m_rows;

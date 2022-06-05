@@ -1,6 +1,5 @@
 #include <core/Database.hpp>
 
-#include <iomanip>
 #include <iostream>
 
 Db::Core::DbErrorOr<void> run_query(Db::Core::Database& db) {
@@ -12,10 +11,14 @@ Db::Core::DbErrorOr<void> run_query(Db::Core::Database& db) {
 
     TRY(table->insert({ { "id", 0 }, { "number", 69 } }));
     TRY(table->insert({ { "id", 1 }, { "number", 2137 } }));
+    TRY(table->insert({ { "id", 2 }, { "number", {} } }));
+    TRY(table->insert({ { "id", 3 }, { "number", 420 } }));
 
     std::cout << "SELECT * FROM test" << std::endl;
-    auto result = table->select();
-    result.display();
+    table->select().display();
+
+    std::cout << "SELECT number FROM test" << std::endl;
+    table->select({ .columns = { "number" } }).display();
 
     return {};
 }

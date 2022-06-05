@@ -24,12 +24,29 @@ std::optional<std::pair<Column, size_t>> Table::get_column(std::string const& na
     return {};
 }
 
-SelectResult Table::select() const {
+SelectResult Table::select(Query query) const {
     std::vector<std::string> column_names;
-    for (auto const& column : m_columns)
-        column_names.push_back(column.to_string());
 
-    std::vector<Row> rows = m_rows;
+    auto should_include_column = [&](std::string const& name) {
+        return query.select_all || query.columns.contains(name);
+    };
+
+    for (auto const& column : m_columns) {
+        if (should_include_column(column.name()))
+            column_names.push_back(column.to_string());
+    }
+
+    std::vector<Row> rows;
+    for (auto const& row : m_rows) {
+        std::vector<Value> values;
+        size_t index = 0;
+        for (auto const& value : row) {
+            if (should_include_column(m_columns[index].name()))
+                values.push_back(value);
+            index++;
+        }
+        rows.push_back(Row { values });
+    }
 
     return SelectResult { column_names, std::move(rows) };
 }
