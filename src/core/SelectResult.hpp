@@ -4,44 +4,20 @@
 
 namespace Db::Core {
 
-class SelectResult;
-class Table;
-
-class SelectIterator {
-public:
-    enum EndTag { End };
-
-    SelectIterator(EndTag)
-        : m_is_end(true) { }
-
-    SelectIterator(SelectResult const& result)
-        : m_select_result(&result) { }
-
-    SelectIterator& operator++();
-    RowWithColumnNames operator*() const;
-
-    bool operator!=(SelectIterator const& other) const {
-        return m_is_end != other.m_is_end;
-    }
-
-private:
-    SelectResult const* m_select_result = nullptr;
-    size_t m_current_row = 0;
-    bool m_is_end = false;
-};
-
 class SelectResult {
 public:
-    SelectResult(Table const& table)
-        : m_table(table) { }
+    SelectResult(std::vector<std::string> column_names, std::vector<Row> rows)
+        : m_column_names(std::move(column_names))
+        , m_rows(std::move(rows)) { }
 
-    SelectIterator begin() const { return SelectIterator { *this }; }
-    SelectIterator end() const { return SelectIterator { SelectIterator::End }; }
+    auto begin() const { return m_rows.begin(); }
+    auto end() const { return m_rows.end(); }
+
+    std::vector<std::string> column_names() const { return m_column_names; }
 
 private:
-    friend SelectIterator;
-
-    Table const& m_table;
+    std::vector<std::string> m_column_names;
+    std::vector<Row> m_rows;
 };
 
 }

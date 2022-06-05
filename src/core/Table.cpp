@@ -25,7 +25,13 @@ std::optional<std::pair<Column, size_t>> Table::get_column(std::string const& na
 }
 
 SelectResult Table::select() const {
-    return SelectResult { *this };
+    std::vector<std::string> column_names;
+    for (auto const& column : m_columns)
+        column_names.push_back(column.to_string());
+
+    std::vector<Row> rows = m_rows;
+
+    return SelectResult { column_names, std::move(rows) };
 }
 
 }

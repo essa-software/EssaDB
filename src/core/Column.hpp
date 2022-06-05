@@ -11,7 +11,7 @@ public:
 
     std::string name() const { return m_name; }
 
-    std::string to_string() const { return "Column(" + m_name + ")"; }
+    std::string to_string() const { return m_name; }
 
 private:
     std::string m_name;

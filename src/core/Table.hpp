@@ -19,8 +19,6 @@ public:
     SelectResult select() const;
 
 private:
-    friend SelectIterator;
-
     std::vector<Row> m_rows;
     std::vector<Column> m_columns;
 };

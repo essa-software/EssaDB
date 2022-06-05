@@ -27,7 +27,6 @@ add_executable(
 
     src/core/Database.cpp
     src/core/RowWithColumnNames.cpp
-    src/core/SelectResult.cpp
     src/core/Table.cpp
 
     src/main.cpp
