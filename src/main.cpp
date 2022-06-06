@@ -18,13 +18,20 @@ DbErrorOr<void> run_query(Database& db) {
     TRY(table->insert({ { "id", Value::create_int(3) }, { "number", Value::create_int(420) } }));
 
     std::cout << "SELECT * FROM test" << std::endl;
-    table->select().display();
+    TRY(table->select()).display();
 
     std::cout << "SELECT number, string FROM test" << std::endl;
-    table->select({ .columns = { "number", "string" } }).display();
+    TRY(table->select({ .columns = { "number", "string" } })).display();
 
-    std::cout << "SELECT number FROM test WHERE id = 2" << std::endl;
-    table->select({ .columns = { "number" }, .filter = Filter { .column = "id", .expected_value = Value::create_int(2) } }).display();
+    std::cout << "SELECT id, number FROM test WHERE id = 2" << std::endl;
+    TRY(table->select({ .columns = { "id", "number" },
+            .filter = Filter { .column = "id", .operation = Filter::Operation::Equal, .rhs = Value::create_int(2) } }))
+        .display();
+
+    std::cout << "SELECT id FROM test WHERE id <= 2" << std::endl;
+    TRY(table->select({ .columns = { "id" },
+            .filter = Filter { .column = "id", .operation = Filter::Operation::LessEqual, .rhs = Value::create_int(2) } }))
+        .display();
 
     return {};
 }

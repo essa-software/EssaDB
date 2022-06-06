@@ -11,7 +11,34 @@ namespace Db::Core {
 
 struct Filter {
     std::string column;
-    Value expected_value;
+    enum class Operation {
+        Equal,        // =
+        NotEqual,     // !=
+        Greater,      // >
+        GreaterEqual, // >=
+        Less,         // <
+        LessEqual,    // <=
+    };
+    Operation operation;
+    Value rhs;
+
+    DbErrorOr<bool> is_true(Value const& lhs) const {
+        switch (operation) {
+        case Operation::Equal:
+            return TRY(lhs.to_string()) == TRY(rhs.to_string());
+        case Operation::NotEqual:
+            return TRY(lhs.to_string()) != TRY(rhs.to_string());
+        case Operation::Greater:
+            return TRY(lhs.to_string()) > TRY(rhs.to_string());
+        case Operation::GreaterEqual:
+            return TRY(lhs.to_string()) >= TRY(rhs.to_string());
+        case Operation::Less:
+            return TRY(lhs.to_string()) < TRY(rhs.to_string());
+        case Operation::LessEqual:
+            return TRY(lhs.to_string()) <= TRY(rhs.to_string());
+        }
+        __builtin_unreachable();
+    }
 };
 
 struct Query {
@@ -29,7 +56,7 @@ public:
     DbErrorOr<void> add_column(Column);
     DbErrorOr<void> insert(RowWithColumnNames::MapType);
 
-    SelectResult select(Query = { .select_all = true }) const;
+    DbErrorOr<SelectResult> select(Query = { .select_all = true }) const;
 
 private:
     std::vector<Row> m_rows;

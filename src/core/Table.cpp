@@ -24,22 +24,22 @@ std::optional<std::pair<Column, size_t>> Table::get_column(std::string const& na
     return {};
 }
 
-SelectResult Table::select(Query query) const {
+DbErrorOr<SelectResult> Table::select(Query query) const {
 
     auto should_include_column = [&](std::string const& name) {
         return query.select_all || query.columns.contains(name);
     };
 
-    auto should_include_row = [&](Row const& row) {
+    auto should_include_row = [&](Row const& row) -> DbErrorOr<bool> {
         if (!query.filter)
             return true;
-        return row.value(get_column(query.filter->column)->second) == query.filter->expected_value;
+        return TRY(query.filter->is_true(row.value(get_column(query.filter->column)->second)));
     };
 
     std::vector<Row> rows;
     for (auto const& row : m_rows) {
         // WHERE
-        if (!should_include_row(row))
+        if (!TRY(should_include_row(row)))
             continue;
         std::vector<Value> values;
         size_t index = 0;
