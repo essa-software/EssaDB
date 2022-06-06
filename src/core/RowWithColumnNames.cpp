@@ -15,7 +15,8 @@ DbErrorOr<RowWithColumnNames> RowWithColumnNames::from_map(Table const& table, M
         if (!column)
             return DbError { "No such column in table: " + value.first };
 
-        // TODO: Type check
+        if (column->first.type() != value.second.type() && value.second.type() != Value::Type::Null)
+            return DbError { "Invalid value type for column '" + value.first + "': " + value.second.to_debug_string() };
         row[column->second] = std::move(value.second);
     }
     // TODO: Null check
@@ -27,11 +28,7 @@ std::ostream& operator<<(std::ostream& out, RowWithColumnNames const& row) {
     out << "{ ";
     for (auto& value : row.m_row) {
         auto column = row.m_table.columns()[index];
-        out << column.name() << ": ";
-        if (value.has_value())
-            out << *value;
-        else
-            out << "null";
+        out << column.name() << ": " << value;
         if (index != row.m_row.value_count() - 1)
             out << ", ";
         index++;

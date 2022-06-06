@@ -29,6 +29,7 @@ add_executable(
     src/core/RowWithColumnNames.cpp
     src/core/SelectResult.cpp
     src/core/Table.cpp
+    src/core/Value.cpp
 
     src/main.cpp
 )

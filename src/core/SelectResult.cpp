@@ -16,11 +16,7 @@ void SelectResult::display() const {
     for (auto row : m_rows) {
         size_t index = 0;
         for (auto value : row) {
-            std::cout << "| " << std::setw(widths[index]);
-            if (value.has_value())
-                std::cout << value.value();
-            else
-                std::cout << "null";
+            std::cout << "| " << std::setw(widths[index]) << value;
             std::cout << " ";
             index++;
         }
