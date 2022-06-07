@@ -66,13 +66,23 @@ struct OrderBy {
     Order order = Order::Ascending;
 };
 
+struct Top {
+    enum class Unit {
+        Val,
+        Perc
+    };
+    Unit unit = Unit::Perc;
+    unsigned value = 100;
+};
+
 class Select {
 public:
-    Select(SelectColumns columns, std::string from, std::optional<Filter> where = {}, std::optional<OrderBy> order_by = {})
+    Select(SelectColumns columns, std::string from, std::optional<Filter> where = {}, std::optional<OrderBy> order_by = {}, std::optional<Top> top = {})
         : m_columns(std::move(columns))
         , m_from(std::move(from))
         , m_where(std::move(where))
-        , m_order_by(std::move(order_by)) { }
+        , m_order_by(std::move(order_by)) 
+        , m_top(std::move(top)) { }
 
     DbErrorOr<Value> execute(Database&) const;
 
@@ -81,6 +91,7 @@ private:
     std::string m_from;
     std::optional<Filter> m_where;
     std::optional<OrderBy> m_order_by;
+    std::optional<Top> m_top;
 };
 
 }

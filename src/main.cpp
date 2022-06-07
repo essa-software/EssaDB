@@ -54,7 +54,27 @@ DbErrorOr<void> run_query(Database& db) {
             { { "id", "number", "string" } },
             "test",
             {},
-            AST::OrderBy { .column_name = "number", .order = AST::OrderBy::Order::Descending })
+            AST::OrderBy { .column_name = "number", .order = AST::OrderBy::Order::Descending})
+            .execute(db))
+        .repl_dump(std::cout);
+
+    std::cout << "SELECT TOP 2 number, string FROM test ORDER BY number DESC" << std::endl;
+    TRY(AST::Select(
+            { { "id", "number", "string" } },
+            "test",
+            {},
+            AST::OrderBy { .column_name = "number", .order = AST::OrderBy::Order::Descending},
+            AST::Top{.unit = AST::Top::Unit::Val, .value = 2})
+            .execute(db))
+        .repl_dump(std::cout);
+
+    std::cout << "SELECT TOP 75 PERC number, string FROM test ORDER BY number DESC" << std::endl;
+    TRY(AST::Select(
+            { { "id", "number", "string" } },
+            "test",
+            {},
+            AST::OrderBy { .column_name = "number", .order = AST::OrderBy::Order::Descending},
+            AST::Top{.unit = AST::Top::Unit::Perc, .value = 75})
             .execute(db))
         .repl_dump(std::cout);
 

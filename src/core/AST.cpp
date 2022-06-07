@@ -60,7 +60,14 @@ DbErrorOr<Value> Select::execute(Database& db) const {
         });
     }
 
-    // TODO: TOP
+    if(m_top){
+        if(m_top->unit == Top::Unit::Perc){
+            float mul = static_cast<float>(std::min(m_top->value, (unsigned)100)) / 100;
+            rows.resize(rows.size() * mul, rows.back());
+        }else {
+            rows.resize(std::min(m_top->value, (unsigned)rows.size()), rows.back());
+        }
+    }
 
     std::vector<std::string> column_names;
     for (auto const& column : table->columns()) {
