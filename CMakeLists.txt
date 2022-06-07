@@ -25,6 +25,7 @@ endfunction()
 add_executable(
     essadb
 
+    src/core/AST.cpp
     src/core/Database.cpp
     src/core/RowWithColumnNames.cpp
     src/core/SelectResult.cpp
