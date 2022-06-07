@@ -40,6 +40,24 @@ DbErrorOr<void> run_query(Database& db) {
             .execute(db))
         .repl_dump(std::cout);
 
+    std::cout << "SELECT number, string FROM test ORDER BY number ASC" << std::endl;
+    TRY(AST::Select(
+            { { "id", "number", "string" } },
+            "test",
+            {},
+            AST::OrderBy { .column_name = "number", .order = AST::OrderBy::Order::Ascending })
+            .execute(db))
+        .repl_dump(std::cout);
+
+    std::cout << "SELECT number, string FROM test ORDER BY number DESC" << std::endl;
+    TRY(AST::Select(
+            { { "id", "number", "string" } },
+            "test",
+            {},
+            AST::OrderBy { .column_name = "number", .order = AST::OrderBy::Order::Descending })
+            .execute(db))
+        .repl_dump(std::cout);
+
     return {};
 }
 

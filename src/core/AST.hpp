@@ -57,12 +57,22 @@ private:
     std::set<std::string> m_columns {};
 };
 
+struct OrderBy {
+    std::string column_name;
+    enum class Order {
+        Ascending,
+        Descending
+    };
+    Order order = Order::Ascending;
+};
+
 class Select {
 public:
-    Select(SelectColumns columns, std::string from, std::optional<Filter> where)
+    Select(SelectColumns columns, std::string from, std::optional<Filter> where = {}, std::optional<OrderBy> order_by = {})
         : m_columns(std::move(columns))
         , m_from(std::move(from))
-        , m_where(std::move(where)) { }
+        , m_where(std::move(where))
+        , m_order_by(std::move(order_by)) { }
 
     DbErrorOr<Value> execute(Database&) const;
 
@@ -70,6 +80,7 @@ private:
     SelectColumns m_columns;
     std::string m_from;
     std::optional<Filter> m_where;
+    std::optional<OrderBy> m_order_by;
 };
 
 }
