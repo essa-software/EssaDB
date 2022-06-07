@@ -17,28 +17,30 @@ DbErrorOr<void> run_query(Database& db) {
     TRY(table->insert({ { "id", Value::create_int(1) }, { "number", Value::create_int(2137) } }));
     TRY(table->insert({ { "id", Value::create_int(2) }, { "number", Value::null() } }));
     TRY(table->insert({ { "id", Value::create_int(3) }, { "number", Value::create_int(420) } }));
+    TRY(table->insert({ { "id", Value::create_int(0) }, { "number", Value::create_int(69) }, { "string", Value::create_varchar("test3") } }));
+    TRY(table->insert({ { "id", Value::create_int(0) }, { "number", Value::create_int(69) }, { "string", Value::create_varchar("test2") } }));
 
     std::cout << "SELECT * FROM test" << std::endl;
     TRY(AST::Select({}, "test", {}).execute(db)).repl_dump(std::cout);
 
-    std::cout << "SELECT number, string FROM test" << std::endl;
-    TRY(AST::Select({ { "number", "string" } }, "test", {}).execute(db)).repl_dump(std::cout);
+    // std::cout << "SELECT number, string FROM test" << std::endl;
+    // TRY(AST::Select({ { "number", "string" } }, "test", {}).execute(db)).repl_dump(std::cout);
 
-    std::cout << "SELECT id, number FROM test WHERE id = 2" << std::endl;
-    TRY(AST::Select(
-            { { "id", "number" } },
-            "test",
-            AST::Filter { .column = "id", .operation = AST::Filter::Operation::Equal, .rhs = Value::create_int(2) })
-            .execute(db))
-        .repl_dump(std::cout);
+    // std::cout << "SELECT id, number FROM test WHERE id = 2" << std::endl;
+    // TRY(AST::Select(
+    //         { { "id", "number" } },
+    //         "test",
+    //         AST::Filter { .column = "id", .operation = AST::Filter::Operation::Equal, .rhs = Value::create_int(2) })
+    //         .execute(db))
+    //     .repl_dump(std::cout);
 
-    std::cout << "SELECT id FROM test WHERE id <= 2" << std::endl;
-    TRY(AST::Select(
-            { { "id" } },
-            "test",
-            AST::Filter { .column = "id", .operation = AST::Filter::Operation::LessEqual, .rhs = Value::create_int(2) })
-            .execute(db))
-        .repl_dump(std::cout);
+    // std::cout << "SELECT id FROM test WHERE id <= 2" << std::endl;
+    // TRY(AST::Select(
+    //         { { "id" } },
+    //         "test",
+    //         AST::Filter { .column = "id", .operation = AST::Filter::Operation::LessEqual, .rhs = Value::create_int(2) })
+    //         .execute(db))
+    //     .repl_dump(std::cout);
 
     std::cout << "SELECT number, string FROM test ORDER BY number ASC" << std::endl;
     TRY(AST::Select(
@@ -49,34 +51,34 @@ DbErrorOr<void> run_query(Database& db) {
             .execute(db))
         .repl_dump(std::cout);
 
-    std::cout << "SELECT number, string FROM test ORDER BY number DESC" << std::endl;
-    TRY(AST::Select(
-            { { "id", "number", "string" } },
-            "test",
-            {},
-            AST::OrderBy { .column_name = "number", .order = AST::OrderBy::Order::Descending})
-            .execute(db))
-        .repl_dump(std::cout);
+    // std::cout << "SELECT number, string FROM test ORDER BY number DESC" << std::endl;
+    // TRY(AST::Select(
+    //         { { "id", "number", "string" } },
+    //         "test",
+    //         {},
+    //         AST::OrderBy { .column_name = "number", .order = AST::OrderBy::Order::Descending})
+    //         .execute(db))
+    //     .repl_dump(std::cout);
 
-    std::cout << "SELECT TOP 2 number, string FROM test ORDER BY number DESC" << std::endl;
-    TRY(AST::Select(
-            { { "id", "number", "string" } },
-            "test",
-            {},
-            AST::OrderBy { .column_name = "number", .order = AST::OrderBy::Order::Descending},
-            AST::Top{.unit = AST::Top::Unit::Val, .value = 2})
-            .execute(db))
-        .repl_dump(std::cout);
+    // std::cout << "SELECT TOP 2 number, string FROM test ORDER BY number DESC" << std::endl;
+    // TRY(AST::Select(
+    //         { { "id", "number", "string" } },
+    //         "test",
+    //         {},
+    //         AST::OrderBy { .column_name = "number", .order = AST::OrderBy::Order::Descending},
+    //         AST::Top{.unit = AST::Top::Unit::Val, .value = 2})
+    //         .execute(db))
+    //     .repl_dump(std::cout);
 
-    std::cout << "SELECT TOP 75 PERC number, string FROM test ORDER BY number DESC" << std::endl;
-    TRY(AST::Select(
-            { { "id", "number", "string" } },
-            "test",
-            {},
-            AST::OrderBy { .column_name = "number", .order = AST::OrderBy::Order::Descending},
-            AST::Top{.unit = AST::Top::Unit::Perc, .value = 75})
-            .execute(db))
-        .repl_dump(std::cout);
+    // std::cout << "SELECT TOP 75 PERC number, string FROM test ORDER BY number DESC" << std::endl;
+    // TRY(AST::Select(
+    //         { { "id", "number", "string" } },
+    //         "test",
+    //         {},
+    //         AST::OrderBy { .column_name = "number", .order = AST::OrderBy::Order::Descending},
+    //         AST::Top{.unit = AST::Top::Unit::Perc, .value = 75})
+    //         .execute(db))
+    //     .repl_dump(std::cout);
 
     return {};
 }

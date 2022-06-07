@@ -56,7 +56,7 @@ DbErrorOr<Value> Select::execute(Database& db) const {
                 // TODO: Actually handle error
                 return false;
             }
-            return (lhs_value.release_value() < rhs_value.release_value()) == (m_order_by->order == OrderBy::Order::Ascending);
+            return (lhs_value.release_value() > rhs_value.release_value()) == (m_order_by->order == OrderBy::Order::Ascending);
         });
     }
 
