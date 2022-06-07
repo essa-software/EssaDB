@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Row.hpp"
 #include "SelectResult.hpp"
 #include "Value.hpp"
 
@@ -63,7 +64,7 @@ public:
         , m_from(std::move(from))
         , m_where(std::move(where)) { }
 
-    DbErrorOr<SelectResult> execute(Database&) const;
+    DbErrorOr<Value> execute(Database&) const;
 
 private:
     SelectColumns m_columns;

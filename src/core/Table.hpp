@@ -2,6 +2,7 @@
 
 #include "Column.hpp"
 #include "DbError.hpp"
+#include "RowWithColumnNames.hpp"
 #include "SelectResult.hpp"
 
 #include <set>

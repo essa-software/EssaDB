@@ -19,10 +19,10 @@ DbErrorOr<void> run_query(Database& db) {
     TRY(table->insert({ { "id", Value::create_int(3) }, { "number", Value::create_int(420) } }));
 
     std::cout << "SELECT * FROM test" << std::endl;
-    TRY(AST::Select({}, "test", {}).execute(db)).display();
+    TRY(AST::Select({}, "test", {}).execute(db)).repl_dump(std::cout);
 
     std::cout << "SELECT number, string FROM test" << std::endl;
-    TRY(AST::Select({ { "number", "string" } }, "test", {}).execute(db)).display();
+    TRY(AST::Select({ { "number", "string" } }, "test", {}).execute(db)).repl_dump(std::cout);
 
     std::cout << "SELECT id, number FROM test WHERE id = 2" << std::endl;
     TRY(AST::Select(
@@ -30,7 +30,7 @@ DbErrorOr<void> run_query(Database& db) {
             "test",
             AST::Filter { .column = "id", .operation = AST::Filter::Operation::Equal, .rhs = Value::create_int(2) })
             .execute(db))
-        .display();
+        .repl_dump(std::cout);
 
     std::cout << "SELECT id FROM test WHERE id <= 2" << std::endl;
     TRY(AST::Select(
@@ -38,7 +38,7 @@ DbErrorOr<void> run_query(Database& db) {
             "test",
             AST::Filter { .column = "id", .operation = AST::Filter::Operation::LessEqual, .rhs = Value::create_int(2) })
             .execute(db))
-        .display();
+        .repl_dump(std::cout);
 
     return {};
 }

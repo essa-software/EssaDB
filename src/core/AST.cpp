@@ -4,7 +4,7 @@
 
 namespace Db::Core::AST {
 
-DbErrorOr<SelectResult> Select::execute(Database& db) const {
+DbErrorOr<Value> Select::execute(Database& db) const {
     // Comments specify SQL Conceptional Evaluation:
     // https://docs.microsoft.com/en-us/sql/t-sql/queries/select-transact-sql#logical-processing-order-of-the-select-statement
     // FROM
@@ -49,7 +49,7 @@ DbErrorOr<SelectResult> Select::execute(Database& db) const {
             column_names.push_back(column.to_string());
     }
 
-    return SelectResult { column_names, std::move(rows) };
+    return Value::create_select_result({ column_names, std::move(rows) });
 }
 
 }
