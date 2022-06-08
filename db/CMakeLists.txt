@@ -10,6 +10,7 @@ add_library(
 
     sql/Lexer.cpp
     sql/Parser.cpp
+    sql/SQL.cpp
 )
 
 setup_target(essadb)
