@@ -11,6 +11,7 @@ struct Token {
         KeywordFrom,
         Identifier,
         Asterisk,
+        Comma,
         Garbage
     };
 
