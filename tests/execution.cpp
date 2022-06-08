@@ -10,7 +10,7 @@
 using namespace Db::Core;
 
 DbErrorOr<void> select_simple(Database& db) {
-    auto result = TRY(TRY(AST::Select({}, "test", {}).execute(db)).to_select_result());
+    auto result = TRY(TRY(Db::Sql::run_query(db, "SELECT * FROM test")).to_select_result());
     TRY(expect(result.column_names() == std::vector<std::string> { "id", "number", "string" }, "columns have proper names"));
     TRY(expect(result.rows().size() == 6, "all rows were returned"));
     return {};
@@ -18,7 +18,7 @@ DbErrorOr<void> select_simple(Database& db) {
 
 DbErrorOr<void> select_columns(Database& db) {
     // TODO: Returns columns in given order, not in table order
-    auto result = TRY(TRY(AST::Select({ { "number", "string" } }, "test", {}).execute(db)).to_select_result());
+    auto result = TRY(TRY(Db::Sql::run_query(db, "SELECT number, string FROM test")).to_select_result());
     TRY(expect(result.column_names() == std::vector<std::string> { "number", "string" }, "columns have proper names"));
     TRY(expect(result.rows().size() == 6, "all rows were returned"));
     return {};
