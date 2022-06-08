@@ -7,6 +7,8 @@ add_library(
     core/SelectResult.cpp
     core/Table.cpp
     core/Value.cpp
+
+    sql/Lexer.cpp
 )
 
 setup_target(essadb)
