@@ -97,6 +97,18 @@ DbErrorOr<void> select_top_perc(Database& db) {
     return {};
 }
 
+DbErrorOr<void> csv_export_import(Database& db) {
+    auto table = db.table("test");
+    table.release_value()->export_to_csv("test.csv");
+
+    db.create_table("test2");
+    table = db.table("test2");
+
+    auto result = table.release_value()->import_from_csv("test.csv");
+
+    return {};
+}
+
 using TestFunc = DbErrorOr<void>(Database&);
 
 int main() {
@@ -115,7 +127,8 @@ int main() {
         { "select_order_by", select_order_by },
         { "select_order_by_desc", select_order_by_desc },
         { "select_top_number", select_top_number },
-        { "select_top_perc", select_top_perc }
+        { "select_top_perc", select_top_perc },
+        { "csv_export_import", csv_export_import }
     };
 
     for (auto const& func : funcs) {

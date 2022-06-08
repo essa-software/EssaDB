@@ -17,6 +17,9 @@ public:
     std::vector<Column> const& columns() const { return m_columns; }
     std::vector<Row> const& rows() const { return m_rows; }
 
+    void export_to_csv(const std::string& path) const;
+    DbErrorOr<void> import_from_csv(const std::string& path);
+
     DbErrorOr<void> add_column(Column);
     DbErrorOr<void> insert(RowWithColumnNames::MapType);
 
