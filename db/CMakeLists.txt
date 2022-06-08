@@ -9,6 +9,7 @@ add_library(
     core/Value.cpp
 
     sql/Lexer.cpp
+    sql/Parser.cpp
 )
 
 setup_target(essadb)
