@@ -1,22 +1,43 @@
-#include "setup.hpp"
+#include <tests/setup.hpp>
 
 #include <db/core/AST.hpp>
 #include <db/core/Database.hpp>
 #include <db/core/SelectResult.hpp>
+#include <db/sql/SQL.hpp>
 
 #include <iostream>
 #include <string>
 
 using namespace Db::Core;
 
-DbErrorOr<void> select_simple(Database& db) {
+DbErrorOr<Database> setup_db() {
+    Database db;
+    db.create_table("test");
+    auto table = TRY(db.table("test"));
+
+    TRY(table->add_column(Column("id", Value::Type::Int)));
+    TRY(table->add_column(Column("number", Value::Type::Int)));
+    TRY(table->add_column(Column("string", Value::Type::Varchar)));
+
+    TRY(table->insert({ { "id", Value::create_int(0) }, { "number", Value::create_int(69) }, { "string", Value::create_varchar("test") } }));
+    TRY(table->insert({ { "id", Value::create_int(1) }, { "number", Value::create_int(2137) } }));
+    TRY(table->insert({ { "id", Value::create_int(2) }, { "number", Value::null() } }));
+    TRY(table->insert({ { "id", Value::create_int(3) }, { "number", Value::create_int(420) } }));
+    TRY(table->insert({ { "id", Value::create_int(4) }, { "number", Value::create_int(69) }, { "string", Value::create_varchar("test3") } }));
+    TRY(table->insert({ { "id", Value::create_int(5) }, { "number", Value::create_int(69) }, { "string", Value::create_varchar("test2") } }));
+    return db;
+}
+
+DbErrorOr<void> select_simple() {
+    auto db = TRY(setup_db());
     auto result = TRY(TRY(Db::Sql::run_query(db, "SELECT * FROM test")).to_select_result());
     TRY(expect(result.column_names() == std::vector<std::string> { "id", "number", "string" }, "columns have proper names"));
     TRY(expect(result.rows().size() == 6, "all rows were returned"));
     return {};
 }
 
-DbErrorOr<void> select_columns(Database& db) {
+DbErrorOr<void> select_columns() {
+    auto db = TRY(setup_db());
     // TODO: Returns columns in given order, not in table order
     auto result = TRY(TRY(Db::Sql::run_query(db, "SELECT number, string FROM test")).to_select_result());
     TRY(expect(result.column_names() == std::vector<std::string> { "number", "string" }, "columns have proper names"));
@@ -24,7 +45,8 @@ DbErrorOr<void> select_columns(Database& db) {
     return {};
 }
 
-DbErrorOr<void> select_where(Database& db) {
+DbErrorOr<void> select_where() {
+    auto db = TRY(setup_db());
     auto result = TRY(TRY(AST::Select(
                               { { "id", "number" } },
                               "test",
@@ -36,7 +58,8 @@ DbErrorOr<void> select_where(Database& db) {
     return {};
 }
 
-DbErrorOr<void> select_where_operator(Database& db) {
+DbErrorOr<void> select_where_operator() {
+    auto db = TRY(setup_db());
     auto result = TRY(TRY(AST::Select(
                               { { "id" } },
                               "test",
@@ -47,7 +70,8 @@ DbErrorOr<void> select_where_operator(Database& db) {
     return {};
 }
 
-DbErrorOr<void> select_order_by(Database& db) {
+DbErrorOr<void> select_order_by() {
+    auto db = TRY(setup_db());
     auto result = TRY(TRY(AST::Select(
                               { { "id", "number", "string" } },
                               "test",
@@ -59,7 +83,8 @@ DbErrorOr<void> select_order_by(Database& db) {
     return {};
 }
 
-DbErrorOr<void> select_order_by_desc(Database& db) {
+DbErrorOr<void> select_order_by_desc() {
+    auto db = TRY(setup_db());
     auto result = TRY(TRY(AST::Select(
                               { { "id", "number", "string" } },
                               "test",
@@ -71,7 +96,8 @@ DbErrorOr<void> select_order_by_desc(Database& db) {
     return {};
 }
 
-DbErrorOr<void> select_top_number(Database& db) {
+DbErrorOr<void> select_top_number() {
+    auto db = TRY(setup_db());
     auto result = TRY(TRY(AST::Select(
                               { { "id", "number", "string" } },
                               "test",
@@ -84,7 +110,8 @@ DbErrorOr<void> select_top_number(Database& db) {
     return {};
 }
 
-DbErrorOr<void> select_top_perc(Database& db) {
+DbErrorOr<void> select_top_perc() {
+    auto db = TRY(setup_db());
     auto result = TRY(TRY(AST::Select(
                               { { "id", "number", "string" } },
                               "test",
@@ -97,29 +124,8 @@ DbErrorOr<void> select_top_perc(Database& db) {
     return {};
 }
 
-DbErrorOr<void> csv_export_import(Database& db) {
-    auto table = db.table("test");
-    table.release_value()->export_to_csv("test.csv");
-
-    db.create_table("test2");
-    table = db.table("test2");
-
-    auto result = table.release_value()->import_from_csv("test.csv");
-
-    return {};
-}
-
-using TestFunc = DbErrorOr<void>(Database&);
-
-int main() {
-    Db::Core::Database db;
-    auto error = setup_db(db);
-    if (error.is_error()) {
-        std::cout << "Failed to setup db: " << error.release_error().message() << std::endl;
-        return 1;
-    }
-
-    std::map<std::string, TestFunc*> funcs = {
+std::map<std::string, TestFunc*> get_tests() {
+    return {
         { "select_simple", select_simple },
         { "select_columns", select_columns },
         { "select_where", select_where },
@@ -128,18 +134,5 @@ int main() {
         { "select_order_by_desc", select_order_by_desc },
         { "select_top_number", select_top_number },
         { "select_top_perc", select_top_perc },
-        { "csv_export_import", csv_export_import }
     };
-
-    for (auto const& func : funcs) {
-        auto f = func.second(db);
-        if (f.is_error()) {
-            std::cout << "FAIL " << func.first << " " << f.release_error().message() << std::endl;
-        }
-        else {
-            std::cout << "PASS " << func.first << std::endl;
-        }
-    }
-
-    return 0;
 }
