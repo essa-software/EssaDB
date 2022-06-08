@@ -1,7 +1,7 @@
 #include "Value.hpp"
 
 #include "Row.hpp"
-#include "core/SelectResult.hpp"
+#include "SelectResult.hpp"
 
 #include <ostream>
 
@@ -57,6 +57,12 @@ DbErrorOr<std::string> Value::to_string() const {
         return DbError { "Select result is not a string" };
     }
     __builtin_unreachable();
+}
+
+DbErrorOr<SelectResult> Value::to_select_result() const {
+    if (m_type != Type::SelectResult)
+        return DbError { "Value '" + to_debug_string() + "' is not a select result" };
+    return std::get<SelectResult>(*this);
 }
 
 std::string Value::to_debug_string() const {

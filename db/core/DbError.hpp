@@ -1,7 +1,7 @@
 #pragma once
 
 #include <string>
-#include <util/Error.hpp>
+#include <db/util/Error.hpp>
 
 namespace Db::Core {
 

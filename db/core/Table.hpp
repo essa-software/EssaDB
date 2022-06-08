@@ -6,7 +6,7 @@
 #include "SelectResult.hpp"
 
 #include <set>
-#include <util/NonCopyable.hpp>
+#include <db/util/NonCopyable.hpp>
 
 namespace Db::Core {
 

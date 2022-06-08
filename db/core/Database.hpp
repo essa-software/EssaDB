@@ -4,7 +4,7 @@
 
 #include <string>
 #include <unordered_map>
-#include <util/NonCopyable.hpp>
+#include <db/util/NonCopyable.hpp>
 
 namespace Db::Core {
 

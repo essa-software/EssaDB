@@ -30,10 +30,11 @@ public:
 
     DbErrorOr<int> to_int() const;
     DbErrorOr<std::string> to_string() const;
-    std::string to_debug_string() const;
-
+    DbErrorOr<SelectResult> to_select_result() const;
+    
     Type type() const { return m_type; }
 
+    std::string to_debug_string() const;
     void repl_dump(std::ostream& out) const;
     friend std::ostream& operator<<(std::ostream& out, Value const&);
 
