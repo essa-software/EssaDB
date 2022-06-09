@@ -34,6 +34,7 @@ DbErrorOr<void> select_simple() {
     auto result = TRY(TRY(Db::Sql::run_query(db, "SELECT * FROM test")).to_select_result());
     TRY(expect(result.column_names() == std::vector<std::string> { "id", "number", "string" }, "columns have proper names"));
     TRY(expect(result.rows().size() == 6, "all rows were returned"));
+    TRY(expect(result.rows()[0].value_count() == 3, "rows have proper column count"));
     return {};
 }
 
