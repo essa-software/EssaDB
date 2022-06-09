@@ -10,7 +10,7 @@ namespace Db::Core {
 
 class Database : public Util::NonCopyable {
 public:
-    void create_table(std::string name);
+    Table& create_table(std::string name);
     DbErrorOr<Table*> table(std::string name);
 
 private:

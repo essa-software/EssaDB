@@ -128,4 +128,12 @@ DbErrorOr<Value> Select::execute(Database& db) const {
     return Value::create_select_result({ column_names, std::move(rows) });
 }
 
+DbErrorOr<Value> CreateTable::execute(Database& db) const {
+    auto& table = db.create_table(m_name);
+    for (auto const& column : m_columns) {
+        TRY(table.add_column(column));
+    }
+    return { Value::null() };
+}
+
 }

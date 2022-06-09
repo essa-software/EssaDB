@@ -10,6 +10,8 @@ struct Token {
         KeywordSelect,
         KeywordFrom,
         KeywordAfterSelect,
+        KeywordCreate,
+        KeywordTable,
         Identifier,
         Arg,
         Asterisk,

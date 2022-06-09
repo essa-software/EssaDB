@@ -112,7 +112,7 @@ struct OrderBy {
         Descending
     };
 
-    struct OrderBySet{
+    struct OrderBySet {
         std::string name;
         Order order = Order::Ascending;
     };
@@ -152,6 +152,19 @@ private:
     std::optional<Filter> m_where;
     std::optional<OrderBy> m_order_by;
     std::optional<Top> m_top;
+};
+
+class CreateTable : public Statement {
+public:
+    CreateTable(std::string name, std::vector<Column> columns)
+        : m_name(std::move(name))
+        , m_columns(std::move(columns)) { }
+
+    virtual DbErrorOr<Value> execute(Database&) const override;
+
+private:
+    std::string m_name;
+    std::vector<Column> m_columns;
 };
 
 }

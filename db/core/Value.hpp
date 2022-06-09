@@ -22,6 +22,15 @@ public:
         SelectResult,
     };
 
+    static std::optional<Type> type_from_string(std::string const& str) {
+        // TODO: Case-insensitive match
+        if (str == "INT")
+            return Type::Int;
+        if (str == "VARCHAR")
+            return Type::Varchar;
+        return {};
+    }
+
     Value() = default;
     static Value null();
     static Value create_int(int i);
@@ -31,7 +40,7 @@ public:
     DbErrorOr<int> to_int() const;
     DbErrorOr<std::string> to_string() const;
     DbErrorOr<SelectResult> to_select_result() const;
-    
+
     Type type() const { return m_type; }
 
     std::string to_debug_string() const;

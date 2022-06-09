@@ -15,6 +15,7 @@ public:
 
 private:
     Core::DbErrorOr<std::unique_ptr<Core::AST::Select>> parse_select();
+    Core::DbErrorOr<std::unique_ptr<Core::AST::CreateTable>> parse_create_table();
     Core::DbErrorOr<std::unique_ptr<Core::AST::Expression>> parse_expression();
     Core::DbErrorOr<std::unique_ptr<Core::AST::Function>> parse_function(std::string name);
 

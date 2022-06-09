@@ -11,6 +11,13 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Statement>> Parser::parse_statement()
     if (keyword.type == Token::Type::KeywordSelect) {
         return TRY(parse_select());
     }
+    if (keyword.type == Token::Type::KeywordCreate) {
+        m_offset++;
+        auto what_to_create = m_tokens[m_offset++];
+        if (what_to_create.type == Token::Type::KeywordTable)
+            return TRY(parse_create_table());
+        return Core::DbError { "Expected thing to create, got '" + what_to_create.value + "'" };
+    }
     return Core::DbError { "Expected statement, got '" + keyword.value + '"' };
 }
 
@@ -71,6 +78,45 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Select>> Parser::parse_select() {
         std::optional<Core::AST::Filter> {},
         std::optional<Core::AST::OrderBy> {},
         std::move(top));
+}
+
+Core::DbErrorOr<std::unique_ptr<Core::AST::CreateTable>> Parser::parse_create_table() {
+    auto table_name = m_tokens[m_offset++];
+    if (table_name.type != Token::Type::Identifier)
+        return Core::DbError { "Expected table name" };
+
+    auto paren_open = m_tokens[m_offset];
+    if (paren_open.type != Token::Type::ParenOpen)
+        return std::make_unique<Core::AST::CreateTable>(table_name.value, std::vector<Core::Column> {});
+    m_offset++;
+
+    std::vector<Core::Column> columns;
+    while (true) {
+        auto name = m_tokens[m_offset++];
+        if (name.type != Token::Type::Identifier)
+            return Core::DbError { "Expected column name" };
+
+        auto type_token = m_tokens[m_offset++];
+        if (type_token.type != Token::Type::Identifier)
+            return Core::DbError { "Expected column type" };
+
+        auto type = Core::Value::type_from_string(type_token.value);
+        if (!type.has_value())
+            return Core::DbError { "Invalid type: '" + type_token.value + "'" };
+
+        columns.push_back(Core::Column { name.value, *type });
+
+        auto comma = m_tokens[m_offset];
+        if (comma.type != Token::Type::Comma)
+            break;
+        m_offset++;
+    }
+
+    auto paren_close = m_tokens[m_offset++];
+    if (paren_close.type != Token::Type::ParenClose)
+        return Core::DbError { "Expected ')' to close column list" };
+
+    return std::make_unique<Core::AST::CreateTable>(table_name.value, columns);
 }
 
 Core::DbErrorOr<std::unique_ptr<Core::AST::Expression>> Parser::parse_expression() {

@@ -53,6 +53,14 @@ std::vector<Token> Lexer::lex() {
                 tokens.push_back(Token { .type = Token::Type::KeywordSelect, .value = "SELECT" });
                 m_select_syntax = 1;
             }
+            else if (compare_case_insensitive(id, "CREATE")) {
+                tokens.push_back(Token { .type = Token::Type::KeywordCreate, .value = "CREATE" });
+                m_select_syntax = 1;
+            }
+            else if (compare_case_insensitive(id, "TABLE")) {
+                tokens.push_back(Token { .type = Token::Type::KeywordTable, .value = "TABLE" });
+                m_select_syntax = 1;
+            }
             else if (m_select_syntax && (compare_case_insensitive(id, "TOP") || compare_case_insensitive(id, "DISTINCT"))) {
                 tokens.push_back(Token { .type = Token::Type::KeywordAfterSelect, .value = id });
             }

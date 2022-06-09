@@ -13,12 +13,8 @@ using namespace Db::Core;
 
 DbErrorOr<Database> setup_db() {
     Database db;
-    db.create_table("test");
+    TRY(Db::Sql::run_query(db, "CREATE TABLE test (id INT, number INT, string VARCHAR)"));
     auto table = TRY(db.table("test"));
-
-    TRY(table->add_column(Column("id", Value::Type::Int)));
-    TRY(table->add_column(Column("number", Value::Type::Int)));
-    TRY(table->add_column(Column("string", Value::Type::Varchar)));
 
     TRY(table->insert({ { "id", Value::create_int(0) }, { "number", Value::create_int(69) }, { "string", Value::create_varchar("test") } }));
     TRY(table->insert({ { "id", Value::create_int(1) }, { "number", Value::create_int(2137) } }));

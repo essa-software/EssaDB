@@ -2,8 +2,8 @@
 
 namespace Db::Core {
 
-void Database::create_table(std::string name) {
-    m_tables.emplace(name, Table());
+Table& Database::create_table(std::string name) {
+    return m_tables.emplace(name, Table()).first->second;
 }
 
 DbErrorOr<Table*> Database::table(std::string name) {
