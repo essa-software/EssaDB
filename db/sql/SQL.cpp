@@ -12,9 +12,9 @@ Core::DbErrorOr<Core::Value> run_query(Core::Database& db, std::string const& qu
     std::istringstream in { query };
     Db::Sql::Lexer lexer { in };
     auto tokens = lexer.lex();
-    for (auto const& token : tokens) {
-        std::cout << (int)token.type << ": " << token.value << std::endl;
-    }
+    // for (auto const& token : tokens) {
+    //     std::cout << (int)token.type << ": " << token.value << std::endl;
+    // }
 
     Db::Sql::Parser parser { std::move(tokens) };
     auto select = TRY(parser.parse_select());
