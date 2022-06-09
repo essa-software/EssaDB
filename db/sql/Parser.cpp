@@ -50,7 +50,7 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Select>> Parser::parse_select() {
     auto maybe_asterisk = m_tokens[m_offset];
     if (maybe_asterisk.type != Token::Type::Asterisk) {
         while (true) {
-            std::cout << "PARSE EXPRESSION AT " << m_offset << std::endl;
+            //std::cout << "PARSE EXPRESSION AT " << m_offset << std::endl;
 
             auto expression = TRY(parse_expression());
             columns.push_back(std::move(expression));
@@ -137,7 +137,7 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Function>> Parser::parse_function(std
 
     std::vector<std::unique_ptr<Core::AST::Expression>> args;
     while (true) {
-        std::cout << "PARSE EXPRESSION AT " << m_offset << std::endl;
+        //std::cout << "PARSE EXPRESSION AT " << m_offset << std::endl;
 
         auto expression = TRY(parse_expression());
         args.push_back(std::move(expression));
