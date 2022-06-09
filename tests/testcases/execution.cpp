@@ -98,28 +98,14 @@ DbErrorOr<void> select_order_by_desc() {
 
 DbErrorOr<void> select_top_number() {
     auto db = TRY(setup_db());
-    auto result = TRY(TRY(AST::Select(
-                              { { "id", "number", "string" } },
-                              "test",
-                              {},
-                              AST::OrderBy { .column_name = "number", .order = AST::OrderBy::Order::Descending },
-                              AST::Top { .unit = AST::Top::Unit::Val, .value = 2 })
-                              .execute(db))
-                          .to_select_result());
+    auto result = TRY(TRY(Db::Sql::run_query(db, "SELECT TOP 2 * FROM test")).to_select_result());
     TRY(expect(result.rows().size() == 2, "select result is truncated to specified value"));
     return {};
 }
 
 DbErrorOr<void> select_top_perc() {
     auto db = TRY(setup_db());
-    auto result = TRY(TRY(AST::Select(
-                              { { "id", "number", "string" } },
-                              "test",
-                              {},
-                              AST::OrderBy { .column_name = "number", .order = AST::OrderBy::Order::Descending },
-                              AST::Top { .unit = AST::Top::Unit::Perc, .value = 75 })
-                              .execute(db))
-                          .to_select_result());
+    auto result = TRY(TRY(Db::Sql::run_query(db, "SELECT TOP 75 PERC * FROM test")).to_select_result());
     TRY(expect_equal<size_t>(result.rows().size(), 4, "select result is truncated to specified value"));
     return {};
 }

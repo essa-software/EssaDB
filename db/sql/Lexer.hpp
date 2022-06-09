@@ -9,7 +9,9 @@ struct Token {
     enum class Type {
         KeywordSelect,
         KeywordFrom,
+        KeywordAfterSelect,
         Identifier,
+        Arg,
         Asterisk,
         Comma,
         Garbage
@@ -28,6 +30,8 @@ public:
 
 private:
     std::istream& m_in;
+
+    bool m_select_syntax = 0;
 };
 
 }
