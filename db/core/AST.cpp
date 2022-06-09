@@ -41,8 +41,18 @@ DbErrorOr<Value> Select::execute(Database& db) const {
 
         // SELECT
         std::vector<Value> values;
-        for (auto const& column : m_columns.columns()) {
-            values.push_back(TRY(column->evaluate(context, row)));
+        if (m_columns.select_all()) {
+            for (auto const& column : table->columns()) {
+                auto table_column = table->get_column(column.name());
+                if (!table_column)
+                    return DbError { "Internal error: invalid column requested for *: '" + column.name() + "'" };
+                values.push_back(row.value(table_column->second));
+            }
+        }
+        else {
+            for (auto const& column : m_columns.columns()) {
+                values.push_back(TRY(column->evaluate(context, row)));
+            }
         }
         rows.push_back(Row { values });
     }
