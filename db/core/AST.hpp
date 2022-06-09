@@ -39,6 +39,20 @@ private:
     std::string m_id;
 };
 
+class Function : public Expression {
+public:
+    explicit Function(std::string name, std::vector<std::unique_ptr<Expression>> args)
+        : m_name(std::move(name))
+        , m_args(std::move(args)) { }
+
+    virtual DbErrorOr<Value> evaluate(EvaluationContext&, Row const&) const override;
+    virtual std::string to_string() const override { return m_name + "(TODO)"; }
+
+private:
+    std::string m_name;
+    std::vector<std::unique_ptr<Expression>> m_args;
+};
+
 struct Filter {
     std::string column;
     enum class Operation {

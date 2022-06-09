@@ -14,6 +14,8 @@ struct Token {
         Arg,
         Asterisk,
         Comma,
+        ParenOpen,
+        ParenClose,
         Garbage
     };
 

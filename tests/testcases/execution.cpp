@@ -79,9 +79,9 @@ DbErrorOr<void> select_order_by() {
                               "test",
                               {},
                               AST::OrderBy { .columns = {
-                                    AST::OrderBy::OrderBySet{.name = "string", .order = AST::OrderBy::Order::Ascending},
-                                    AST::OrderBy::OrderBySet{.name = "number", .order = AST::OrderBy::Order::Descending},
-                                } } )
+                                                 AST::OrderBy::OrderBySet { .name = "string", .order = AST::OrderBy::Order::Ascending },
+                                                 AST::OrderBy::OrderBySet { .name = "number", .order = AST::OrderBy::Order::Descending },
+                                             } })
                               .execute(db))
                           .to_select_result());
     TRY(expect(TRY(result.rows()[1].value(1).to_string()) < TRY(result.rows()[5].value(1).to_string()), "values are sorted"));
@@ -94,9 +94,9 @@ DbErrorOr<void> select_order_by_desc() {
                               { { "id", "number", "string" } },
                               "test",
                               {},
-                              AST::OrderBy { .columns = {AST::OrderBy::OrderBySet{.name = "number", .order = AST::OrderBy::Order::Descending} } } )
-                              .execute(db))                         
-                            .to_select_result());
+                              AST::OrderBy { .columns = { AST::OrderBy::OrderBySet { .name = "number", .order = AST::OrderBy::Order::Descending } } })
+                              .execute(db))
+                          .to_select_result());
     TRY(expect(TRY(result.rows()[1].value(1).to_string()) > TRY(result.rows()[5].value(1).to_string()), "values are sorted"));
     return {};
 }
@@ -115,6 +115,14 @@ DbErrorOr<void> select_top_perc() {
     return {};
 }
 
+DbErrorOr<void> select_function_len() {
+    auto db = TRY(setup_db());
+    auto result = TRY(TRY(Db::Sql::run_query(db, "SELECT id, LEN(string) FROM test")).to_select_result());
+    TRY(expect_equal<size_t>(result.rows().size(), 6, "all rows were returned"));
+    TRY(expect_equal<size_t>(TRY(result.rows()[0].value(1).to_int()), 4, "string length was returned"));
+    return {};
+}
+
 std::map<std::string, TestFunc*> get_tests() {
     return {
         { "select_simple", select_simple },
@@ -125,5 +133,6 @@ std::map<std::string, TestFunc*> get_tests() {
         { "select_order_by_desc", select_order_by_desc },
         { "select_top_number", select_top_number },
         { "select_top_perc", select_top_perc },
+        { "select_function_len", select_function_len },
     };
 }

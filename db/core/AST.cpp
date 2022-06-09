@@ -13,6 +13,25 @@ DbErrorOr<Value> Identifier::evaluate(EvaluationContext& context, Row const& row
     return row.value(column->second);
 }
 
+DbErrorOr<Value> Function::evaluate(EvaluationContext& context, Row const& row) const {
+    if (m_name == "LEN") {
+        // https://www.w3schools.com/sqL/func_sqlserver_len.asp
+        if (m_args.size() != 1)
+            return DbError { "Expected arg 0: string" };
+        auto arg = TRY(m_args[0]->evaluate(context, row));
+        switch (arg.type()) {
+        case Value::Type::Null:
+            // If string is NULL, it returns NULL
+            return Value::null();
+        default:
+            // FIXME: What to do with ints?
+            return Value::create_int(TRY(arg.to_string()).size());
+        }
+    }
+
+    return DbError { "Undefined function: '" + m_name + "'" };
+}
+
 DbErrorOr<Value> Select::execute(Database& db) const {
     // Comments specify SQL Conceptional Evaluation:
     // https://docs.microsoft.com/en-us/sql/t-sql/queries/select-transact-sql#logical-processing-order-of-the-select-statement
@@ -61,14 +80,14 @@ DbErrorOr<Value> Select::execute(Database& db) const {
 
     // ORDER BY
     if (m_order_by) {
-        for(const auto& column : m_order_by->columns){
+        for (const auto& column : m_order_by->columns) {
             auto order_by_column = table->get_column(column.name)->second;
             if (!order_by_column)
                 return DbError { "Invalid column to order by: " + column.name };
         }
         std::stable_sort(rows.begin(), rows.end(), [&](Row const& lhs, Row const& rhs) -> bool {
             // TODO: Do sorting properly
-            for(const auto& column : m_order_by->columns){
+            for (const auto& column : m_order_by->columns) {
                 auto order_by_column = table->get_column(column.name)->second;
 
                 auto lhs_value = lhs.value(order_by_column).to_string();
@@ -78,7 +97,7 @@ DbErrorOr<Value> Select::execute(Database& db) const {
                     return false;
                 }
 
-                if(lhs_value.value() != rhs_value.value())
+                if (lhs_value.value() != rhs_value.value())
                     return (lhs_value.release_value() < rhs_value.release_value()) == (column.order == OrderBy::Order::Ascending);
             }
 

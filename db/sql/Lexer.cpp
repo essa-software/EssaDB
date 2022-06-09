@@ -75,6 +75,14 @@ std::vector<Token> Lexer::lex() {
             tokens.push_back(Token { .type = Token::Type::Comma, .value = "," });
             m_in.get();
         }
+        else if (next == '(') {
+            tokens.push_back(Token { .type = Token::Type::ParenOpen, .value = "(" });
+            m_in.get();
+        }
+        else if (next == ')') {
+            tokens.push_back(Token { .type = Token::Type::ParenClose, .value = ")" });
+            m_in.get();
+        }
         else {
             tokens.push_back(Token { .type = Token::Type::Garbage, .value = { next } });
             m_in.get();

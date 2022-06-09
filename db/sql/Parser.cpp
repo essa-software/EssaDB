@@ -64,10 +64,36 @@ Core::DbErrorOr<Core::AST::Select> Parser::parse_select() {
 Core::DbErrorOr<std::unique_ptr<Core::AST::Expression>> Parser::parse_expression() {
     auto token = m_tokens[m_offset++];
     if (token.type == Token::Type::Identifier) {
-        return std::make_unique<Core::AST::Identifier>(token.value);
+        auto postfix = m_tokens[m_offset];
+        if (postfix.type == Token::Type::ParenOpen)
+            return TRY(parse_function(std::move(token.value)));
+        else
+            return std::make_unique<Core::AST::Identifier>(token.value);
     }
     std::cout << m_offset << std::endl;
     return Core::DbError { "Invalid expression '" + token.value + "'" };
+}
+
+Core::DbErrorOr<std::unique_ptr<Core::AST::Function>> Parser::parse_function(std::string name) {
+    m_offset++; // (
+
+    std::vector<std::unique_ptr<Core::AST::Expression>> args;
+    while (true) {
+        std::cout << "PARSE EXPRESSION AT " << m_offset << std::endl;
+
+        auto expression = TRY(parse_expression());
+        args.push_back(std::move(expression));
+
+        auto comma_or_paren_close = m_tokens[m_offset];
+        if (comma_or_paren_close.type != Token::Type::Comma) {
+            if (comma_or_paren_close.type != Token::Type::ParenClose)
+                return Core::DbError { "Expected ')' to close function" };
+            m_offset++;
+            break;
+        }
+        m_offset++;
+    }
+    return std::make_unique<Core::AST::Function>(std::move(name), std::move(args));
 }
 
 }
