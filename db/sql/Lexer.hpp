@@ -16,6 +16,7 @@ struct Token {
         Comma,
         ParenOpen,
         ParenClose,
+        Eof,
         Garbage
     };
 

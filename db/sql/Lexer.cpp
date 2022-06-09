@@ -4,12 +4,12 @@
 #include <iostream>
 #include <string>
 
-bool compare_case_insensitive(const std::string& lhs, const std::string& rhs){
-    for(auto l = lhs.begin(), r = rhs.begin(); l != lhs.end() && r != rhs.end(); l++, r++){
+bool compare_case_insensitive(const std::string& lhs, const std::string& rhs) {
+    for (auto l = lhs.begin(), r = rhs.begin(); l != lhs.end() && r != rhs.end(); l++, r++) {
         char c1 = (*l > 97) ? *l - 32 : *l;
         char c2 = (*r > 97) ? *r - 32 : *r;
 
-        if(c1 != c2)
+        if (c1 != c2)
             return false;
     }
 
@@ -39,8 +39,10 @@ std::vector<Token> Lexer::lex() {
 
     while (true) {
         char next = m_in.peek();
-        if (next == EOF)
+        if (next == EOF) {
+            tokens.push_back(Token { .type = Token::Type::Eof, .value = "EOF" });
             return tokens;
+        }
 
         if (isalpha(next)) {
             auto id = consume_identifier();

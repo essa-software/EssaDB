@@ -11,9 +11,10 @@ public:
     Parser(std::vector<Token> tokens)
         : m_tokens(std::move(tokens)) { }
 
-    Core::DbErrorOr<Core::AST::Select> parse_select();
+    Core::DbErrorOr<std::unique_ptr<Core::AST::Statement>> parse_statement();
 
 private:
+    Core::DbErrorOr<std::unique_ptr<Core::AST::Select>> parse_select();
     Core::DbErrorOr<std::unique_ptr<Core::AST::Expression>> parse_expression();
     Core::DbErrorOr<std::unique_ptr<Core::AST::Function>> parse_function(std::string name);
 

@@ -129,7 +129,13 @@ struct Top {
     unsigned value = 100;
 };
 
-class Select {
+class Statement {
+public:
+    virtual ~Statement() = default;
+    virtual DbErrorOr<Value> execute(Database&) const = 0;
+};
+
+class Select : public Statement {
 public:
     Select(SelectColumns columns, std::string from, std::optional<Filter> where = {}, std::optional<OrderBy> order_by = {}, std::optional<Top> top = {})
         : m_columns(std::move(columns))
@@ -138,7 +144,7 @@ public:
         , m_order_by(std::move(order_by))
         , m_top(std::move(top)) { }
 
-    DbErrorOr<Value> execute(Database&) const;
+    virtual DbErrorOr<Value> execute(Database&) const override;
 
 private:
     SelectColumns m_columns;

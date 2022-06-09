@@ -6,7 +6,15 @@
 
 namespace Db::Sql {
 
-Core::DbErrorOr<Core::AST::Select> Parser::parse_select() {
+Core::DbErrorOr<std::unique_ptr<Core::AST::Statement>> Parser::parse_statement() {
+    auto keyword = m_tokens[m_offset];
+    if (keyword.type == Token::Type::KeywordSelect) {
+        return TRY(parse_select());
+    }
+    return Core::DbError { "Expected statement, got '" + keyword.value + '"' };
+}
+
+Core::DbErrorOr<std::unique_ptr<Core::AST::Select>> Parser::parse_select() {
     auto select = m_tokens[m_offset++];
     if (select.type != Token::Type::KeywordSelect)
         return Core::DbError { "Expected 'SELECT'" };
@@ -58,7 +66,11 @@ Core::DbErrorOr<Core::AST::Select> Parser::parse_select() {
     if (from_token.type != Token::Type::Identifier)
         return Core::DbError { "Expected table name after 'FROM'" };
 
-    return Core::AST::Select { Core::AST::SelectColumns { std::move(columns) }, from_token.value, {}, {}, std::move(top) };
+    return std::make_unique<Core::AST::Select>(Core::AST::SelectColumns { std::move(columns) },
+        from_token.value,
+        std::optional<Core::AST::Filter> {},
+        std::optional<Core::AST::OrderBy> {},
+        std::move(top));
 }
 
 Core::DbErrorOr<std::unique_ptr<Core::AST::Expression>> Parser::parse_expression() {
@@ -71,7 +83,7 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Expression>> Parser::parse_expression
             return std::make_unique<Core::AST::Identifier>(token.value);
     }
     std::cout << m_offset << std::endl;
-    return Core::DbError { "Invalid expression '" + token.value + "'" };
+    return Core::DbError { "Expected expression, got '" + token.value + "'" };
 }
 
 Core::DbErrorOr<std::unique_ptr<Core::AST::Function>> Parser::parse_function(std::string name) {
