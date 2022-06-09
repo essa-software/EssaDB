@@ -8,6 +8,7 @@
 #include <memory>
 #include <pthread.h>
 #include <set>
+#include <string>
 
 namespace Db::Core {
 class Database;
@@ -92,12 +93,17 @@ private:
 };
 
 struct OrderBy {
-    std::string column_name;
     enum class Order {
         Ascending,
         Descending
     };
-    Order order = Order::Ascending;
+
+    struct OrderBySet{
+        std::string name;
+        Order order = Order::Ascending;
+    };
+
+    std::vector<OrderBySet> columns;
 };
 
 struct Top {

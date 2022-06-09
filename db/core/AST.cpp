@@ -51,18 +51,28 @@ DbErrorOr<Value> Select::execute(Database& db) const {
 
     // ORDER BY
     if (m_order_by) {
-        auto order_by_column = table->get_column(m_order_by->column_name)->second;
-        if (!order_by_column)
-            return DbError { "Invalid column to order by: " + m_order_by->column_name };
+        for(const auto& column : m_order_by->columns){
+            auto order_by_column = table->get_column(column.name)->second;
+            if (!order_by_column)
+                return DbError { "Invalid column to order by: " + column.name };
+        }
         std::stable_sort(rows.begin(), rows.end(), [&](Row const& lhs, Row const& rhs) -> bool {
             // TODO: Do sorting properly
-            auto lhs_value = lhs.value(order_by_column).to_string();
-            auto rhs_value = rhs.value(order_by_column).to_string();
-            if (lhs_value.is_error() || rhs_value.is_error()) {
-                // TODO: Actually handle error
-                return false;
+            for(const auto& column : m_order_by->columns){
+                auto order_by_column = table->get_column(column.name)->second;
+
+                auto lhs_value = lhs.value(order_by_column).to_string();
+                auto rhs_value = rhs.value(order_by_column).to_string();
+                if (lhs_value.is_error() || rhs_value.is_error()) {
+                    // TODO: Actually handle error
+                    return false;
+                }
+
+                if(lhs_value.value() != rhs_value.value())
+                    return (lhs_value.release_value() < rhs_value.release_value()) == (column.order == OrderBy::Order::Ascending);
             }
-            return (lhs_value.release_value() > rhs_value.release_value()) == (m_order_by->order == OrderBy::Order::Ascending);
+
+            return false;
         });
     }
 

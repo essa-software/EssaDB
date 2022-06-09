@@ -7,6 +7,7 @@
 
 #include <iostream>
 #include <string>
+#include <utility>
 
 using namespace Db::Core;
 
@@ -76,7 +77,10 @@ DbErrorOr<void> select_order_by() {
                               { { "id", "number", "string" } },
                               "test",
                               {},
-                              AST::OrderBy { .column_name = "number", .order = AST::OrderBy::Order::Ascending })
+                              AST::OrderBy { .columns = {
+                                    AST::OrderBy::OrderBySet{.name = "number", .order = AST::OrderBy::Order::Ascending},
+                                    AST::OrderBy::OrderBySet{.name = "string", .order = AST::OrderBy::Order::Descending},
+                                } } )
                               .execute(db))
                           .to_select_result());
     TRY(expect(TRY(result.rows()[1].value(1).to_int()) < TRY(result.rows()[5].value(1).to_int()), "values are sorted"));
@@ -89,9 +93,9 @@ DbErrorOr<void> select_order_by_desc() {
                               { { "id", "number", "string" } },
                               "test",
                               {},
-                              AST::OrderBy { .column_name = "number", .order = AST::OrderBy::Order::Descending })
-                              .execute(db))
-                          .to_select_result());
+                              AST::OrderBy { .columns = {AST::OrderBy::OrderBySet{.name = "number", .order = AST::OrderBy::Order::Descending} } } )
+                              .execute(db))                         
+                            .to_select_result());
     TRY(expect(TRY(result.rows()[1].value(1).to_int()) > TRY(result.rows()[5].value(1).to_int()), "values are sorted"));
     return {};
 }
