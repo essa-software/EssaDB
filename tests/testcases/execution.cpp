@@ -48,7 +48,7 @@ DbErrorOr<void> select_columns() {
 DbErrorOr<void> select_where() {
     auto db = TRY(setup_db());
     auto result = TRY(TRY(AST::Select(
-                              { { "id", "number" } },
+                              { std::vector<std::string> { "id", "number" } },
                               "test",
                               AST::Filter { .column = "id", .operation = AST::Filter::Operation::Equal, .rhs = Value::create_int(2) })
                               .execute(db))

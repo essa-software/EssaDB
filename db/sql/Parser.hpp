@@ -14,6 +14,8 @@ public:
     Core::DbErrorOr<Core::AST::Select> parse_select();
 
 private:
+    Core::DbErrorOr<std::unique_ptr<Core::AST::Expression>> parse_expression();
+
     std::vector<Token> m_tokens;
     size_t m_offset = 0;
 };

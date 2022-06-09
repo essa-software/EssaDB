@@ -6,6 +6,13 @@
 
 namespace Db::Core::AST {
 
+DbErrorOr<Value> Identifier::evaluate(EvaluationContext& context, Row const& row) const {
+    auto column = context.table.get_column(m_id);
+    if (!column)
+        return DbError { "No such column: " + m_id };
+    return row.value(column->second);
+}
+
 DbErrorOr<Value> Select::execute(Database& db) const {
     // Comments specify SQL Conceptional Evaluation:
     // https://docs.microsoft.com/en-us/sql/t-sql/queries/select-transact-sql#logical-processing-order-of-the-select-statement
@@ -21,6 +28,8 @@ DbErrorOr<Value> Select::execute(Database& db) const {
     // TODO: ON
     // TODO: JOIN
 
+    EvaluationContext context { .table = *table };
+
     std::vector<Row> rows;
     for (auto const& row : table->rows()) {
         // WHERE
@@ -32,11 +41,8 @@ DbErrorOr<Value> Select::execute(Database& db) const {
 
         // SELECT
         std::vector<Value> values;
-        size_t index = 0;
-        for (auto const& value : row) {
-            if (m_columns.has(table->columns()[index].name()))
-                values.push_back(value);
-            index++;
+        for (auto const& column : m_columns.columns()) {
+            values.push_back(TRY(column->evaluate(context, row)));
         }
         rows.push_back(Row { values });
     }
@@ -60,19 +66,24 @@ DbErrorOr<Value> Select::execute(Database& db) const {
         });
     }
 
-    if(m_top){
-        if(m_top->unit == Top::Unit::Perc){
+    if (m_top) {
+        if (m_top->unit == Top::Unit::Perc) {
             float mul = static_cast<float>(std::min(m_top->value, (unsigned)100)) / 100;
             rows.resize(rows.size() * mul, rows.back());
-        }else {
+        }
+        else {
             rows.resize(std::min(m_top->value, (unsigned)rows.size()), rows.back());
         }
     }
 
     std::vector<std::string> column_names;
-    for (auto const& column : table->columns()) {
-        if (m_columns.has(column.name()))
-            column_names.push_back(column.to_string());
+    if (m_columns.select_all()) {
+        for (auto const& column : table->columns())
+            column_names.push_back(column.name());
+    }
+    else {
+        for (auto const& column : m_columns.columns())
+            column_names.push_back(column->to_string());
     }
 
     return Value::create_select_result({ column_names, std::move(rows) });
