@@ -2,6 +2,19 @@
 
 #include <cctype>
 #include <iostream>
+#include <string>
+
+bool compare_case_insensitive(const std::string& lhs, const std::string& rhs){
+    for(auto l = lhs.begin(), r = rhs.begin(); l != lhs.end() && r != rhs.end(); l++, r++){
+        char c1 = (*l > 97) ? *l - 32 : *l;
+        char c2 = (*r > 97) ? *r - 32 : *r;
+
+        if(c1 != c2)
+            return false;
+    }
+
+    return true;
+}
 
 namespace Db::Sql {
 
@@ -31,15 +44,14 @@ std::vector<Token> Lexer::lex() {
 
         if (isalpha(next)) {
             auto id = consume_identifier();
-            // TODO: Case-insensitive match
-            if (id == "FROM") {
+            if (compare_case_insensitive(id, "FROM")) {
                 tokens.push_back(Token { .type = Token::Type::KeywordFrom, .value = "FROM" });
             }
-            else if (id == "SELECT") {
+            else if (compare_case_insensitive(id, "SELECT")) {
                 tokens.push_back(Token { .type = Token::Type::KeywordSelect, .value = "SELECT" });
                 m_select_syntax = 1;
             }
-            else if (m_select_syntax && (id == "TOP" || id == "DISTINCT")) {
+            else if (m_select_syntax && (compare_case_insensitive(id, "TOP") || compare_case_insensitive(id, "DISTINCT"))) {
                 tokens.push_back(Token { .type = Token::Type::KeywordAfterSelect, .value = id });
             }
             else {
