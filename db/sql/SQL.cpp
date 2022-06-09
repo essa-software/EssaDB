@@ -17,8 +17,10 @@ Core::DbErrorOr<Core::Value> run_query(Core::Database& db, std::string const& qu
     }
 
     Db::Sql::Parser parser { std::move(tokens) };
-    auto result = TRY(parser.parse_select());
-    return result.execute(db);
+    auto select = TRY(parser.parse_select());
+    auto result = TRY(select.execute(db));
+    result.repl_dump(std::cerr);
+    return result;
 }
 
 }
