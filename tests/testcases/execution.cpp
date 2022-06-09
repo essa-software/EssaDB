@@ -78,12 +78,12 @@ DbErrorOr<void> select_order_by() {
                               "test",
                               {},
                               AST::OrderBy { .columns = {
-                                    AST::OrderBy::OrderBySet{.name = "number", .order = AST::OrderBy::Order::Ascending},
-                                    AST::OrderBy::OrderBySet{.name = "string", .order = AST::OrderBy::Order::Descending},
+                                    AST::OrderBy::OrderBySet{.name = "string", .order = AST::OrderBy::Order::Ascending},
+                                    AST::OrderBy::OrderBySet{.name = "number", .order = AST::OrderBy::Order::Descending},
                                 } } )
                               .execute(db))
                           .to_select_result());
-    TRY(expect(TRY(result.rows()[1].value(1).to_int()) < TRY(result.rows()[5].value(1).to_int()), "values are sorted"));
+    TRY(expect(TRY(result.rows()[1].value(1).to_string()) < TRY(result.rows()[5].value(1).to_string()), "values are sorted"));
     return {};
 }
 
@@ -96,7 +96,7 @@ DbErrorOr<void> select_order_by_desc() {
                               AST::OrderBy { .columns = {AST::OrderBy::OrderBySet{.name = "number", .order = AST::OrderBy::Order::Descending} } } )
                               .execute(db))                         
                             .to_select_result());
-    TRY(expect(TRY(result.rows()[1].value(1).to_int()) > TRY(result.rows()[5].value(1).to_int()), "values are sorted"));
+    TRY(expect(TRY(result.rows()[1].value(1).to_string()) > TRY(result.rows()[5].value(1).to_string()), "values are sorted"));
     return {};
 }
 
