@@ -3,9 +3,92 @@
 #include "Database.hpp"
 
 #include <iostream>
+#include <string>
 #include <vector>
 
 namespace Db::Core::AST {
+
+
+DbErrorOr<bool> Filter::is_true(FilterSet const& rule, Value const& lhs) const {
+switch (rule.operation) {
+    case Operation::Equal:
+        return TRY(lhs.to_string()) == TRY(rule.args[0].value().to_string());
+    case Operation::NotEqual:
+        return TRY(lhs.to_string()) != TRY(rule.args[0].value().to_string());
+    case Operation::Greater:
+        return TRY(lhs.to_string()) > TRY(rule.args[0].value().to_string());
+    case Operation::GreaterEqual:
+        return TRY(lhs.to_string()) >= TRY(rule.args[0].value().to_string());
+    case Operation::Less:
+        return TRY(lhs.to_string()) < TRY(rule.args[0].value().to_string());
+    case Operation::LessEqual:
+        return TRY(lhs.to_string()) <= TRY(rule.args[0].value().to_string());
+    case Operation::Like:{
+        std::string str = lhs.to_string().value();
+        std::string to_compare = rule.args[0].value().to_string().value();
+
+        if(to_compare.front() == '*' && to_compare.back() == '*'){
+            std::string comparison_substr = to_compare.substr(1, to_compare.size() - 2);
+
+            if(str.size() - 1 < to_compare.size())
+                return false;
+            
+            return str.find(comparison_substr) != std::string::npos;
+        }else if(to_compare.front() == '*'){
+            auto it1 = str.end(), it2 = to_compare.end();
+
+            if(str.size() < to_compare.size())
+                return false;
+
+            while (it1 != str.begin()) {
+                if(*it2 == '*')
+                    break;
+
+                if(*it1 != *it2 && *it2 != '?')
+                    return false;
+                it1--;
+                it2--;
+            }
+        }else if(to_compare.back() == '*'){
+            auto it1 = str.begin(), it2 = to_compare.begin();
+
+            if(str.size() < to_compare.size())
+                return false;
+
+            while (it1 != str.end()) {
+                if(*it2 == '*')
+                    break;
+
+                if(*it1 != *it2 && *it2 != '?')
+                    return false;
+                it1++;
+                it2++;
+            }
+        }else{
+            auto it1 = str.begin(), it2 = to_compare.begin();
+            if(str.size() != to_compare.size())
+                return false;
+
+            while (it1 != str.end()) {
+                if(*it1 != *it2 && *it2 != '?')
+                    return false;
+                it1++;
+                it2++;
+            }
+        }
+
+        return true;
+    }case Operation::Between:
+        return TRY(lhs.to_string()) >= TRY(rule.args[0].value().to_string()) && TRY(lhs.to_string()) <= TRY(rule.args[1].value().to_string());
+    case Operation::In:
+        for(const auto& arg : rule.args){
+            if(TRY(lhs.to_string()) == TRY(arg.value().to_string()))
+                return true;
+        }
+        return false;
+    }
+    __builtin_unreachable();
+}
 
 DbErrorOr<Value> Identifier::evaluate(EvaluationContext& context, Row const& row) const {
     auto column = context.table.get_column(m_id);

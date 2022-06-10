@@ -5,6 +5,7 @@
 #include "Table.hpp"
 #include "Value.hpp"
 
+#include <iostream>
 #include <memory>
 #include <optional>
 #include <pthread.h>
@@ -83,33 +84,7 @@ struct Filter {
     
     std::vector<FilterSet> filter_rules;
 
-    DbErrorOr<bool> is_true(FilterSet const& rule, Value const& lhs) const {
-    switch (rule.operation) {
-        case Operation::Equal:
-            return TRY(lhs.to_string()) == TRY(rule.args[0].value().to_string());
-        case Operation::NotEqual:
-            return TRY(lhs.to_string()) != TRY(rule.args[0].value().to_string());
-        case Operation::Greater:
-            return TRY(lhs.to_string()) > TRY(rule.args[0].value().to_string());
-        case Operation::GreaterEqual:
-            return TRY(lhs.to_string()) >= TRY(rule.args[0].value().to_string());
-        case Operation::Less:
-            return TRY(lhs.to_string()) < TRY(rule.args[0].value().to_string());
-        case Operation::LessEqual:
-            return TRY(lhs.to_string()) <= TRY(rule.args[0].value().to_string());
-        case Operation::Like:
-            return true;
-        case Operation::Between:
-            return TRY(lhs.to_string()) >= TRY(rule.args[0].value().to_string()) && TRY(lhs.to_string()) <= TRY(rule.args[1].value().to_string());
-        case Operation::In:
-            for(const auto& arg : rule.args){
-                if(TRY(lhs.to_string()) == TRY(arg.value().to_string()))
-                    return true;
-            }
-            return false;
-        }
-        __builtin_unreachable();
-    }
+    DbErrorOr<bool> is_true(FilterSet const& rule, Value const& lhs) const;
 };
 
 class SelectColumns {
