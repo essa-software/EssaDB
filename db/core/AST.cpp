@@ -1,13 +1,13 @@
 #include "AST.hpp"
 
 #include "Database.hpp"
+#include "db/core/Value.hpp"
 
 #include <iostream>
 #include <string>
 #include <vector>
 
 namespace Db::Core::AST {
-
 
 DbErrorOr<bool> Filter::is_true(FilterSet const& rule, Value const& lhs) const {
 switch (rule.operation) {
@@ -95,25 +95,6 @@ DbErrorOr<Value> Identifier::evaluate(EvaluationContext& context, Row const& row
     if (!column)
         return DbError { "No such column: " + m_id };
     return row.value(column->second);
-}
-
-DbErrorOr<Value> Function::evaluate(EvaluationContext& context, Row const& row) const {
-    if (m_name == "LEN") {
-        // https://www.w3schools.com/sqL/func_sqlserver_len.asp
-        if (m_args.size() != 1)
-            return DbError { "Expected arg 0: string" };
-        auto arg = TRY(m_args[0]->evaluate(context, row));
-        switch (arg.type()) {
-        case Value::Type::Null:
-            // If string is NULL, it returns NULL
-            return Value::null();
-        default:
-            // FIXME: What to do with ints?
-            return Value::create_int(TRY(arg.to_string()).size());
-        }
-    }
-
-    return DbError { "Undefined function: '" + m_name + "'" };
 }
 
 DbErrorOr<Value> Select::execute(Database& db) const {

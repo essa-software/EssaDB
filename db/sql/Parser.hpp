@@ -1,6 +1,7 @@
 #pragma once
 
 #include <db/core/AST.hpp>
+#include <db/core/Function.hpp>
 
 #include "Lexer.hpp"
 

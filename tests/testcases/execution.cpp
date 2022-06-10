@@ -73,14 +73,6 @@ DbErrorOr<void> select_top_perc() {
     return {};
 }
 
-DbErrorOr<void> select_function_len() {
-    auto db = TRY(setup_db());
-    auto result = TRY(TRY(Db::Sql::run_query(db, "SELECT id, LEN(string) FROM test;")).to_select_result());
-    TRY(expect_equal<size_t>(result.rows().size(), 6, "all rows were returned"));
-    TRY(expect_equal<size_t>(TRY(result.rows()[0].value(1).to_int()), 4, "string length was returned"));
-    return {};
-}
-
 DbErrorOr<void> select_with_aliases() {
     auto db = TRY(setup_db());
     // TODO: Returns columns in given order, not in table order
@@ -98,7 +90,6 @@ std::map<std::string, TestFunc*> get_tests() {
         { "select_order_by_desc", select_order_by_desc },
         { "select_top_number", select_top_number },
         { "select_top_perc", select_top_perc },
-        { "select_function_len", select_function_len },
         { "select_with_aliases", select_with_aliases },
     };
 }

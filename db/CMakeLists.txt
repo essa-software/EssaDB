@@ -3,6 +3,7 @@ add_library(
 
     core/AST.cpp
     core/Database.cpp
+    core/Function.cpp
     core/RowWithColumnNames.cpp
     core/SelectResult.cpp
     core/Table.cpp
