@@ -38,7 +38,7 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Select>> Parser::parse_select() {
             unsigned value = std::stoi(m_tokens[m_offset++].value);
             if (m_tokens[m_offset].value == "PERC") {
                 top = Core::AST::Top { .unit = Core::AST::Top::Unit::Perc, .value = value };
-                
+
                 m_offset++;
             }
             else
@@ -53,34 +53,17 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Select>> Parser::parse_select() {
     auto maybe_asterisk = m_tokens[m_offset];
     if (maybe_asterisk.type != Token::Type::Asterisk) {
         while (true) {
-            //std::cout << "PARSE EXPRESSION AT " << m_offset << std::endl;
+            // std::cout << "PARSE EXPRESSION AT " << m_offset << std::endl;
 
             auto expression = TRY(parse_expression());
             std::optional<std::string> alias;
 
-            if(m_tokens[m_offset].type == Token::Type::KeywordAlias){
-                std::string str = "";
+            if (m_tokens[m_offset].type == Token::Type::KeywordAlias) {
                 m_offset++;
-
-                if(m_tokens[m_offset++].type != Token::Type::SquaredParenOpen)
-                    return Core::DbError { "Expected '['"};
-                
-                while(true){
-                    if(m_tokens[m_offset].type == Token::Type::SquaredParenClose)
-                        break;
-                    else if(m_tokens[m_offset].type != Token::Type::Identifier)
-                        return Core::DbError { "Invalid syntax, expected identifier, got \'" + m_tokens[m_offset].value + "\'"};
-                    
-                    str += m_tokens[m_offset++].value + " ";
-                }
-
-                str = str.substr(0, str.size() - 1);
-
-                alias = str;
-                m_offset++;
+                alias = TRY(parse_identifier())->to_string();
             }
 
-            columns.push_back( Core::AST::SelectColumns::Column{.column = expression->to_string(), .alias = std::move(alias)});
+            columns.push_back(Core::AST::SelectColumns::Column { .column = std::move(expression), .alias = std::move(alias) });
 
             auto comma = m_tokens[m_offset];
             if (comma.type != Token::Type::Comma)
@@ -100,10 +83,10 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Select>> Parser::parse_select() {
     if (from_token.type != Token::Type::Identifier)
         return Core::DbError { "Expected table name after 'FROM'" };
 
-    while(true){
-        if(m_tokens[m_offset].type == Token::Type::KeywordOrder){
+    while (true) {
+        if (m_tokens[m_offset].type == Token::Type::KeywordOrder) {
             m_offset++;
-            if(m_tokens[m_offset++].type != Token::Type::KeywordBy)
+            if (m_tokens[m_offset++].type != Token::Type::KeywordBy)
                 return Core::DbError { "Expected 'BY' after 'ORDER'" };
 
             Core::AST::OrderBy order_by;
@@ -113,15 +96,15 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Select>> Parser::parse_select() {
 
                 auto param = m_tokens[m_offset];
                 auto order_method = Core::AST::OrderBy::Order::Ascending;
-                if(param.type == Token::Type::OrderByParam){
-                    if(param.value == "ASC")
+                if (param.type == Token::Type::OrderByParam) {
+                    if (param.value == "ASC")
                         order_method = Core::AST::OrderBy::Order::Ascending;
                     else
                         order_method = Core::AST::OrderBy::Order::Descending;
                     m_offset++;
                 }
 
-                order_by.columns.push_back(Core::AST::OrderBy::OrderBySet{.name = expression->to_string(), .order = order_method});
+                order_by.columns.push_back(Core::AST::OrderBy::OrderBySet { .name = expression->to_string(), .order = order_method });
 
                 auto comma = m_tokens[m_offset];
                 if (comma.type != Token::Type::Comma)
@@ -132,9 +115,9 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Select>> Parser::parse_select() {
             order = order_by;
         }
 
-        if(m_tokens[m_offset].type == Token::Type::Eof)
+        if (m_tokens[m_offset].type == Token::Type::Eof)
             return Core::DbError { "Expected ';' before EOF" };
-        else if(m_tokens[m_offset].type == Token::Type::Semicolon)
+        else if (m_tokens[m_offset].type == Token::Type::Semicolon)
             break;
     }
 
@@ -185,15 +168,17 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::CreateTable>> Parser::parse_create_ta
 }
 
 Core::DbErrorOr<std::unique_ptr<Core::AST::Expression>> Parser::parse_expression() {
-    auto token = m_tokens[m_offset++];
+    auto token = m_tokens[m_offset];
     if (token.type == Token::Type::Identifier) {
-        auto postfix = m_tokens[m_offset];
-        if (postfix.type == Token::Type::ParenOpen)
+        auto postfix = m_tokens[m_offset + 1];
+        if (postfix.type == Token::Type::ParenOpen) {
+            m_offset++;
             return TRY(parse_function(std::move(token.value)));
-        else
-            return std::make_unique<Core::AST::Identifier>(token.value);
+        }
+        else {
+            return TRY(parse_identifier());
+        }
     }
-    std::cout << m_offset << std::endl;
     return Core::DbError { "Expected expression, got '" + token.value + "'" };
 }
 
@@ -202,7 +187,7 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Function>> Parser::parse_function(std
 
     std::vector<std::unique_ptr<Core::AST::Expression>> args;
     while (true) {
-        //std::cout << "PARSE EXPRESSION AT " << m_offset << std::endl;
+        // std::cout << "PARSE EXPRESSION AT " << m_offset << std::endl;
 
         auto expression = TRY(parse_expression());
         args.push_back(std::move(expression));
@@ -217,6 +202,37 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Function>> Parser::parse_function(std
         m_offset++;
     }
     return std::make_unique<Core::AST::Function>(std::move(name), std::move(args));
+}
+
+Core::DbErrorOr<std::unique_ptr<Core::AST::Identifier>> Parser::parse_identifier() {
+    if (m_tokens[m_offset].type == Token::Type::SquaredParenOpen) {
+        m_offset++;
+        std::string string;
+        while (true) {
+            if (m_tokens[m_offset].type == Token::Type::SquaredParenClose) {
+                m_offset++;
+                break;
+            }
+            else if (m_tokens[m_offset].type != Token::Type::Identifier) {
+                // FIXME: Actually anything is allowed between square brackets, maybe we
+                //        should do this on the lexer side?
+                return Core::DbError { "Invalid syntax, expected identifier, got \'" + m_tokens[m_offset].value + "\'" };
+            }
+
+            string += m_tokens[m_offset++].value + " ";
+        }
+
+        // Remove trailing space
+        string.pop_back();
+        return std::make_unique<Core::AST::Identifier>(string);
+    }
+
+    auto name = m_tokens[m_offset];
+    if (name.type != Token::Type::Identifier)
+        return Core::DbError { "Invalid identifier, expected `name` or `[name]`" };
+
+    m_offset++;
+    return std::make_unique<Core::AST::Identifier>(name.value);
 }
 
 }

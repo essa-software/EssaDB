@@ -10,7 +10,7 @@
 namespace Db::Core::AST {
 
 DbErrorOr<bool> Filter::is_true(FilterSet const& rule, Value const& lhs) const {
-switch (rule.operation) {
+    switch (rule.operation) {
     case Operation::Equal:
         return TRY(lhs.to_string()) == TRY(rule.args[0].value().to_string());
     case Operation::NotEqual:
@@ -23,54 +23,57 @@ switch (rule.operation) {
         return TRY(lhs.to_string()) < TRY(rule.args[0].value().to_string());
     case Operation::LessEqual:
         return TRY(lhs.to_string()) <= TRY(rule.args[0].value().to_string());
-    case Operation::Like:{
+    case Operation::Like: {
         std::string str = lhs.to_string().value();
         std::string to_compare = rule.args[0].value().to_string().value();
 
-        if(to_compare.front() == '*' && to_compare.back() == '*'){
+        if (to_compare.front() == '*' && to_compare.back() == '*') {
             std::string comparison_substr = to_compare.substr(1, to_compare.size() - 2);
 
-            if(str.size() - 1 < to_compare.size())
+            if (str.size() - 1 < to_compare.size())
                 return false;
-            
+
             return str.find(comparison_substr) != std::string::npos;
-        }else if(to_compare.front() == '*'){
+        }
+        else if (to_compare.front() == '*') {
             auto it1 = str.end(), it2 = to_compare.end();
 
-            if(str.size() < to_compare.size())
+            if (str.size() < to_compare.size())
                 return false;
 
             while (it1 != str.begin()) {
-                if(*it2 == '*')
+                if (*it2 == '*')
                     break;
 
-                if(*it1 != *it2 && *it2 != '?')
+                if (*it1 != *it2 && *it2 != '?')
                     return false;
                 it1--;
                 it2--;
             }
-        }else if(to_compare.back() == '*'){
+        }
+        else if (to_compare.back() == '*') {
             auto it1 = str.begin(), it2 = to_compare.begin();
 
-            if(str.size() < to_compare.size())
+            if (str.size() < to_compare.size())
                 return false;
 
             while (it1 != str.end()) {
-                if(*it2 == '*')
+                if (*it2 == '*')
                     break;
 
-                if(*it1 != *it2 && *it2 != '?')
+                if (*it1 != *it2 && *it2 != '?')
                     return false;
                 it1++;
                 it2++;
             }
-        }else{
+        }
+        else {
             auto it1 = str.begin(), it2 = to_compare.begin();
-            if(str.size() != to_compare.size())
+            if (str.size() != to_compare.size())
                 return false;
 
             while (it1 != str.end()) {
-                if(*it1 != *it2 && *it2 != '?')
+                if (*it1 != *it2 && *it2 != '?')
                     return false;
                 it1++;
                 it2++;
@@ -78,11 +81,12 @@ switch (rule.operation) {
         }
 
         return true;
-    }case Operation::Between:
+    }
+    case Operation::Between:
         return TRY(lhs.to_string()) >= TRY(rule.args[0].value().to_string()) && TRY(lhs.to_string()) <= TRY(rule.args[1].value().to_string());
     case Operation::In:
-        for(const auto& arg : rule.args){
-            if(TRY(lhs.to_string()) == TRY(arg.value().to_string()))
+        for (const auto& arg : rule.args) {
+            if (TRY(lhs.to_string()) == TRY(arg.value().to_string()))
                 return true;
         }
         return false;
@@ -111,12 +115,13 @@ DbErrorOr<Value> Select::execute(Database& db) const {
         unsigned counter = 0;
         std::vector<bool> values;
 
-        for(const auto& rule : m_where->filter_rules){
-            if(rule.logic == Filter::LogicOperator::AND){
-                condition *= m_where->is_true(rule, row.value(table->get_column(rule.column)->second)).value();
+        for (const auto& rule : m_where->filter_rules) {
+            if (rule.logic == Filter::LogicOperator::AND) {
+                condition &= m_where->is_true(rule, row.value(table->get_column(rule.column)->second)).value();
                 counter++;
-            }else{
-                if(counter > 0)
+            }
+            else {
+                if (counter > 0)
                     values.push_back(condition);
 
                 condition = m_where->is_true(rule, row.value(table->get_column(rule.column)->second)).value();
@@ -124,10 +129,10 @@ DbErrorOr<Value> Select::execute(Database& db) const {
             }
         }
 
-        if(counter > 0)
+        if (counter > 0)
             values.push_back(condition);
 
-        for(const auto& val : values){
+        for (const auto& val : values) {
             result += val;
         }
 
@@ -160,7 +165,7 @@ DbErrorOr<Value> Select::execute(Database& db) const {
         }
         else {
             for (auto const& column : m_columns.columns()) {
-                values.push_back(TRY(column->evaluate(context, row)));
+                values.push_back(TRY(column.column->evaluate(context, row)));
             }
         }
         rows.push_back(Row { values });
@@ -211,11 +216,11 @@ DbErrorOr<Value> Select::execute(Database& db) const {
             column_names.push_back(column.name());
     }
     else {
-        for (size_t i = 0; i < m_columns.columns().size(); i++){
-            if(m_columns.aliases()[i].has_value())
-                column_names.push_back(m_columns.aliases()[i].value());
+        for (auto const& column : m_columns.columns()) {
+            if (column.alias)
+                column_names.push_back(*column.alias);
             else
-                column_names.push_back(m_columns.columns()[i]->to_string());
+                column_names.push_back(column.column->to_string());
         }
     }
 

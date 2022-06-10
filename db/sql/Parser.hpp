@@ -19,6 +19,7 @@ private:
     Core::DbErrorOr<std::unique_ptr<Core::AST::CreateTable>> parse_create_table();
     Core::DbErrorOr<std::unique_ptr<Core::AST::Expression>> parse_expression();
     Core::DbErrorOr<std::unique_ptr<Core::AST::Function>> parse_function(std::string name);
+    Core::DbErrorOr<std::unique_ptr<Core::AST::Identifier>> parse_identifier();
 
     std::vector<Token> m_tokens;
     size_t m_offset = 0;
