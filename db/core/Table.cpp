@@ -6,12 +6,12 @@
 
 namespace Db::Core {
 
-Value::Type find_type(const std::string& str){
-    if(str == "null")
+Value::Type find_type(const std::string& str) {
+    if (str == "null")
         return Value::Type::Null;
-    
-    for(const auto& c : str){
-        if(c < '0' || c > '9')
+
+    for (const auto& c : str) {
+        if (c < '0' || c > '9')
             return Value::Type::Varchar;
     }
 
@@ -40,27 +40,27 @@ std::optional<std::pair<Column, size_t>> Table::get_column(std::string const& na
     return {};
 }
 
-void Table::export_to_csv(const std::string& path) const{
+void Table::export_to_csv(const std::string& path) const {
     std::ofstream f_out(path);
 
     unsigned i = 0;
 
-    for(const auto& col : m_columns){
+    for (const auto& col : m_columns) {
         f_out << col.name();
 
-        if(i < m_columns.size() - 1)
+        if (i < m_columns.size() - 1)
             f_out << ',';
         else
             f_out << '\n';
         i++;
     }
 
-    for(const auto& row : m_rows){
+    for (const auto& row : m_rows) {
         i = 0;
-        for(auto it = row.begin(); it != row.end(); it++){
+        for (auto it = row.begin(); it != row.end(); it++) {
             f_out << it->to_string().release_value();
 
-            if(i < m_columns.size() - 1)
+            if (i < m_columns.size() - 1)
                 f_out << ',';
             else
                 f_out << '\n';
@@ -71,7 +71,7 @@ void Table::export_to_csv(const std::string& path) const{
     f_out.close();
 }
 
-DbErrorOr<void> Table::import_from_csv(const std::string &path){
+DbErrorOr<void> Table::import_from_csv(const std::string& path) {
     m_rows.clear();
     m_columns.clear();
 
@@ -81,19 +81,21 @@ DbErrorOr<void> Table::import_from_csv(const std::string &path){
     std::string str = "";
     std::vector<std::vector<std::string>> table(1);
 
-    while(!f_in.eof()){
+    while (!f_in.eof()) {
         f_in.read(&c, 1);
 
-        if(c == ','){
+        if (c == ',') {
             table.back().push_back(str);
-            
+
             str = "";
-        }else if(c == '\n'){
+        }
+        else if (c == '\n') {
             table.back().push_back(str);
             table.push_back({});
 
             str = "";
-        }else {
+        }
+        else {
             str += c;
         }
     }
@@ -101,37 +103,40 @@ DbErrorOr<void> Table::import_from_csv(const std::string &path){
 
     f_in.close();
 
-    for(unsigned i = 0; i < table.begin()->size(); i++){
+    for (unsigned i = 0; i < table.begin()->size(); i++) {
         Value::Type type = Value::Type::Null;
 
-        for(auto it = table.begin() + 1; it < table.end() - 1; it++){
+        for (auto it = table.begin() + 1; it < table.end() - 1; it++) {
 
-            if(type == Value::Type::Null)
+            if (type == Value::Type::Null)
                 type = find_type((*it)[i]);
-            else if(type == Value::Type::Int && find_type((*it)[i]) == Value::Type::Varchar)
+            else if (type == Value::Type::Int && find_type((*it)[i]) == Value::Type::Varchar)
                 type = Value::Type::Varchar;
         }
 
         TRY(add_column(Column(table[0][i], type)));
     }
 
-    for(auto it = table.begin() + 1; it < table.end() - 1; it++){
+    for (auto it = table.begin() + 1; it < table.end() - 1; it++) {
         RowWithColumnNames::MapType map;
         unsigned i = 0;
 
-        for(const auto& col : m_columns){
-            if((*it)[i] == "null")
+        for (const auto& col : m_columns) {
+            if ((*it)[i] == "null")
                 continue;
 
             switch (col.type()) {
-                case Value::Type::Int:
-                    map.insert({col.name(), Value::create_int(std::stoi((*it)[i]))});
+            case Value::Type::Int:
+                map.insert({ col.name(), Value::create_int(std::stoi((*it)[i])) });
                 break;
-                case Value::Type::Varchar:
-                    map.insert({col.name(), Value::create_varchar((*it)[i])});
+            case Value::Type::Varchar:
+                map.insert({ col.name(), Value::create_varchar((*it)[i]) });
                 break;
-                case Value::Type::Null:
-                case Value::Type::SelectResult:
+            case Value::Type::Bool:
+                map.insert({ col.name(), Value::create_bool((*it)[i] == "true" ? true : false) });
+                break;
+            case Value::Type::Null:
+            case Value::Type::SelectResult:
                 break;
             }
             i++;

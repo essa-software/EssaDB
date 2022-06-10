@@ -70,6 +70,9 @@ std::vector<Token> Lexer::lex() {
             else if (compare_case_insensitive(id, "ORDER")) {
                 tokens.push_back(Token { .type = Token::Type::KeywordOrder, .value = "ORDER" });
             }
+            else if (compare_case_insensitive(id, "WHERE")) {
+                tokens.push_back(Token { .type = Token::Type::KeywordWhere, .value = "WHERE" });
+            }
             else if (compare_case_insensitive(id, "ASC") || compare_case_insensitive(id, "DESC")) {
                 tokens.push_back(Token { .type = Token::Type::OrderByParam, .value = id });
             }
@@ -83,7 +86,7 @@ std::vector<Token> Lexer::lex() {
         else if (std::isdigit(next)) {
             auto number = consume_number();
 
-            tokens.push_back(Token { .type = Token::Type::Arg, .value = number });
+            tokens.push_back(Token { .type = Token::Type::Number, .value = number });
         }
         else if (next == '*') {
             tokens.push_back(Token { .type = Token::Type::Asterisk, .value = "*" });
@@ -111,6 +114,10 @@ std::vector<Token> Lexer::lex() {
         }
         else if (next == ';') {
             tokens.push_back(Token { .type = Token::Type::Semicolon, .value = ";" });
+            m_in.get();
+        }
+        else if (next == '=') {
+            tokens.push_back(Token { .type = Token::Type::OpEqual, .value = "=" });
             m_in.get();
         }
         else {

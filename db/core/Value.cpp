@@ -19,6 +19,10 @@ Value Value::create_varchar(std::string s) {
     return Value { std::move(s), Type::Varchar };
 }
 
+Value Value::create_bool(bool b) {
+    return Value { b, Type::Bool };
+}
+
 Value Value::create_select_result(SelectResult result) {
     return Value { std::move(result), Type::SelectResult };
 }
@@ -38,6 +42,8 @@ DbErrorOr<int> Value::to_int() const {
             return DbError { "'" + str + "' is not a valid int" };
         }
     }
+    case Type::Bool:
+        return std::get<bool>(*this) ? 1 : 0;
     case Type::SelectResult:
         return DbError { "SelectResult cannot be converted to int" };
     }
@@ -52,11 +58,16 @@ DbErrorOr<std::string> Value::to_string() const {
         return std::to_string(std::get<int>(*this));
     case Type::Varchar:
         return std::get<std::string>(*this);
+    case Type::Bool:
+        return std::get<bool>(*this) ? "true" : "false";
     case Type::SelectResult:
-
         return DbError { "Select result is not a string" };
     }
     __builtin_unreachable();
+}
+
+DbErrorOr<bool> Value::to_bool() const {
+    return TRY(to_int()) != 0;
 }
 
 DbErrorOr<SelectResult> Value::to_select_result() const {
@@ -74,6 +85,8 @@ std::string Value::to_debug_string() const {
         return "int " + value;
     case Type::Varchar:
         return "varchar '" + value + "'";
+    case Type::Bool:
+        return "bool " + value;
     case Type::SelectResult:
         return "SelectResult (" + std::to_string(std::get<SelectResult>(*this).rows().size()) + " rows)";
     }

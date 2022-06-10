@@ -11,7 +11,7 @@ namespace Db::Core {
 
 class SelectResult;
 
-using ValueBase = std::variant<std::monostate, int, std::string, SelectResult>;
+using ValueBase = std::variant<std::monostate, int, std::string, bool, SelectResult>;
 
 class Value : public ValueBase {
 public:
@@ -19,6 +19,7 @@ public:
         Null,
         Int,
         Varchar,
+        Bool,
         SelectResult,
     };
 
@@ -28,6 +29,8 @@ public:
             return Type::Int;
         if (str == "VARCHAR")
             return Type::Varchar;
+        if (str == "BOOL")
+            return Type::Bool;
         return {};
     }
 
@@ -35,10 +38,12 @@ public:
     static Value null();
     static Value create_int(int i);
     static Value create_varchar(std::string s);
+    static Value create_bool(bool b);
     static Value create_select_result(SelectResult);
 
     DbErrorOr<int> to_int() const;
     DbErrorOr<std::string> to_string() const;
+    DbErrorOr<bool> to_bool() const;
     DbErrorOr<SelectResult> to_select_result() const;
 
     Type type() const { return m_type; }

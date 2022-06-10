@@ -5,6 +5,7 @@
 #include "Table.hpp"
 #include "Value.hpp"
 #include "db/core/Column.hpp"
+#include "db/core/DbError.hpp"
 
 #include <iostream>
 #include <memory>
@@ -32,6 +33,18 @@ public:
     virtual std::string to_string() const = 0;
 };
 
+class Literal : public Expression {
+public:
+    explicit Literal(Value val)
+        : m_value(std::move(val)) { }
+
+    virtual DbErrorOr<Value> evaluate(EvaluationContext&, Row const&) const override { return m_value; }
+    virtual std::string to_string() const override { return m_value.to_string().release_value_but_fixme_should_propagate_errors(); }
+
+private:
+    Value m_value;
+};
+
 class Identifier : public Expression {
 public:
     explicit Identifier(std::string id)
@@ -44,7 +57,8 @@ private:
     std::string m_id;
 };
 
-struct Filter {
+class BinaryOperator : public Expression {
+public:
     enum class Operation {
         Equal,        // =
         NotEqual,     // !=
@@ -53,26 +67,26 @@ struct Filter {
         Less,         // <
         LessEqual,    // <=
         Like,
-        Between,
-        In
+        And,
+        Or
     };
 
-    enum class LogicOperator {
-        AND,
-        OR
-    };
+    BinaryOperator(std::unique_ptr<Expression> lhs, Operation op, std::unique_ptr<Expression> rhs)
+        : m_lhs(std::move(lhs))
+        , m_operation(op)
+        , m_rhs(std::move(rhs)) { }
 
-    struct FilterSet {
-        std::string column;
-        Operation operation = Operation::Equal;
-        std::vector<DbErrorOr<Value>> args;
+    virtual DbErrorOr<Value> evaluate(EvaluationContext& context, Row const& row) const override {
+        return Value::create_bool(TRY(is_true(context, row)));
+    }
+    virtual std::string to_string() const override { return "BinaryOperator(TODO)"; }
 
-        LogicOperator logic = LogicOperator::AND;
-    };
+private:
+    DbErrorOr<bool> is_true(EvaluationContext&, Row const&) const;
 
-    std::vector<FilterSet> filter_rules;
-
-    DbErrorOr<bool> is_true(FilterSet const& rule, Value const& lhs) const;
+    std::unique_ptr<Expression> m_lhs;
+    Operation m_operation {};
+    std::unique_ptr<Expression> m_rhs;
 };
 
 class SelectColumns {
@@ -142,7 +156,7 @@ public:
 
 class Select : public Statement {
 public:
-    Select(SelectColumns columns, std::string from, std::optional<Filter> where = {}, std::optional<OrderBy> order_by = {}, std::optional<Top> top = {})
+    Select(SelectColumns columns, std::string from, std::unique_ptr<Expression> where = {}, std::optional<OrderBy> order_by = {}, std::optional<Top> top = {})
         : m_columns(std::move(columns))
         , m_from(std::move(from))
         , m_where(std::move(where))
@@ -154,7 +168,7 @@ public:
 private:
     SelectColumns m_columns;
     std::string m_from;
-    std::optional<Filter> m_where;
+    std::unique_ptr<Expression> m_where;
     std::optional<OrderBy> m_order_by;
     std::optional<Top> m_top;
 };

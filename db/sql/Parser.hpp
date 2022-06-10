@@ -17,7 +17,12 @@ public:
 private:
     Core::DbErrorOr<std::unique_ptr<Core::AST::Select>> parse_select();
     Core::DbErrorOr<std::unique_ptr<Core::AST::CreateTable>> parse_create_table();
-    Core::DbErrorOr<std::unique_ptr<Core::AST::Expression>> parse_expression();
+    enum class AllowOperators {
+        Yes,
+        No
+    };
+    Core::DbErrorOr<std::unique_ptr<Core::AST::Expression>> parse_expression(AllowOperators);
+    Core::DbErrorOr<std::unique_ptr<Core::AST::Expression>> parse_operand(std::unique_ptr<Core::AST::Expression> lhs); // parses operator + rhs
     Core::DbErrorOr<std::unique_ptr<Core::AST::Function>> parse_function(std::string name);
     Core::DbErrorOr<std::unique_ptr<Core::AST::Identifier>> parse_identifier();
 

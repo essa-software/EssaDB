@@ -9,23 +9,35 @@
 
 namespace Db::Core::AST {
 
-DbErrorOr<bool> Filter::is_true(FilterSet const& rule, Value const& lhs) const {
-    switch (rule.operation) {
+DbErrorOr<Value> Identifier::evaluate(EvaluationContext& context, Row const& row) const {
+    auto column = context.table.get_column(m_id);
+    if (!column)
+        return DbError { "No such column: " + m_id };
+    return row.value(column->second);
+}
+
+DbErrorOr<bool> BinaryOperator::is_true(EvaluationContext& context, Row const& row) const {
+    // TODO: Implement proper comparison
+    switch (m_operation) {
     case Operation::Equal:
-        return TRY(lhs.to_string()) == TRY(rule.args[0].value().to_string());
+        return TRY(TRY(m_lhs->evaluate(context, row)).to_string()) == TRY(TRY(m_rhs->evaluate(context, row)).to_string());
     case Operation::NotEqual:
-        return TRY(lhs.to_string()) != TRY(rule.args[0].value().to_string());
+        return TRY(TRY(m_lhs->evaluate(context, row)).to_string()) != TRY(TRY(m_rhs->evaluate(context, row)).to_string());
     case Operation::Greater:
-        return TRY(lhs.to_string()) > TRY(rule.args[0].value().to_string());
+        return TRY(TRY(m_lhs->evaluate(context, row)).to_string()) > TRY(TRY(m_rhs->evaluate(context, row)).to_string());
     case Operation::GreaterEqual:
-        return TRY(lhs.to_string()) >= TRY(rule.args[0].value().to_string());
+        return TRY(TRY(m_lhs->evaluate(context, row)).to_string()) >= TRY(TRY(m_rhs->evaluate(context, row)).to_string());
     case Operation::Less:
-        return TRY(lhs.to_string()) < TRY(rule.args[0].value().to_string());
+        return TRY(TRY(m_lhs->evaluate(context, row)).to_string()) < TRY(TRY(m_rhs->evaluate(context, row)).to_string());
     case Operation::LessEqual:
-        return TRY(lhs.to_string()) <= TRY(rule.args[0].value().to_string());
+        return TRY(TRY(m_lhs->evaluate(context, row)).to_string()) <= TRY(TRY(m_rhs->evaluate(context, row)).to_string());
+    case Operation::And:
+        return TRY(TRY(m_lhs->evaluate(context, row)).to_bool()) && TRY(TRY(m_rhs->evaluate(context, row)).to_bool());
+    case Operation::Or:
+        return TRY(TRY(m_lhs->evaluate(context, row)).to_bool()) || TRY(TRY(m_rhs->evaluate(context, row)).to_bool());
     case Operation::Like: {
-        std::string str = lhs.to_string().value();
-        std::string to_compare = rule.args[0].value().to_string().value();
+        std::string str = TRY(TRY(m_lhs->evaluate(context, row)).to_string());
+        std::string to_compare = TRY(TRY(m_rhs->evaluate(context, row)).to_string());
 
         if (to_compare.front() == '*' && to_compare.back() == '*') {
             std::string comparison_substr = to_compare.substr(1, to_compare.size() - 2);
@@ -82,23 +94,8 @@ DbErrorOr<bool> Filter::is_true(FilterSet const& rule, Value const& lhs) const {
 
         return true;
     }
-    case Operation::Between:
-        return TRY(lhs.to_string()) >= TRY(rule.args[0].value().to_string()) && TRY(lhs.to_string()) <= TRY(rule.args[1].value().to_string());
-    case Operation::In:
-        for (const auto& arg : rule.args) {
-            if (TRY(lhs.to_string()) == TRY(arg.value().to_string()))
-                return true;
-        }
-        return false;
     }
     __builtin_unreachable();
-}
-
-DbErrorOr<Value> Identifier::evaluate(EvaluationContext& context, Row const& row) const {
-    auto column = context.table.get_column(m_id);
-    if (!column)
-        return DbError { "No such column: " + m_id };
-    return row.value(column->second);
 }
 
 DbErrorOr<Value> Select::execute(Database& db) const {
@@ -107,42 +104,16 @@ DbErrorOr<Value> Select::execute(Database& db) const {
     // FROM
     auto table = TRY(db.table(m_from));
 
+    EvaluationContext context { .table = *table };
+
     auto should_include_row = [&](Row const& row) -> DbErrorOr<bool> {
         if (!m_where)
             return true;
-
-        bool result = 0, condition = 1;
-        unsigned counter = 0;
-        std::vector<bool> values;
-
-        for (const auto& rule : m_where->filter_rules) {
-            if (rule.logic == Filter::LogicOperator::AND) {
-                condition &= m_where->is_true(rule, row.value(table->get_column(rule.column)->second)).value();
-                counter++;
-            }
-            else {
-                if (counter > 0)
-                    values.push_back(condition);
-
-                condition = m_where->is_true(rule, row.value(table->get_column(rule.column)->second)).value();
-                counter = 1;
-            }
-        }
-
-        if (counter > 0)
-            values.push_back(condition);
-
-        for (const auto& val : values) {
-            result += val;
-        }
-
-        return result;
+        return TRY(m_where->evaluate(context, row)).to_bool();
     };
 
     // TODO: ON
     // TODO: JOIN
-
-    EvaluationContext context { .table = *table };
 
     std::vector<Row> rows;
     for (auto const& row : table->rows()) {

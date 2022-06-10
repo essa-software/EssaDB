@@ -11,6 +11,7 @@
 
 #pragma once
 
+#include <cassert>
 #include <optional>
 #include <type_traits>
 #include <variant>
@@ -53,7 +54,7 @@ public:
     ErrorType release_error() { return std::move(error()); }
 
     T release_value_but_fixme_should_propagate_errors() {
-        VERIFY(!is_error());
+        assert(!is_error());
         return release_value();
     }
 };

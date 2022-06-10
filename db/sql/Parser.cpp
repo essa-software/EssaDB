@@ -30,7 +30,6 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Select>> Parser::parse_select() {
 
     std::optional<Core::AST::Top> top;
     std::optional<Core::AST::OrderBy> order;
-    std::optional<Core::AST::Filter> filter;
 
     if (m_tokens[m_offset].type == Token::Type::KeywordTop) {
         m_offset++;
@@ -55,7 +54,7 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Select>> Parser::parse_select() {
         while (true) {
             // std::cout << "PARSE EXPRESSION AT " << m_offset << std::endl;
 
-            auto expression = TRY(parse_expression());
+            auto expression = TRY(parse_expression(AllowOperators::Yes));
             std::optional<std::string> alias;
 
             if (m_tokens[m_offset].type == Token::Type::KeywordAlias) {
@@ -75,6 +74,7 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Select>> Parser::parse_select() {
         m_offset++;
     }
 
+    // FROM
     auto from = m_tokens[m_offset++];
     if (from.type != Token::Type::KeywordFrom)
         return Core::DbError { "Expected 'FROM', got " + from.value };
@@ -83,6 +83,15 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Select>> Parser::parse_select() {
     if (from_token.type != Token::Type::Identifier)
         return Core::DbError { "Expected table name after 'FROM'" };
 
+    // WHERE
+    std::unique_ptr<Core::AST::Expression> where;
+    auto where_token = m_tokens[m_offset];
+    if (where_token.type == Token::Type::KeywordWhere) {
+        m_offset++;
+        where = TRY(parse_expression(AllowOperators::Yes));
+    }
+
+    // ORDER BY
     while (true) {
         if (m_tokens[m_offset].type == Token::Type::KeywordOrder) {
             m_offset++;
@@ -92,7 +101,7 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Select>> Parser::parse_select() {
             Core::AST::OrderBy order_by;
 
             while (true) {
-                auto expression = TRY(parse_expression());
+                auto expression = TRY(parse_expression(AllowOperators::Yes));
 
                 auto param = m_tokens[m_offset];
                 auto order_method = Core::AST::OrderBy::Order::Ascending;
@@ -123,7 +132,7 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Select>> Parser::parse_select() {
 
     return std::make_unique<Core::AST::Select>(Core::AST::SelectColumns { std::move(columns) },
         from_token.value,
-        std::move(filter),
+        std::move(where),
         std::move(order),
         std::move(top));
 }
@@ -167,7 +176,7 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::CreateTable>> Parser::parse_create_ta
     return std::make_unique<Core::AST::CreateTable>(table_name.value, columns);
 }
 
-Core::DbErrorOr<std::unique_ptr<Core::AST::Expression>> Parser::parse_expression() {
+Core::DbErrorOr<std::unique_ptr<Core::AST::Expression>> Parser::parse_expression(AllowOperators allow_operators) {
     auto token = m_tokens[m_offset];
     if (token.type == Token::Type::Identifier) {
         auto postfix = m_tokens[m_offset + 1];
@@ -176,10 +185,37 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Expression>> Parser::parse_expression
             return TRY(parse_function(std::move(token.value)));
         }
         else {
-            return TRY(parse_identifier());
+            auto identifier = TRY(parse_identifier());
+            if (allow_operators == AllowOperators::Yes) {
+                auto maybe_operator = TRY(parse_operand(std::move(identifier)));
+                if (!maybe_operator)
+                    return identifier;
+                return maybe_operator;
+            }
+            else
+                return identifier;
         }
     }
+    else if (token.type == Token::Type::Number) {
+        return std::make_unique<Core::AST::Literal>(Core::Value::create_int(std::stoi(token.value)));
+    }
     return Core::DbError { "Expected expression, got '" + token.value + "'" };
+}
+
+Core::DbErrorOr<std::unique_ptr<Core::AST::Expression>> Parser::parse_operand(std::unique_ptr<Core::AST::Expression> lhs) {
+    while (true) {
+        auto operator_token = m_tokens[m_offset++];
+        Core::AST::BinaryOperator::Operation ast_operator {};
+        switch (operator_token.type) {
+        case Token::Type::OpEqual:
+            ast_operator = Core::AST::BinaryOperator::Operation::Equal;
+            break;
+        default:
+            return lhs;
+        }
+        auto rhs = TRY(parse_expression(AllowOperators::No));
+        lhs = std::make_unique<Core::AST::BinaryOperator>(std::move(lhs), ast_operator, std::move(rhs));
+    }
 }
 
 Core::DbErrorOr<std::unique_ptr<Core::AST::Function>> Parser::parse_function(std::string name) {
@@ -189,7 +225,7 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Function>> Parser::parse_function(std
     while (true) {
         // std::cout << "PARSE EXPRESSION AT " << m_offset << std::endl;
 
-        auto expression = TRY(parse_expression());
+        auto expression = TRY(parse_expression(AllowOperators::Yes));
         args.push_back(std::move(expression));
 
         auto comma_or_paren_close = m_tokens[m_offset];

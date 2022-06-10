@@ -15,9 +15,11 @@ struct Token {
         KeywordAlias,
         KeywordOrder,
         KeywordBy,
+        KeywordWhere,
+
         OrderByParam,
         Identifier,
-        Arg,
+        Number,
         Asterisk,
         Comma,
         ParenOpen,
@@ -25,6 +27,9 @@ struct Token {
         SquaredParenOpen,
         SquaredParenClose,
         Semicolon,
+
+        OpEqual,        // =
+
         Eof,
         Garbage
     };
