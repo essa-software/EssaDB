@@ -18,14 +18,23 @@ SelectResult::~SelectResult() = default;
 
 void SelectResult::dump(std::ostream& out) const {
     std::vector<int> widths;
+    unsigned long index = 0;
+
     for (auto& column : column_names()) {
-        out << "| " << column << " ";
-        widths.push_back(column.size());
+        unsigned long max_width = column.size();
+
+        for (auto row : m_rows) {
+            max_width = std::max(max_width, row.value(index).to_string().value().size());
+        }
+        index++;
+
+        out << "| " << std::setw(max_width) << column << " ";
+        widths.push_back(max_width);
     }
     out << "|" << std::endl;
 
     for (auto row : m_rows) {
-        size_t index = 0;
+        index = 0;
         for (auto value : row) {
             out << "| " << std::setw(widths[index]) << value;
             out << " ";
