@@ -136,6 +136,21 @@ DbErrorOr<void> select_where_like_with_suffix_asterisk() {
     return {};
 }
 
+DbErrorOr<void> select_where_like_with_suffix_asterisk_and_in_statement() {
+    auto db = TRY(setup_db());
+    auto result = TRY(TRY(AST::Select(
+                              { std::vector<std::string> { "id", "number", "string" } },
+                              "test",
+                              AST::Filter { .filter_rules = { 
+                                AST::Filter::FilterSet{.column = "string", .operation = AST::Filter::Operation::Like, .args = {Value::create_varchar("te*")}, .logic = AST::Filter::LogicOperator::AND},
+                                AST::Filter::FilterSet{.column = "id", .operation = AST::Filter::Operation::In, .args = {Value::create_int(1), Value::create_int(5)}, .logic = AST::Filter::LogicOperator::AND},
+                            }})
+                              .execute(db))
+                          .to_select_result());
+    TRY(expect(result.rows().size() == 1, "1 row returned"));
+    return {};
+}
+
 DbErrorOr<void> select_where_like_with_two_asterisks() {
     auto db = TRY(setup_db());
     auto result = TRY(TRY(AST::Select(
@@ -161,5 +176,6 @@ std::map<std::string, TestFunc*> get_tests() {
         { "select_where_like_with_prefix_asterisk", select_where_like_with_prefix_asterisk },
         { "select_where_like_with_suffix_asterisk", select_where_like_with_suffix_asterisk },
         { "select_where_like_with_two_asterisks", select_where_like_with_two_asterisks },
+        { "select_where_like_with_suffix_asterisk_and_in_statement", select_where_like_with_suffix_asterisk_and_in_statement },
     };
 }
