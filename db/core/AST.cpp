@@ -137,10 +137,9 @@ DbErrorOr<Value> Select::execute(Database& db) const {
             }else{
                 if(counter > 0)
                     values.push_back(condition);
-                else
-                    values.push_back(m_where->is_true(rule, row.value(table->get_column(rule.column)->second)).value());
-                condition = 1;
-                counter = 0;
+
+                condition = m_where->is_true(rule, row.value(table->get_column(rule.column)->second)).value();
+                counter = 1;
             }
         }
 

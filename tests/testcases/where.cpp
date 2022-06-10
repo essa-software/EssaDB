@@ -125,7 +125,7 @@ DbErrorOr<void> select_where_like_with_prefix_asterisk() {
 DbErrorOr<void> select_where_like_with_suffix_asterisk() {
     auto db = TRY(setup_db());
     auto result = TRY(TRY(AST::Select(
-                            std::vector<AST::SelectColumns::Column> {{.column = "id"}, {.column = "number", .alias = "NUMBER"}, {.column = "string", .alias = "STRING"}},
+                            std::vector<AST::SelectColumns::Column> {{.column = "id"}, {.column = "number", .alias = "NUMBER_ALIAS"}, {.column = "string", .alias = "STRING"}},
                               "test",
                               AST::Filter { .filter_rules = { 
                                 AST::Filter::FilterSet{.column = "string", .operation = AST::Filter::Operation::Like, .args = {Value::create_varchar("te*")}, .logic = AST::Filter::LogicOperator::AND},
