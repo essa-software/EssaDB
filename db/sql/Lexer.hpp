@@ -16,6 +16,7 @@ struct Token {
         KeywordOrder,
         KeywordBy,
         KeywordWhere,
+        KeywordBetween,
 
         OrderByParam,
         Identifier,
@@ -28,10 +29,15 @@ struct Token {
         SquaredParenClose,
         Semicolon,
         Exclamation,
+        Quote,
 
         OpEqual,        // =
         OpLess,        // =
         OpGreater,        // =
+
+        OpAnd,
+        OpOr,
+        OpLike,
 
         Eof,
         Garbage

@@ -73,6 +73,18 @@ std::vector<Token> Lexer::lex() {
             else if (compare_case_insensitive(id, "WHERE")) {
                 tokens.push_back(Token { .type = Token::Type::KeywordWhere, .value = "WHERE" });
             }
+            else if (compare_case_insensitive(id, "BETWEEN")) {
+                tokens.push_back(Token { .type = Token::Type::KeywordBetween, .value = "BETWEEN" });
+            }
+            else if (compare_case_insensitive(id, "AND")) {
+                tokens.push_back(Token { .type = Token::Type::OpAnd, .value = "AND" });
+            }
+            else if (compare_case_insensitive(id, "OR")) {
+                tokens.push_back(Token { .type = Token::Type::OpOr, .value = "OR" });
+            }
+            else if (compare_case_insensitive(id, "LIKE")) {
+                tokens.push_back(Token { .type = Token::Type::OpLike, .value = "LIKE" });
+            }
             else if (compare_case_insensitive(id, "ASC") || compare_case_insensitive(id, "DESC")) {
                 tokens.push_back(Token { .type = Token::Type::OrderByParam, .value = id });
             }
@@ -130,6 +142,10 @@ std::vector<Token> Lexer::lex() {
         }
         else if (next == '!') {
             tokens.push_back(Token { .type = Token::Type::Exclamation, .value = "!" });
+            m_in.get();
+        }
+        else if (next == '\'') {
+            tokens.push_back(Token { .type = Token::Type::Quote, .value = "'" });
             m_in.get();
         }
         else {

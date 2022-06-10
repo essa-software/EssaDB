@@ -92,48 +92,27 @@ DbErrorOr<void> select_where() {
 //     return {};
 // }
 
-// DbErrorOr<void> select_where_like_without_asterisks() {
-//     auto db = TRY(setup_db());
-//     auto result = TRY(TRY(AST::Select(
-//                               std::vector<AST::SelectColumns::IdentifierColumn> { { .column = "id", .alias = "ID" }, { .column = "number", .alias = "NUMBER" }, { .column = "string", .alias = "STRING" } },
-//                               "test",
-//                               AST::Filter { .filter_rules = {
-//                                                 AST::Filter::FilterSet { .column = "string", .operation = AST::Filter::Operation::Like, .args = { Value::create_varchar("test?") }, .logic = AST::Filter::LogicOperator::AND },
-//                                             } })
-//                               .execute(db))
-//                           .to_select_result());
-//     TRY(expect(result.rows().size() == 2, "2 rows returned"));
-//     return {};
-// }
+DbErrorOr<void> select_where_like_without_asterisks() {
+    auto db = TRY(setup_db());
+    auto result = TRY(TRY(Db::Sql::run_query(db, "SELECT * FROM test WHERE string LIKE 'test?';")).to_select_result());
+    TRY(expect(result.rows().size() == 2, "2 rows returned"));
+    return {};
+}
 
-// DbErrorOr<void> select_where_like_with_prefix_asterisk() {
-//     auto db = TRY(setup_db());
-//     auto result = TRY(TRY(AST::Select(
-//                               std::vector<AST::SelectColumns::IdentifierColumn> { { .column = "id", .alias = "ID" }, { .column = "number", .alias = "NUMBER" }, { .column = "string", .alias = "STRING" } },
-//                               "test",
-//                               AST::Filter { .filter_rules = {
-//                                                 AST::Filter::FilterSet { .column = "string", .operation = AST::Filter::Operation::Like, .args = { Value::create_varchar("*st?") }, .logic = AST::Filter::LogicOperator::AND },
-//                                             } })
-//                               .execute(db))
-//                           .to_select_result());
-//     TRY(expect(result.rows().size() == 2, "2 rows returned"));
-//     return {};
-// }
+DbErrorOr<void> select_where_like_with_prefix_asterisk() {
+    auto db = TRY(setup_db());
+    auto result = TRY(TRY(Db::Sql::run_query(db, "SELECT * FROM test WHERE string LIKE '*st?';")).to_select_result());
+    TRY(expect(result.rows().size() == 2, "2 rows returned"));
+    return {};
+}
 
-// DbErrorOr<void> select_where_like_with_suffix_asterisk() {
-//     auto db = TRY(setup_db());
-//     auto result = TRY(TRY(AST::Select(
-//                               std::vector<AST::SelectColumns::IdentifierColumn> { { .column = "id" }, { .column = "number", .alias = "NUMBER_ALIAS" }, { .column = "string", .alias = "STRING" } },
-//                               "test",
-//                               AST::Filter { .filter_rules = {
-//                                                 AST::Filter::FilterSet { .column = "string", .operation = AST::Filter::Operation::Like, .args = { Value::create_varchar("te*") }, .logic = AST::Filter::LogicOperator::AND },
-//                                             } })
-//                               .execute(db))
-//                           .to_select_result());
-//     result.dump(std::cout);
-//     TRY(expect(result.rows().size() == 3, "3 rows returned"));
-//     return {};
-// }
+DbErrorOr<void> select_where_like_with_suffix_asterisk() {
+    auto db = TRY(setup_db());
+    auto result = TRY(TRY(Db::Sql::run_query(db, "SELECT * FROM test WHERE string LIKE 'te*';")).to_select_result());
+    result.dump(std::cout);
+    TRY(expect(result.rows().size() == 3, "3 rows returned"));
+    return {};
+}
 
 // DbErrorOr<void> select_where_like_with_suffix_asterisk_and_in_statement() {
 //     auto db = TRY(setup_db());
@@ -171,9 +150,9 @@ std::map<std::string, TestFunc*> get_tests() {
         // { "select_where_between", select_where_between },
         // { "select_where_in_statement", select_where_in_statement },
         // { "select_where_but_more_complex", select_where_but_more_complex },
-        // { "select_where_like_without_asterisks", select_where_like_without_asterisks },
-        // { "select_where_like_with_prefix_asterisk", select_where_like_with_prefix_asterisk },
-        // { "select_where_like_with_suffix_asterisk", select_where_like_with_suffix_asterisk },
+        { "select_where_like_without_asterisks", select_where_like_without_asterisks },
+        { "select_where_like_with_prefix_asterisk", select_where_like_with_prefix_asterisk },
+        { "select_where_like_with_suffix_asterisk", select_where_like_with_suffix_asterisk },
         // { "select_where_like_with_two_asterisks", select_where_like_with_two_asterisks },
         // { "select_where_like_with_suffix_asterisk_and_in_statement", select_where_like_with_suffix_asterisk_and_in_statement },
     };

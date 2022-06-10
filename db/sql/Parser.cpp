@@ -1,4 +1,5 @@
 #include "Parser.hpp"
+#include "db/core/Value.hpp"
 #include "db/sql/Lexer.hpp"
 
 #include <db/core/AST.hpp>
@@ -83,12 +84,11 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Select>> Parser::parse_select() {
     if (from_token.type != Token::Type::Identifier)
         return Core::DbError { "Expected table name after 'FROM'" };
 
-    // WHERE
     std::unique_ptr<Core::AST::Expression> where;
 
-    // ORDER BY
     while (true) {
         if (m_tokens[m_offset].type == Token::Type::KeywordOrder) {
+            // ORDER BY
             m_offset++;
             if (m_tokens[m_offset++].type != Token::Type::KeywordBy)
                 return Core::DbError { "Expected 'BY' after 'ORDER'" };
@@ -118,6 +118,7 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Select>> Parser::parse_select() {
 
             order = order_by;
         }else if(m_tokens[m_offset].type == Token::Type::KeywordWhere){
+            // WHERE
             m_offset++;
 
             where = TRY(parse_expression(AllowOperators::Yes));
@@ -194,6 +195,16 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Expression>> Parser::parse_expression
             else
                 return identifier;
         }
+    }else if (token.type == Token::Type::Quote) {
+        std::string str = "";
+
+        while(m_tokens[m_offset++ + 1].type != Token::Type::Quote){
+            str += m_tokens[m_offset].value;
+        }
+
+        std::cout << str << "\n";
+
+        return std::make_unique<Core::AST::Literal>(Core::Value::create_varchar(str));
     }
     else if (token.type == Token::Type::Number) {
         return std::make_unique<Core::AST::Literal>(Core::Value::create_int(std::stoi(token.value)));
@@ -229,6 +240,9 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Expression>> Parser::parse_operand(st
             if(m_tokens[m_offset++].type != Token::Type::OpEqual)
                 return Core::DbError { "Expected '!='" };
             ast_operator = Core::AST::BinaryOperator::Operation::NotEqual;
+            break;
+        case Token::Type::OpLike:
+            ast_operator = Core::AST::BinaryOperator::Operation::Like;
             break;
         default:
             return lhs;
