@@ -57,7 +57,7 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Select>> Parser::parse_select() {
             auto expression = TRY(parse_expression());
             std::optional<std::string> alias;
 
-            if(m_tokens[m_offset].value == "AS"){
+            if(m_tokens[m_offset].type == Token::Type::KeywordAlias){
                 std::string str = "";
                 m_offset++;
 
@@ -82,7 +82,7 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Select>> Parser::parse_select() {
             columns.push_back( Core::AST::SelectColumns::Column{.column = expression->to_string(), .alias = std::move(alias)});
 
             auto comma = m_tokens[m_offset];
-            if (comma.type != Token::Type::Comma && comma.type != Token::Type::Alias)
+            if (comma.type != Token::Type::Comma)
                 break;
             m_offset++;
         }

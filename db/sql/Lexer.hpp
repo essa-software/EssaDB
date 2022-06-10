@@ -13,7 +13,6 @@ struct Token {
         KeywordCreate,
         KeywordTable,
         KeywordAlias,
-        Alias,
         Identifier,
         Arg,
         Asterisk,
