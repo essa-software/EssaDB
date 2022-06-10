@@ -36,21 +36,26 @@ DbErrorOr<void> select_where() {
 
 // TODO: Port these to SQL
 
-// DbErrorOr<void> select_where_multiple_rules() {
-//     auto db = TRY(setup_db());
-//     auto result = TRY(TRY(AST::Select(
-//                               std::vector<AST::SelectColumns::IdentifierColumn> { { .column = "id", .alias = "ID" }, { .column = "number", .alias = "NUMBER" } },
-//                               "test",
-//                               AST::Filter { .filter_rules = {
-//                                                 AST::Filter::FilterSet { .column = "id", .operation = AST::Filter::Operation::LessEqual, .args = { Value::create_int(2) }, .logic = AST::Filter::LogicOperator::AND },
-//                                                 AST::Filter::FilterSet { .column = "id", .operation = AST::Filter::Operation::Equal, .args = { Value::create_int(2) } },
-//                                             } })
-//                               .execute(db))
-//                           .to_select_result());
-//     TRY(expect(result.rows().size() == 1, "1 row returned"));
-//     TRY(expect(result.rows()[0].value(1).type() == Value::Type::Null, "number is null as in table"));
-//     return {};
-// }
+DbErrorOr<void> select_where_multiple_rules_and() {
+    auto db = TRY(setup_db());
+    auto result = TRY(TRY(Db::Sql::run_query(db, "SELECT id FROM test WHERE id = 2 AND id = 3;")).to_select_result());
+    TRY(expect(result.rows().size() == 0, "filters are mutually exclusive"));
+    return {};
+}
+
+DbErrorOr<void> select_where_multiple_rules_or() {
+    auto db = TRY(setup_db());
+    auto result = TRY(TRY(Db::Sql::run_query(db, "SELECT id FROM test WHERE id = 2 OR id = 3;")).to_select_result());
+    TRY(expect(result.rows().size() == 2, "filters were applied properly"));
+    return {};
+}
+
+DbErrorOr<void> select_where_multiple_rules_and_or() {
+    auto db = TRY(setup_db());
+    auto result = TRY(TRY(Db::Sql::run_query(db, "SELECT id FROM test WHERE id = 2 OR id = 3 AND number = 420;")).to_select_result());
+    TRY(expect(result.rows().size() == 2, "filters were applied properly"));
+    return {};
+}
 
 // DbErrorOr<void> select_where_between() {
 //     auto db = TRY(setup_db());
@@ -146,7 +151,9 @@ DbErrorOr<void> select_where_like_with_suffix_asterisk() {
 std::map<std::string, TestFunc*> get_tests() {
     return {
         { "select_where", select_where },
-        // { "select_where_multiple_rules", select_where_multiple_rules },
+        { "select_where_multiple_rules_and", select_where_multiple_rules_and },
+        { "select_where_multiple_rules_or", select_where_multiple_rules_or },
+        { "select_where_multiple_rules_and_or", select_where_multiple_rules_and_or },
         // { "select_where_between", select_where_between },
         // { "select_where_in_statement", select_where_in_statement },
         // { "select_where_but_more_complex", select_where_but_more_complex },

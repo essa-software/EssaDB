@@ -96,6 +96,8 @@ DbErrorOr<bool> BinaryOperator::is_true(EvaluationContext& context, Row const& r
 
         return true;
     }
+    case Operation::Invalid:
+        break;
     }
     __builtin_unreachable();
 }

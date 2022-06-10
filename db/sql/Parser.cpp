@@ -89,6 +89,7 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Select>> Parser::parse_select() {
     if (m_tokens[m_offset].type == Token::Type::KeywordWhere) {
         m_offset++;
         where = TRY(parse_expression(AllowOperators::Yes));
+        //std::cout << where->to_string() << std::endl;
     }
 
     // ORDER BY
@@ -204,51 +205,84 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Expression>> Parser::parse_expression
         return std::make_unique<Core::AST::Literal>(Core::Value::create_varchar(str));
     }
     else if (token.type == Token::Type::Number) {
+        m_offset++;
         return std::make_unique<Core::AST::Literal>(Core::Value::create_int(std::stoi(token.value)));
     }
     return Core::DbError { "Expected expression, got '" + token.value + "'" };
 }
 
+int operator_precedence(Core::AST::BinaryOperator::Operation op) {
+    switch (op) {
+    case Core::AST::BinaryOperator::Operation::Equal:
+    case Core::AST::BinaryOperator::Operation::NotEqual:
+    case Core::AST::BinaryOperator::Operation::Greater:
+    case Core::AST::BinaryOperator::Operation::GreaterEqual:
+    case Core::AST::BinaryOperator::Operation::Less:
+    case Core::AST::BinaryOperator::Operation::LessEqual:
+    case Core::AST::BinaryOperator::Operation::Like:
+        return 10;
+    case Core::AST::BinaryOperator::Operation::And:
+    case Core::AST::BinaryOperator::Operation::Or:
+        return 5;
+    default:
+        return 100000;
+    }
+}
+
 Core::DbErrorOr<std::unique_ptr<Core::AST::Expression>> Parser::parse_operand(std::unique_ptr<Core::AST::Expression> lhs) {
-    while (true) {
-        auto operator_token = m_tokens[m_offset];
+    auto peek_operator = [this]() {
         Core::AST::BinaryOperator::Operation ast_operator {};
-        switch (operator_token.type) {
+        switch (m_tokens[m_offset].type) {
         case Token::Type::OpEqual:
             ast_operator = Core::AST::BinaryOperator::Operation::Equal;
             break;
         case Token::Type::OpLess:
-            if (m_tokens[m_offset].type == Token::Type::OpEqual) {
-                ast_operator = Core::AST::BinaryOperator::Operation::LessEqual;
-                m_offset++;
-            }
-            else {
-                ast_operator = Core::AST::BinaryOperator::Operation::Less;
-            }
+            // TODO: <=
+            ast_operator = Core::AST::BinaryOperator::Operation::Less;
             break;
         case Token::Type::OpGreater:
-            if (m_tokens[m_offset].type == Token::Type::OpEqual) {
-                ast_operator = Core::AST::BinaryOperator::Operation::GreaterEqual;
-                m_offset++;
-            }
-            else {
-                ast_operator = Core::AST::BinaryOperator::Operation::Greater;
-            }
+            // TODO: >=
+            ast_operator = Core::AST::BinaryOperator::Operation::Greater;
             break;
-        case Token::Type::Exclamation:
-            if (m_tokens[m_offset++].type != Token::Type::OpEqual)
-                return Core::DbError { "Expected '!='" };
+        case Token::Type::OpNotEqual:
             ast_operator = Core::AST::BinaryOperator::Operation::NotEqual;
             break;
         case Token::Type::OpLike:
             ast_operator = Core::AST::BinaryOperator::Operation::Like;
             break;
+        case Token::Type::OpAnd:
+            ast_operator = Core::AST::BinaryOperator::Operation::And;
+            break;
+        case Token::Type::OpOr:
+            ast_operator = Core::AST::BinaryOperator::Operation::Or;
+            break;
         default:
-            return lhs;
+            ast_operator = Core::AST::BinaryOperator::Operation::Invalid;
         }
+        return ast_operator;
+    };
+
+    while (true) {
+        //std::cout << "1. " << m_offset << ": " << m_tokens[m_offset].value << std::endl;
+        auto current_operator = peek_operator();
+        if (current_operator == Core::AST::BinaryOperator::Operation::Invalid)
+            return lhs;
         m_offset++;
+        //std::cout << "2. " << m_offset << ": " << m_tokens[m_offset].value << std::endl;
         auto rhs = TRY(parse_expression(AllowOperators::No));
-        lhs = std::make_unique<Core::AST::BinaryOperator>(std::move(lhs), ast_operator, std::move(rhs));
+        //std::cout << "3. " << m_offset << ": " << m_tokens[m_offset].value << std::endl;
+
+        auto next_operator = peek_operator();
+
+        auto current_precedence = operator_precedence(current_operator);
+        auto next_precedence = operator_precedence(next_operator);
+
+        if (current_precedence > next_precedence) {
+            lhs = std::make_unique<Core::AST::BinaryOperator>(std::move(lhs), current_operator, std::move(rhs));
+        }
+        else {
+            lhs = std::make_unique<Core::AST::BinaryOperator>(std::move(lhs), current_operator, TRY(parse_operand(std::move(rhs))));
+        }
     }
 }
 

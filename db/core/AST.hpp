@@ -69,7 +69,9 @@ public:
         Like,
         And,
         Or,
-        Not,
+        Not, // FIXME: This is not binary op
+
+        Invalid
     };
 
     BinaryOperator(std::unique_ptr<Expression> lhs, Operation op, std::unique_ptr<Expression> rhs = nullptr)
@@ -80,7 +82,7 @@ public:
     virtual DbErrorOr<Value> evaluate(EvaluationContext& context, Row const& row) const override {
         return Value::create_bool(TRY(is_true(context, row)));
     }
-    virtual std::string to_string() const override { return "BinaryOperator(TODO)"; }
+    virtual std::string to_string() const override { return "BinaryOperator(" + m_lhs->to_string() + "," + m_rhs->to_string() + ")"; }
 
 private:
     DbErrorOr<bool> is_true(EvaluationContext&, Row const&) const;

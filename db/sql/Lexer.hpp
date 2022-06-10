@@ -31,9 +31,10 @@ struct Token {
         Exclamation,
         Quote,
 
-        OpEqual,        // =
-        OpLess,        // =
-        OpGreater,        // =
+        OpEqual,    // =
+        OpNotEqual, // !=
+        OpLess,     // <
+        OpGreater,  // >
 
         OpAnd,
         OpOr,

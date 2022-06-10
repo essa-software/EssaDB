@@ -146,8 +146,15 @@ std::vector<Token> Lexer::lex() {
             m_in.get();
         }
         else if (next == '!') {
-            tokens.push_back(Token { .type = Token::Type::Exclamation, .value = "!" });
             m_in.get();
+            next = m_in.peek();
+            if (next == '=') {
+                tokens.push_back(Token { .type = Token::Type::OpNotEqual, .value = "!=" });
+                m_in.get();
+            }
+            else {
+                tokens.push_back(Token { .type = Token::Type::Exclamation, .value = "=" });
+            }
         }
         else if (next == '\'') {
             tokens.push_back(Token { .type = Token::Type::Quote, .value = "'" });
