@@ -12,12 +12,16 @@ struct Token {
         KeywordAfterSelect,
         KeywordCreate,
         KeywordTable,
+        KeywordAlias,
+        Alias,
         Identifier,
         Arg,
         Asterisk,
         Comma,
         ParenOpen,
         ParenClose,
+        SquaredParenOpen,
+        SquaredParenClose,
         Eof,
         Garbage
     };

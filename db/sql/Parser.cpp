@@ -1,8 +1,10 @@
 #include "Parser.hpp"
+#include "db/sql/Lexer.hpp"
 
 #include <db/core/AST.hpp>
 
 #include <iostream>
+#include <utility>
 
 namespace Db::Sql {
 
@@ -45,7 +47,7 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Select>> Parser::parse_select() {
         }
     }
 
-    std::vector<std::unique_ptr<Core::AST::Expression>> columns;
+    std::vector<Core::AST::SelectColumns::Column> columns;
 
     auto maybe_asterisk = m_tokens[m_offset];
     if (maybe_asterisk.type != Token::Type::Asterisk) {
@@ -53,10 +55,34 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Select>> Parser::parse_select() {
             //std::cout << "PARSE EXPRESSION AT " << m_offset << std::endl;
 
             auto expression = TRY(parse_expression());
-            columns.push_back(std::move(expression));
+            std::optional<std::string> alias;
+
+            if(m_tokens[m_offset].value == "AS"){
+                std::string str = "";
+                m_offset++;
+
+                if(m_tokens[m_offset++].type != Token::Type::SquaredParenOpen)
+                    return Core::DbError { "Expected '['"};
+                
+                while(true){
+                    if(m_tokens[m_offset].type == Token::Type::SquaredParenClose)
+                        break;
+                    else if(m_tokens[m_offset].type != Token::Type::Identifier)
+                        return Core::DbError { "Invalid syntax, expected identifier, got \'" + m_tokens[m_offset].value + "\'"};
+                    
+                    str += m_tokens[m_offset++].value + " ";
+                }
+
+                str = str.substr(0, str.size() - 1);
+
+                alias = str;
+                m_offset++;
+            }
+
+            columns.push_back( Core::AST::SelectColumns::Column{.column = expression->to_string(), .alias = std::move(alias)});
 
             auto comma = m_tokens[m_offset];
-            if (comma.type != Token::Type::Comma)
+            if (comma.type != Token::Type::Comma && comma.type != Token::Type::Alias)
                 break;
             m_offset++;
         }

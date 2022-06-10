@@ -94,6 +94,15 @@ DbErrorOr<void> select_function_len() {
     return {};
 }
 
+DbErrorOr<void> select_with_aliases() {
+    auto db = TRY(setup_db());
+    // TODO: Returns columns in given order, not in table order
+    auto result = TRY(TRY(Db::Sql::run_query(db, "SELECT id AS [ID], number AS [NUM], string AS [STR]  FROM test")).to_select_result());
+    TRY(expect(result.column_names() == std::vector<std::string> { "ID", "NUM", "STR" }, "columns have alias names"));
+    TRY(expect(result.rows().size() == 6, "all rows were returned"));
+    return {};
+}
+
 std::map<std::string, TestFunc*> get_tests() {
     return {
         { "select_simple", select_simple },
@@ -103,5 +112,6 @@ std::map<std::string, TestFunc*> get_tests() {
         { "select_top_number", select_top_number },
         { "select_top_perc", select_top_perc },
         { "select_function_len", select_function_len },
+        { "select_with_aliases", select_with_aliases },
     };
 }

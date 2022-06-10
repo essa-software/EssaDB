@@ -61,6 +61,10 @@ std::vector<Token> Lexer::lex() {
                 tokens.push_back(Token { .type = Token::Type::KeywordTable, .value = "TABLE" });
                 m_select_syntax = 1;
             }
+            else if (compare_case_insensitive(id, "AS")) {
+                tokens.push_back(Token { .type = Token::Type::KeywordAlias, .value = "AS" });
+                m_select_syntax = 1;
+            }
             else if (m_select_syntax && (compare_case_insensitive(id, "TOP") || compare_case_insensitive(id, "DISTINCT"))) {
                 tokens.push_back(Token { .type = Token::Type::KeywordAfterSelect, .value = id });
             }
@@ -91,6 +95,14 @@ std::vector<Token> Lexer::lex() {
         }
         else if (next == ')') {
             tokens.push_back(Token { .type = Token::Type::ParenClose, .value = ")" });
+            m_in.get();
+        }
+        else if (next == '[') {
+            tokens.push_back(Token { .type = Token::Type::SquaredParenOpen, .value = "[" });
+            m_in.get();
+        }
+        else if (next == ']') {
+            tokens.push_back(Token { .type = Token::Type::SquaredParenClose, .value = "]" });
             m_in.get();
         }
         else {
