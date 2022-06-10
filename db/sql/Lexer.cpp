@@ -5,6 +5,8 @@
 #include <string>
 
 bool compare_case_insensitive(const std::string& lhs, const std::string& rhs) {
+    if (lhs.size() != rhs.size())
+        return false;
     for (auto l = lhs.begin(), r = rhs.begin(); l != lhs.end() && r != rhs.end(); l++, r++) {
         char c1 = (*l > 97) ? *l - 32 : *l;
         char c2 = (*r > 97) ? *r - 32 : *r;
