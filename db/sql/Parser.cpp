@@ -225,6 +225,11 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Expression>> Parser::parse_operand(st
                 ast_operator = Core::AST::BinaryOperator::Operation::Greater;
             }
             break;
+        case Token::Type::Exclamation:
+            if(m_tokens[m_offset++].type != Token::Type::OpEqual)
+                return Core::DbError { "Expected '!='" };
+            ast_operator = Core::AST::BinaryOperator::Operation::NotEqual;
+            break;
         default:
             return lhs;
         }

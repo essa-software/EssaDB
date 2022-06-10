@@ -27,6 +27,7 @@ struct Token {
         SquaredParenOpen,
         SquaredParenClose,
         Semicolon,
+        Exclamation,
 
         OpEqual,        // =
         OpLess,        // =
