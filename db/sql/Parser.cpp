@@ -84,51 +84,47 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Select>> Parser::parse_select() {
     if (from_token.type != Token::Type::Identifier)
         return Core::DbError { "Expected table name after 'FROM'" };
 
+    // WHERE
     std::unique_ptr<Core::AST::Expression> where;
+    if (m_tokens[m_offset].type == Token::Type::KeywordWhere) {
+        m_offset++;
+        where = TRY(parse_expression(AllowOperators::Yes));
+    }
 
-    while (true) {
-        if (m_tokens[m_offset].type == Token::Type::KeywordOrder) {
-            // ORDER BY
-            m_offset++;
-            if (m_tokens[m_offset++].type != Token::Type::KeywordBy)
-                return Core::DbError { "Expected 'BY' after 'ORDER'" };
+    // ORDER BY
+    if (m_tokens[m_offset].type == Token::Type::KeywordOrder) {
+        m_offset++;
+        if (m_tokens[m_offset++].type != Token::Type::KeywordBy)
+            return Core::DbError { "Expected 'BY' after 'ORDER'" };
 
-            Core::AST::OrderBy order_by;
+        Core::AST::OrderBy order_by;
 
-            while (true) {
-                auto expression = TRY(parse_expression(AllowOperators::Yes));
+        while (true) {
+            auto expression = TRY(parse_expression(AllowOperators::Yes));
 
-                auto param = m_tokens[m_offset];
-                auto order_method = Core::AST::OrderBy::Order::Ascending;
-                if (param.type == Token::Type::OrderByParam) {
-                    if (param.value == "ASC")
-                        order_method = Core::AST::OrderBy::Order::Ascending;
-                    else
-                        order_method = Core::AST::OrderBy::Order::Descending;
-                    m_offset++;
-                }
-
-                order_by.columns.push_back(Core::AST::OrderBy::OrderBySet { .name = expression->to_string(), .order = order_method });
-
-                auto comma = m_tokens[m_offset];
-                if (comma.type != Token::Type::Comma)
-                    break;
+            auto param = m_tokens[m_offset];
+            auto order_method = Core::AST::OrderBy::Order::Ascending;
+            if (param.type == Token::Type::OrderByParam) {
+                if (param.value == "ASC")
+                    order_method = Core::AST::OrderBy::Order::Ascending;
+                else
+                    order_method = Core::AST::OrderBy::Order::Descending;
                 m_offset++;
             }
 
-            order = order_by;
-        }else if(m_tokens[m_offset].type == Token::Type::KeywordWhere){
-            // WHERE
-            m_offset++;
+            order_by.columns.push_back(Core::AST::OrderBy::OrderBySet { .name = expression->to_string(), .order = order_method });
 
-            where = TRY(parse_expression(AllowOperators::Yes));
+            auto comma = m_tokens[m_offset];
+            if (comma.type != Token::Type::Comma)
+                break;
+            m_offset++;
         }
 
-        if (m_tokens[m_offset].type == Token::Type::Eof)
-            return Core::DbError { "Expected ';' before EOF" };
-        else if (m_tokens[m_offset].type == Token::Type::Semicolon)
-            break;
+        order = order_by;
     }
+
+    if (m_tokens[m_offset].type == Token::Type::Eof)
+        return Core::DbError { "Expected ';' before EOF" };
 
     return std::make_unique<Core::AST::Select>(Core::AST::SelectColumns { std::move(columns) },
         from_token.value,
@@ -195,10 +191,11 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Expression>> Parser::parse_expression
             else
                 return identifier;
         }
-    }else if (token.type == Token::Type::Quote) {
+    }
+    else if (token.type == Token::Type::Quote) {
         std::string str = "";
 
-        while(m_tokens[m_offset++ + 1].type != Token::Type::Quote){
+        while (m_tokens[m_offset++ + 1].type != Token::Type::Quote) {
             str += m_tokens[m_offset].value;
         }
 
@@ -214,30 +211,32 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Expression>> Parser::parse_expression
 
 Core::DbErrorOr<std::unique_ptr<Core::AST::Expression>> Parser::parse_operand(std::unique_ptr<Core::AST::Expression> lhs) {
     while (true) {
-        auto operator_token = m_tokens[m_offset++];
+        auto operator_token = m_tokens[m_offset];
         Core::AST::BinaryOperator::Operation ast_operator {};
         switch (operator_token.type) {
         case Token::Type::OpEqual:
             ast_operator = Core::AST::BinaryOperator::Operation::Equal;
             break;
         case Token::Type::OpLess:
-            if(m_tokens[m_offset].type == Token::Type::OpEqual){
+            if (m_tokens[m_offset].type == Token::Type::OpEqual) {
                 ast_operator = Core::AST::BinaryOperator::Operation::LessEqual;
                 m_offset++;
-            }else {
+            }
+            else {
                 ast_operator = Core::AST::BinaryOperator::Operation::Less;
             }
             break;
         case Token::Type::OpGreater:
-            if(m_tokens[m_offset].type == Token::Type::OpEqual){
+            if (m_tokens[m_offset].type == Token::Type::OpEqual) {
                 ast_operator = Core::AST::BinaryOperator::Operation::GreaterEqual;
                 m_offset++;
-            }else {
+            }
+            else {
                 ast_operator = Core::AST::BinaryOperator::Operation::Greater;
             }
             break;
         case Token::Type::Exclamation:
-            if(m_tokens[m_offset++].type != Token::Type::OpEqual)
+            if (m_tokens[m_offset++].type != Token::Type::OpEqual)
                 return Core::DbError { "Expected '!='" };
             ast_operator = Core::AST::BinaryOperator::Operation::NotEqual;
             break;
@@ -247,6 +246,7 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Expression>> Parser::parse_operand(st
         default:
             return lhs;
         }
+        m_offset++;
         auto rhs = TRY(parse_expression(AllowOperators::No));
         lhs = std::make_unique<Core::AST::BinaryOperator>(std::move(lhs), ast_operator, std::move(rhs));
     }
