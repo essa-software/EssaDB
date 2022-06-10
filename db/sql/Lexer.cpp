@@ -51,26 +51,30 @@ std::vector<Token> Lexer::lex() {
             }
             else if (compare_case_insensitive(id, "SELECT")) {
                 tokens.push_back(Token { .type = Token::Type::KeywordSelect, .value = "SELECT" });
-                m_select_syntax = 1;
             }
             else if (compare_case_insensitive(id, "CREATE")) {
                 tokens.push_back(Token { .type = Token::Type::KeywordCreate, .value = "CREATE" });
-                m_select_syntax = 1;
             }
             else if (compare_case_insensitive(id, "TABLE")) {
                 tokens.push_back(Token { .type = Token::Type::KeywordTable, .value = "TABLE" });
-                m_select_syntax = 1;
             }
             else if (compare_case_insensitive(id, "AS")) {
                 tokens.push_back(Token { .type = Token::Type::KeywordAlias, .value = "AS" });
-                m_select_syntax = 1;
             }
-            else if (m_select_syntax && (compare_case_insensitive(id, "TOP") || compare_case_insensitive(id, "DISTINCT"))) {
-                tokens.push_back(Token { .type = Token::Type::KeywordAfterSelect, .value = id });
+            else if (compare_case_insensitive(id, "TOP")) {
+                tokens.push_back(Token { .type = Token::Type::KeywordTop, .value = "TOP" });
+            }
+            else if (compare_case_insensitive(id, "BY")) {
+                tokens.push_back(Token { .type = Token::Type::KeywordBy, .value = "BY" });
+            }
+            else if (compare_case_insensitive(id, "ORDER")) {
+                tokens.push_back(Token { .type = Token::Type::KeywordOrder, .value = "ORDER" });
+            }
+            else if (compare_case_insensitive(id, "ASC") || compare_case_insensitive(id, "DESC")) {
+                tokens.push_back(Token { .type = Token::Type::OrderByParam, .value = id });
             }
             else {
                 tokens.push_back(Token { .type = Token::Type::Identifier, .value = id });
-                m_select_syntax = 0;
             }
         }
         else if (isspace(next)) {
@@ -103,6 +107,10 @@ std::vector<Token> Lexer::lex() {
         }
         else if (next == ']') {
             tokens.push_back(Token { .type = Token::Type::SquaredParenClose, .value = "]" });
+            m_in.get();
+        }
+        else if (next == ';') {
+            tokens.push_back(Token { .type = Token::Type::Semicolon, .value = ";" });
             m_in.get();
         }
         else {

@@ -29,21 +29,22 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Select>> Parser::parse_select() {
         return Core::DbError { "Expected 'SELECT'" };
 
     std::optional<Core::AST::Top> top;
+    std::optional<Core::AST::OrderBy> order;
+    std::optional<Core::AST::Filter> filter;
 
-    if (m_tokens[m_offset].type == Token::Type::KeywordAfterSelect) {
-        if (m_tokens[m_offset++].value == "TOP") {
-            try {
-                unsigned value = std::stoi(m_tokens[m_offset++].value);
-                if (m_tokens[m_offset].value == "PERC") {
-                    top = Core::AST::Top { .unit = Core::AST::Top::Unit::Perc, .value = value };
-
-                    m_offset++;
-                }
-                else
-                    top = Core::AST::Top { .unit = Core::AST::Top::Unit::Val, .value = value };
-            } catch (...) {
-                return Core::DbError { "Invalid argument for TOP" };
+    if (m_tokens[m_offset].type == Token::Type::KeywordTop) {
+        m_offset++;
+        try {
+            unsigned value = std::stoi(m_tokens[m_offset++].value);
+            if (m_tokens[m_offset].value == "PERC") {
+                top = Core::AST::Top { .unit = Core::AST::Top::Unit::Perc, .value = value };
+                
+                m_offset++;
             }
+            else
+                top = Core::AST::Top { .unit = Core::AST::Top::Unit::Val, .value = value };
+        } catch (...) {
+            return Core::DbError { "Invalid argument for TOP" };
         }
     }
 
@@ -99,10 +100,48 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Select>> Parser::parse_select() {
     if (from_token.type != Token::Type::Identifier)
         return Core::DbError { "Expected table name after 'FROM'" };
 
+    while(true){
+        if(m_tokens[m_offset].type == Token::Type::KeywordOrder){
+            m_offset++;
+            if(m_tokens[m_offset++].type != Token::Type::KeywordBy)
+                return Core::DbError { "Expected 'BY' after 'ORDER'" };
+
+            Core::AST::OrderBy order_by;
+
+            while (true) {
+                auto expression = TRY(parse_expression());
+
+                auto param = m_tokens[m_offset];
+                auto order_method = Core::AST::OrderBy::Order::Ascending;
+                if(param.type == Token::Type::OrderByParam){
+                    if(param.value == "ASC")
+                        order_method = Core::AST::OrderBy::Order::Ascending;
+                    else
+                        order_method = Core::AST::OrderBy::Order::Descending;
+                    m_offset++;
+                }
+
+                order_by.columns.push_back(Core::AST::OrderBy::OrderBySet{.name = expression->to_string(), .order = order_method});
+
+                auto comma = m_tokens[m_offset];
+                if (comma.type != Token::Type::Comma)
+                    break;
+                m_offset++;
+            }
+
+            order = order_by;
+        }
+
+        if(m_tokens[m_offset].type == Token::Type::Eof)
+            return Core::DbError { "Expected ';' before EOF" };
+        else if(m_tokens[m_offset].type == Token::Type::Semicolon)
+            break;
+    }
+
     return std::make_unique<Core::AST::Select>(Core::AST::SelectColumns { std::move(columns) },
         from_token.value,
-        std::optional<Core::AST::Filter> {},
-        std::optional<Core::AST::OrderBy> {},
+        std::move(filter),
+        std::move(order),
         std::move(top));
 }
 

@@ -9,10 +9,13 @@ struct Token {
     enum class Type {
         KeywordSelect,
         KeywordFrom,
-        KeywordAfterSelect,
+        KeywordTop,
         KeywordCreate,
         KeywordTable,
         KeywordAlias,
+        KeywordOrder,
+        KeywordBy,
+        OrderByParam,
         Identifier,
         Arg,
         Asterisk,
@@ -21,6 +24,7 @@ struct Token {
         ParenClose,
         SquaredParenOpen,
         SquaredParenClose,
+        Semicolon,
         Eof,
         Garbage
     };
@@ -38,8 +42,6 @@ public:
 
 private:
     std::istream& m_in;
-
-    bool m_select_syntax = 0;
 };
 
 }
