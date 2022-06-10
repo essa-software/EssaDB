@@ -4,6 +4,7 @@
 #include "SelectResult.hpp"
 #include "Table.hpp"
 #include "Value.hpp"
+#include "db/core/Column.hpp"
 
 #include <iostream>
 #include <memory>
@@ -95,17 +96,26 @@ public:
 
     // FIXME: This is temporary until we can represent all handled
     //        expressions in SQL.
-    SelectColumns(std::vector<std::string> columns) {
+
+    struct Column{
+        std::string column;
+        std::optional<std::string> alias = {};
+    };
+
+    SelectColumns(std::vector<Column> columns) {
         for (auto const& column : columns) {
-            m_columns.push_back(std::make_unique<Identifier>(column));
+            m_columns.push_back(std::make_unique<Identifier>(column.column));
+            m_aliases.push_back(std::move(column.alias));
         }
     }
 
     bool select_all() const { return m_columns.empty(); }
     std::vector<std::unique_ptr<Expression>> const& columns() const { return m_columns; }
+    std::vector<std::optional<std::string>> const& aliases() const { return m_aliases; }
 
 private:
     std::vector<std::unique_ptr<Expression>> m_columns {};
+    std::vector<std::optional<std::string>> m_aliases {};
 };
 
 struct OrderBy {

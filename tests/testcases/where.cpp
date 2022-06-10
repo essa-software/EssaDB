@@ -28,7 +28,7 @@ DbErrorOr<Database> setup_db() {
 DbErrorOr<void> select_where() {
     auto db = TRY(setup_db());
     auto result = TRY(TRY(AST::Select(
-                              { std::vector<std::string> { "id", "number" } },
+                              std::vector<AST::SelectColumns::Column> {{.column = "id", .alias = "ID"}, {.column = "number", .alias = "NUMBER"}},
                               "test",
                               AST::Filter { .filter_rules = { AST::Filter::FilterSet{.column = "id", .operation = AST::Filter::Operation::Equal, .args = {Value::create_int(2)} }}})
                               .execute(db))
@@ -41,7 +41,7 @@ DbErrorOr<void> select_where() {
 DbErrorOr<void> select_where_multiple_rules() {
     auto db = TRY(setup_db());
     auto result = TRY(TRY(AST::Select(
-                              { std::vector<std::string> { "id", "number" } },
+                            std::vector<AST::SelectColumns::Column> {{.column = "id", .alias = "ID"}, {.column = "number", .alias = "NUMBER"}},
                               "test",
                               AST::Filter { .filter_rules = { 
                                 AST::Filter::FilterSet{.column = "id", .operation = AST::Filter::Operation::LessEqual, .args = {Value::create_int(2)}, .logic = AST::Filter::LogicOperator::AND},
@@ -57,7 +57,7 @@ DbErrorOr<void> select_where_multiple_rules() {
 DbErrorOr<void> select_where_between() {
     auto db = TRY(setup_db());
     auto result = TRY(TRY(AST::Select(
-                              { std::vector<std::string> { "id", "number" } },
+                            std::vector<AST::SelectColumns::Column> {{.column = "id", .alias = "ID"}, {.column = "number", .alias = "NUMBER"}},
                               "test",
                               AST::Filter { .filter_rules = { AST::Filter::FilterSet{.column = "id", .operation = AST::Filter::Operation::Between, .args = {Value::create_int(2), Value::create_int(4)} }}})
                               .execute(db))
@@ -69,7 +69,7 @@ DbErrorOr<void> select_where_between() {
 DbErrorOr<void> select_where_in_statement() {
     auto db = TRY(setup_db());
     auto result = TRY(TRY(AST::Select(
-                              { std::vector<std::string> { "id", "number" } },
+                            std::vector<AST::SelectColumns::Column> {{.column = "id", .alias = "ID"}, {.column = "number", .alias = "NUMBER"}},
                               "test",
                               AST::Filter { .filter_rules = { AST::Filter::FilterSet{.column = "id", .operation = AST::Filter::Operation::In, .args = {Value::create_int(1), Value::create_int(5)} }}})
                               .execute(db))
@@ -81,7 +81,7 @@ DbErrorOr<void> select_where_in_statement() {
 DbErrorOr<void> select_where_but_more_complex() {
     auto db = TRY(setup_db());
     auto result = TRY(TRY(AST::Select(
-                              { std::vector<std::string> { "id", "number", "string" } },
+                            std::vector<AST::SelectColumns::Column> {{.column = "id", .alias = "ID"}, {.column = "number", .alias = "NUMBER"}, {.column = "string", .alias = "STRING"}},
                               "test",
                               AST::Filter { .filter_rules = { 
                                 AST::Filter::FilterSet{.column = "number", .operation = AST::Filter::Operation::Equal, .args = {Value::create_int(69)}, .logic = AST::Filter::LogicOperator::AND},
@@ -97,7 +97,7 @@ DbErrorOr<void> select_where_but_more_complex() {
 DbErrorOr<void> select_where_like_without_asterisks() {
     auto db = TRY(setup_db());
     auto result = TRY(TRY(AST::Select(
-                              { std::vector<std::string> { "id", "number", "string" } },
+                            std::vector<AST::SelectColumns::Column> {{.column = "id", .alias = "ID"}, {.column = "number", .alias = "NUMBER"}, {.column = "string", .alias = "STRING"}},
                               "test",
                               AST::Filter { .filter_rules = { 
                                 AST::Filter::FilterSet{.column = "string", .operation = AST::Filter::Operation::Like, .args = {Value::create_varchar("test?")}, .logic = AST::Filter::LogicOperator::AND},
@@ -111,7 +111,7 @@ DbErrorOr<void> select_where_like_without_asterisks() {
 DbErrorOr<void> select_where_like_with_prefix_asterisk() {
     auto db = TRY(setup_db());
     auto result = TRY(TRY(AST::Select(
-                              { std::vector<std::string> { "id", "number", "string" } },
+                            std::vector<AST::SelectColumns::Column> {{.column = "id", .alias = "ID"}, {.column = "number", .alias = "NUMBER"}, {.column = "string", .alias = "STRING"}},
                               "test",
                               AST::Filter { .filter_rules = { 
                                 AST::Filter::FilterSet{.column = "string", .operation = AST::Filter::Operation::Like, .args = {Value::create_varchar("*st?")}, .logic = AST::Filter::LogicOperator::AND},
@@ -125,13 +125,14 @@ DbErrorOr<void> select_where_like_with_prefix_asterisk() {
 DbErrorOr<void> select_where_like_with_suffix_asterisk() {
     auto db = TRY(setup_db());
     auto result = TRY(TRY(AST::Select(
-                              { std::vector<std::string> { "id", "number", "string" } },
+                            std::vector<AST::SelectColumns::Column> {{.column = "id"}, {.column = "number", .alias = "NUMBER"}, {.column = "string", .alias = "STRING"}},
                               "test",
                               AST::Filter { .filter_rules = { 
                                 AST::Filter::FilterSet{.column = "string", .operation = AST::Filter::Operation::Like, .args = {Value::create_varchar("te*")}, .logic = AST::Filter::LogicOperator::AND},
                             }})
                               .execute(db))
                           .to_select_result());
+    result.dump(std::cout);
     TRY(expect(result.rows().size() == 3, "3 rows returned"));
     return {};
 }
@@ -139,7 +140,7 @@ DbErrorOr<void> select_where_like_with_suffix_asterisk() {
 DbErrorOr<void> select_where_like_with_suffix_asterisk_and_in_statement() {
     auto db = TRY(setup_db());
     auto result = TRY(TRY(AST::Select(
-                              { std::vector<std::string> { "id", "number", "string" } },
+                            std::vector<AST::SelectColumns::Column> {{.column = "id", .alias = "ID"}, {.column = "number", .alias = "NUMBER"}, {.column = "string", .alias = "STRING"}},
                               "test",
                               AST::Filter { .filter_rules = { 
                                 AST::Filter::FilterSet{.column = "string", .operation = AST::Filter::Operation::Like, .args = {Value::create_varchar("te*")}, .logic = AST::Filter::LogicOperator::AND},
@@ -154,7 +155,7 @@ DbErrorOr<void> select_where_like_with_suffix_asterisk_and_in_statement() {
 DbErrorOr<void> select_where_like_with_two_asterisks() {
     auto db = TRY(setup_db());
     auto result = TRY(TRY(AST::Select(
-                              { std::vector<std::string> { "id", "number", "string" } },
+                            std::vector<AST::SelectColumns::Column> {{.column = "id", .alias = "ID"}, {.column = "number", .alias = "NUMBER"}, {.column = "string", .alias = "STRING"}},
                               "test",
                               AST::Filter { .filter_rules = { 
                                 AST::Filter::FilterSet{.column = "string", .operation = AST::Filter::Operation::Like, .args = {Value::create_varchar("*st*")}, .logic = AST::Filter::LogicOperator::AND},

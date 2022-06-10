@@ -46,7 +46,7 @@ DbErrorOr<void> select_columns() {
 DbErrorOr<void> select_order_by() {
     auto db = TRY(setup_db());
     auto result = TRY(TRY(AST::Select(
-                              { { "id", "number", "string" } },
+                            std::vector<AST::SelectColumns::Column> {{.column = "id", .alias = "ID"}, {.column = "number", .alias = "NUMBER"}, {.column = "string", .alias = "STRING"}},
                               "test",
                               {},
                               AST::OrderBy { .columns = {
@@ -62,7 +62,7 @@ DbErrorOr<void> select_order_by() {
 DbErrorOr<void> select_order_by_desc() {
     auto db = TRY(setup_db());
     auto result = TRY(TRY(AST::Select(
-                              { { "id", "number", "string" } },
+                            std::vector<AST::SelectColumns::Column> {{.column = "id", .alias = "ID"}, {.column = "number", .alias = "NUMBER"}, {.column = "string", .alias = "STRING"}},
                               "test",
                               {},
                               AST::OrderBy { .columns = { AST::OrderBy::OrderBySet { .name = "number", .order = AST::OrderBy::Order::Descending } } })

@@ -231,8 +231,12 @@ DbErrorOr<Value> Select::execute(Database& db) const {
             column_names.push_back(column.name());
     }
     else {
-        for (auto const& column : m_columns.columns())
-            column_names.push_back(column->to_string());
+        for (size_t i = 0; i < m_columns.columns().size(); i++){
+            if(m_columns.aliases()[i].has_value())
+                column_names.push_back(m_columns.aliases()[i].value());
+            else
+                column_names.push_back(m_columns.columns()[i]->to_string());
+        }
     }
 
     return Value::create_select_result({ column_names, std::move(rows) });
