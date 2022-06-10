@@ -43,31 +43,6 @@ DbErrorOr<void> select_columns() {
     return {};
 }
 
-DbErrorOr<void> select_where() {
-    auto db = TRY(setup_db());
-    auto result = TRY(TRY(AST::Select(
-                              { std::vector<std::string> { "id", "number" } },
-                              "test",
-                              AST::Filter { .column = "id", .operation = AST::Filter::Operation::Equal, .rhs = Value::create_int(2) })
-                              .execute(db))
-                          .to_select_result());
-    TRY(expect(result.rows().size() == 1, "1 row returned"));
-    TRY(expect(result.rows()[0].value(1).type() == Value::Type::Null, "number is null as in table"));
-    return {};
-}
-
-DbErrorOr<void> select_where_operator() {
-    auto db = TRY(setup_db());
-    auto result = TRY(TRY(AST::Select(
-                              { { "id" } },
-                              "test",
-                              AST::Filter { .column = "id", .operation = AST::Filter::Operation::LessEqual, .rhs = Value::create_int(2) })
-                              .execute(db))
-                          .to_select_result());
-    TRY(expect(result.rows().size() == 3, "3 rows returned"));
-    return {};
-}
-
 DbErrorOr<void> select_order_by() {
     auto db = TRY(setup_db());
     auto result = TRY(TRY(AST::Select(
@@ -123,8 +98,6 @@ std::map<std::string, TestFunc*> get_tests() {
     return {
         { "select_simple", select_simple },
         { "select_columns", select_columns },
-        { "select_where", select_where },
-        { "select_where_operator", select_where_operator },
         { "select_order_by", select_order_by },
         { "select_order_by_desc", select_order_by_desc },
         { "select_top_number", select_top_number },

@@ -6,9 +6,12 @@
 #include "Value.hpp"
 
 #include <memory>
+#include <optional>
 #include <pthread.h>
 #include <set>
+#include <sstream>
 #include <string>
+#include <vector>
 
 namespace Db::Core {
 class Database;
@@ -54,7 +57,6 @@ private:
 };
 
 struct Filter {
-    std::string column;
     enum class Operation {
         Equal,        // =
         NotEqual,     // !=
@@ -62,24 +64,49 @@ struct Filter {
         GreaterEqual, // >=
         Less,         // <
         LessEqual,    // <=
+        Like,
+        Between,
+        In
     };
-    Operation operation;
-    Value rhs;
 
-    DbErrorOr<bool> is_true(Value const& lhs) const {
-        switch (operation) {
+    enum class LogicOperator{
+        AND, OR
+    };
+
+    struct FilterSet{
+        std::string column;
+        Operation operation = Operation::Equal;
+        std::vector<DbErrorOr<Value>> args;
+
+        LogicOperator logic = LogicOperator::AND;
+    };
+    
+    std::vector<FilterSet> filter_rules;
+
+    DbErrorOr<bool> is_true(FilterSet const& rule, Value const& lhs) const {
+    switch (rule.operation) {
         case Operation::Equal:
-            return TRY(lhs.to_string()) == TRY(rhs.to_string());
+            return TRY(lhs.to_string()) == TRY(rule.args[0].value().to_string());
         case Operation::NotEqual:
-            return TRY(lhs.to_string()) != TRY(rhs.to_string());
+            return TRY(lhs.to_string()) != TRY(rule.args[0].value().to_string());
         case Operation::Greater:
-            return TRY(lhs.to_string()) > TRY(rhs.to_string());
+            return TRY(lhs.to_string()) > TRY(rule.args[0].value().to_string());
         case Operation::GreaterEqual:
-            return TRY(lhs.to_string()) >= TRY(rhs.to_string());
+            return TRY(lhs.to_string()) >= TRY(rule.args[0].value().to_string());
         case Operation::Less:
-            return TRY(lhs.to_string()) < TRY(rhs.to_string());
+            return TRY(lhs.to_string()) < TRY(rule.args[0].value().to_string());
         case Operation::LessEqual:
-            return TRY(lhs.to_string()) <= TRY(rhs.to_string());
+            return TRY(lhs.to_string()) <= TRY(rule.args[0].value().to_string());
+        case Operation::Like:
+            return true;
+        case Operation::Between:
+            return TRY(lhs.to_string()) >= TRY(rule.args[0].value().to_string()) && TRY(lhs.to_string()) <= TRY(rule.args[1].value().to_string());
+        case Operation::In:
+            for(const auto& arg : rule.args){
+                if(TRY(lhs.to_string()) == TRY(arg.value().to_string()))
+                    return true;
+            }
+            return false;
         }
         __builtin_unreachable();
     }

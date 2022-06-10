@@ -9,3 +9,4 @@ endfunction()
 
 add_test(csv)
 add_test(execution)
+add_test(where)

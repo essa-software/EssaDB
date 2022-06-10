@@ -3,6 +3,7 @@
 #include "Database.hpp"
 
 #include <iostream>
+#include <vector>
 
 namespace Db::Core::AST {
 
@@ -41,7 +42,33 @@ DbErrorOr<Value> Select::execute(Database& db) const {
     auto should_include_row = [&](Row const& row) -> DbErrorOr<bool> {
         if (!m_where)
             return true;
-        return TRY(m_where->is_true(row.value(table->get_column(m_where->column)->second)));
+
+        bool result = 0, condition = 1;
+        unsigned counter = 0;
+        std::vector<bool> values;
+
+        for(const auto& rule : m_where->filter_rules){
+            if(rule.logic == Filter::LogicOperator::AND){
+                condition *= m_where->is_true(rule, row.value(table->get_column(rule.column)->second)).value();
+                counter++;
+            }else{
+                if(counter > 0)
+                    values.push_back(condition);
+                else
+                    values.push_back(m_where->is_true(rule, row.value(table->get_column(rule.column)->second)).value());
+                condition = 1;
+                counter = 0;
+            }
+        }
+
+        if(counter > 0)
+            values.push_back(condition);
+
+        for(const auto& val : values){
+            result += val;
+        }
+
+        return result;
     };
 
     // TODO: ON
