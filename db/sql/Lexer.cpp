@@ -120,6 +120,14 @@ std::vector<Token> Lexer::lex() {
             tokens.push_back(Token { .type = Token::Type::OpEqual, .value = "=" });
             m_in.get();
         }
+        else if (next == '<') {
+            tokens.push_back(Token { .type = Token::Type::OpLess, .value = "<" });
+            m_in.get();
+        }
+        else if (next == '>') {
+            tokens.push_back(Token { .type = Token::Type::OpGreater, .value = ">" });
+            m_in.get();
+        }
         else {
             tokens.push_back(Token { .type = Token::Type::Garbage, .value = { next } });
             m_in.get();

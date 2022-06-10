@@ -85,11 +85,6 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Select>> Parser::parse_select() {
 
     // WHERE
     std::unique_ptr<Core::AST::Expression> where;
-    auto where_token = m_tokens[m_offset];
-    if (where_token.type == Token::Type::KeywordWhere) {
-        m_offset++;
-        where = TRY(parse_expression(AllowOperators::Yes));
-    }
 
     // ORDER BY
     while (true) {
@@ -122,6 +117,10 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Select>> Parser::parse_select() {
             }
 
             order = order_by;
+        }else if(m_tokens[m_offset].type == Token::Type::KeywordWhere){
+            m_offset++;
+
+            where = TRY(parse_expression(AllowOperators::Yes));
         }
 
         if (m_tokens[m_offset].type == Token::Type::Eof)
@@ -209,6 +208,22 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Expression>> Parser::parse_operand(st
         switch (operator_token.type) {
         case Token::Type::OpEqual:
             ast_operator = Core::AST::BinaryOperator::Operation::Equal;
+            break;
+        case Token::Type::OpLess:
+            if(m_tokens[m_offset].type == Token::Type::OpEqual){
+                ast_operator = Core::AST::BinaryOperator::Operation::LessEqual;
+                m_offset++;
+            }else {
+                ast_operator = Core::AST::BinaryOperator::Operation::Less;
+            }
+            break;
+        case Token::Type::OpGreater:
+            if(m_tokens[m_offset].type == Token::Type::OpEqual){
+                ast_operator = Core::AST::BinaryOperator::Operation::GreaterEqual;
+                m_offset++;
+            }else {
+                ast_operator = Core::AST::BinaryOperator::Operation::Greater;
+            }
             break;
         default:
             return lhs;

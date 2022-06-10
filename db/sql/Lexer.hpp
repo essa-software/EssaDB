@@ -29,6 +29,8 @@ struct Token {
         Semicolon,
 
         OpEqual,        // =
+        OpLess,        // =
+        OpGreater,        // =
 
         Eof,
         Garbage

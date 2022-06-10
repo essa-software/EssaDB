@@ -28,6 +28,7 @@ DbErrorOr<Database> setup_db() {
 DbErrorOr<void> select_where() {
     auto db = TRY(setup_db());
     auto result = TRY(TRY(Db::Sql::run_query(db, "SELECT * FROM test WHERE id = 2;")).to_select_result());
+    result.dump(std::cout);
     TRY(expect(result.rows().size() == 1, "1 row returned"));
     TRY(expect(result.rows()[0].value(1).type() == Value::Type::Null, "number is null as in table"));
     return {};
