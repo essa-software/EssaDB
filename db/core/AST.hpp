@@ -68,10 +68,11 @@ public:
         LessEqual,    // <=
         Like,
         And,
-        Or
+        Or,
+        Not,
     };
 
-    BinaryOperator(std::unique_ptr<Expression> lhs, Operation op, std::unique_ptr<Expression> rhs)
+    BinaryOperator(std::unique_ptr<Expression> lhs, Operation op, std::unique_ptr<Expression> rhs = nullptr)
         : m_lhs(std::move(lhs))
         , m_operation(op)
         , m_rhs(std::move(rhs)) { }

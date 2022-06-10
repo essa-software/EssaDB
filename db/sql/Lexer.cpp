@@ -82,6 +82,9 @@ std::vector<Token> Lexer::lex() {
             else if (compare_case_insensitive(id, "OR")) {
                 tokens.push_back(Token { .type = Token::Type::OpOr, .value = "OR" });
             }
+            else if (compare_case_insensitive(id, "NOT")) {
+                tokens.push_back(Token { .type = Token::Type::OpNot, .value = "NOT" });
+            }
             else if (compare_case_insensitive(id, "LIKE")) {
                 tokens.push_back(Token { .type = Token::Type::OpLike, .value = "LIKE" });
             }

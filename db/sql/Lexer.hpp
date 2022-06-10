@@ -37,6 +37,7 @@ struct Token {
 
         OpAnd,
         OpOr,
+        OpNot,
         OpLike,
 
         Eof,

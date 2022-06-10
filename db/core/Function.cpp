@@ -28,6 +28,18 @@ DbErrorOr<Value> Function::evaluate(EvaluationContext& context, Row const& row) 
             // FIXME: What to do with ints?
             return Value::create_int(TRY(arg.to_string()).size());
         }
+    }else if (compare_case_insensitive(m_name, "IN")) {
+        if (m_args.size() == 0)
+            return DbError { "No arguments were provided!" };
+        auto arg = TRY(m_args[0]->evaluate(context, row));
+        switch (arg.type()) {
+        case Value::Type::Null:
+            // If string is NULL, it returns NULL
+            return Value::null();
+        default:
+            // FIXME: What to do with ints?
+            return Value::create_int(TRY(arg.to_string()).size());
+        }
     }else if (compare_case_insensitive(m_name, "ASCII")) {
         if (m_args.size() != 1)
             return DbError { "Expected arg 0: char" };

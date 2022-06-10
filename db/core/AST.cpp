@@ -35,6 +35,8 @@ DbErrorOr<bool> BinaryOperator::is_true(EvaluationContext& context, Row const& r
         return TRY(TRY(m_lhs->evaluate(context, row)).to_bool()) && TRY(TRY(m_rhs->evaluate(context, row)).to_bool());
     case Operation::Or:
         return TRY(TRY(m_lhs->evaluate(context, row)).to_bool()) || TRY(TRY(m_rhs->evaluate(context, row)).to_bool());
+    case Operation::Not:
+        return !TRY(TRY(m_lhs->evaluate(context, row)).to_bool());
     case Operation::Like: {
         std::string str = TRY(TRY(m_lhs->evaluate(context, row)).to_string());
         std::string to_compare = TRY(TRY(m_rhs->evaluate(context, row)).to_string());
