@@ -223,13 +223,14 @@ DbErrorOr<Value> CreateTable::execute(Database& db) const {
 
 DbErrorOr<Value> InsertInto::execute(Database& db) const {
     auto table = TRY(db.table(m_name));
-    
+
     RowWithColumnNames::MapType map;
-    if(m_columns.size() != m_values.size())
-        return DbError {"Values doesn't have corresponding columns", start()};
-    
-    for(size_t i = 0; i < m_columns.size(); i++){
-        map.insert({m_columns[i], m_values[i]});
+    if (m_columns.size() != m_values.size())
+        return DbError { "Values doesn't have corresponding columns", start() };
+
+    EvaluationContext context { .table = *table };
+    for (size_t i = 0; i < m_columns.size(); i++) {
+        map.insert({ m_columns[i], TRY(m_values[i]->evaluate(context, Row({}))) });
     }
 
     TRY(table->insert(std::move(map)));

@@ -196,7 +196,7 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::InsertInto>> Parser::parse_insert_int
 
     auto paren_open = m_tokens[m_offset];
     if (paren_open.type != Token::Type::ParenOpen)
-        return std::make_unique<Core::AST::InsertInto>(start, table_name.value, std::vector<std::string> {}, std::vector<Core::Value> {});
+        return std::make_unique<Core::AST::InsertInto>(start, table_name.value, std::vector<std::string> {}, std::vector<std::unique_ptr<Core::AST::Expression>> {});
     m_offset++;
 
     std::vector<std::string> columns;
@@ -223,29 +223,12 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::InsertInto>> Parser::parse_insert_int
 
     paren_open = m_tokens[m_offset];
     if (paren_open.type != Token::Type::ParenOpen)
-        return std::make_unique<Core::AST::InsertInto>(start, table_name.value, std::vector<std::string> {}, std::vector<Core::Value> {});
+        return std::make_unique<Core::AST::InsertInto>(start, table_name.value, std::vector<std::string> {}, std::vector<std::unique_ptr<Core::AST::Expression>> {});
     m_offset++;
 
-    std::vector<Core::Value> values;
+    std::vector<std::unique_ptr<Core::AST::Expression>> values;
     while (true) {
-        auto name = m_tokens[m_offset++];
-        if (name.type != Token::Type::Identifier && name.type != Token::Type::Number)
-            return Core::DbError { "Expected Value for column", m_offset - 1 };
-
-        auto type = Core::find_type(name.value);
-        Core::Value value;
-
-        switch (type) {
-            case Db::Core::Value::Type::Int:
-                values.push_back(Core::Value::create_int(std::stoi(name.value)));
-            break;
-            case Db::Core::Value::Type::Varchar:
-                values.push_back(Core::Value::create_varchar(name.value));
-            break;
-            default:
-                values.push_back(Core::Value::null());
-            break;
-        }
+        values.push_back(TRY(parse_expression()));
 
         auto comma = m_tokens[m_offset];
         if (comma.type != Token::Type::Comma)

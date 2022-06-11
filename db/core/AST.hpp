@@ -236,7 +236,7 @@ private:
 
 class InsertInto : public Statement {
 public:
-    InsertInto(ssize_t start, std::string name, std::vector<std::string> columns, std::vector<Value> values)
+    InsertInto(ssize_t start, std::string name, std::vector<std::string> columns, std::vector<std::unique_ptr<Core::AST::Expression>> values)
         : Statement(start)
         , m_name(std::move(name))
         , m_columns(std::move(columns))
@@ -247,7 +247,7 @@ public:
 private:
     std::string m_name;
     std::vector<std::string> m_columns;
-    std::vector<Value> m_values;
+    std::vector<std::unique_ptr<Core::AST::Expression>> m_values;
 };
 
 }
