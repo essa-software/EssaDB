@@ -26,6 +26,7 @@ struct Token {
         KeywordAdd,
         KeywordColumn,
         KeywordDistinct,
+        KeywordDelete,
 
         OrderByParam,
         Identifier,

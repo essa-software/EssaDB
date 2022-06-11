@@ -222,6 +222,20 @@ private:
     const bool m_distinct;
 };
 
+class DeleteFrom : public Statement {
+public:
+    DeleteFrom(ssize_t start, std::string from, std::unique_ptr<Expression> where = {})
+        : Statement(start)
+        , m_from(std::move(from))
+        , m_where(std::move(where)) { }
+
+    virtual DbErrorOr<Value> execute(Database&) const override;
+
+private:
+    std::string m_from;
+    std::unique_ptr<Expression> m_where;
+};
+
 class CreateTable : public Statement {
 public:
     CreateTable(ssize_t start, std::string name, std::vector<Column> columns)

@@ -81,6 +81,13 @@ DbErrorOr<void> alter_table_alter_column() {
     return {};
 }
 
+DbErrorOr<void> delete_with_where() {
+    auto db = TRY(setup_db());
+    auto result = TRY(Db::Sql::run_query(db, "DELETE FROM test WHERE string LIKE 'te*'"));
+    TRY(expect(TRY(db.table("test"))->rows().size() == 3, "Rows deleted successfully!"));
+    return {};
+}
+
 std::map<std::string, TestFunc*> get_tests() {
     return {
         { "drop_table", drop_table },
@@ -89,5 +96,6 @@ std::map<std::string, TestFunc*> get_tests() {
         { "alter_table_add_column", alter_table_add_column },
         { "alter_table_drop_column", alter_table_drop_column },
         { "alter_table_alter_column", alter_table_alter_column },
+        { "delete_with_where", delete_with_where },
     };
 }

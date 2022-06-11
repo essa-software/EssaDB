@@ -78,6 +78,15 @@ DbErrorOr<void> Table::drop_column(Column column) {
     return {};
 }
 
+void Table::delete_row(size_t index){
+    std::vector<Row> vec;
+    for(size_t i = 0; i < m_rows.size(); i++){
+        if(i != index)
+            vec.push_back(m_rows[i]);
+    }
+    m_rows = std::move(vec);
+}
+
 DbErrorOr<void> Table::insert(RowWithColumnNames::MapType map) {
     m_rows.push_back(TRY(RowWithColumnNames::from_map(*this, map)).row());
     return {};

@@ -234,6 +234,29 @@ DbErrorOr<Value> Select::execute(Database& db) const {
     return Value::create_select_result({ column_names, std::move(rows) });
 }
 
+DbErrorOr<Value> DeleteFrom::execute(Database& db) const {
+    auto table = TRY(db.table(m_from));
+
+    EvaluationContext context { .table = *table };
+
+    auto should_include_row = [&](Row const& row) -> DbErrorOr<bool> {
+        if (!m_where)
+            return true;
+        return TRY(m_where->evaluate(context, row)).to_bool();
+    };
+    label:;
+
+    for (size_t i = 0; i < table->rows().size(); i++) {
+        if (TRY(should_include_row(table->rows()[i]))){
+            table->delete_row(i);
+
+            goto label;
+        }
+    }
+
+    return Value::null();
+}
+
 DbErrorOr<Value> CreateTable::execute(Database& db) const {
     auto& table = db.create_table(m_name);
     for (auto const& column : m_columns) {

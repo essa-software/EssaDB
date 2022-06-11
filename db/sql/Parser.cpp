@@ -15,6 +15,7 @@ namespace Db::Sql {
 
 Core::DbErrorOr<std::unique_ptr<Core::AST::Statement>> Parser::parse_statement() {
     auto keyword = m_tokens[m_offset];
+    // std::cout << keyword.value << "\n";
     if (keyword.type == Token::Type::KeywordSelect) {
         return TRY(parse_select());
     }
@@ -25,22 +26,25 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Statement>> Parser::parse_statement()
         return Core::DbError { "Expected thing to create, got '" + what_to_create.value + "'", m_offset + 1 };
     }
     else if (keyword.type == Token::Type::KeywordDrop) {
-        auto what_to_create = m_tokens[m_offset + 1];
-        if (what_to_create.type == Token::Type::KeywordTable)
+        auto what_to_drop = m_tokens[m_offset + 1];
+        if (what_to_drop.type == Token::Type::KeywordTable)
             return TRY(parse_drop_table());
-        return Core::DbError { "Expected thing to drop, got '" + what_to_create.value + "'", m_offset + 1 };
+        return Core::DbError { "Expected thing to drop, got '" + what_to_drop.value + "'", m_offset + 1 };
     }
     else if (keyword.type == Token::Type::KeywordTruncate) {
-        auto what_to_create = m_tokens[m_offset + 1];
-        if (what_to_create.type == Token::Type::KeywordTable)
+        auto what_to_truncate = m_tokens[m_offset + 1];
+        if (what_to_truncate.type == Token::Type::KeywordTable)
             return TRY(parse_truncate_table());
-        return Core::DbError { "Expected thing to truncate, got '" + what_to_create.value + "'", m_offset + 1 };
+        return Core::DbError { "Expected thing to truncate, got '" + what_to_truncate.value + "'", m_offset + 1 };
     }
     else if (keyword.type == Token::Type::KeywordAlter) {
-        auto what_to_create = m_tokens[m_offset + 1];
-        if (what_to_create.type == Token::Type::KeywordTable)
+        auto what_to_alter = m_tokens[m_offset + 1];
+        if (what_to_alter.type == Token::Type::KeywordTable)
             return TRY(parse_alter_table());
-        return Core::DbError { "Expected thing to alter, got '" + what_to_create.value + "'", m_offset + 1 };
+        return Core::DbError { "Expected thing to alter, got '" + what_to_alter.value + "'", m_offset + 1 };
+    }
+    else if (keyword.type == Token::Type::KeywordDelete) {
+        return TRY(parse_delete_from());
     }
     else if (keyword.type == Token::Type::KeywordInsert) {
         auto into_token = m_tokens[m_offset + 1];
@@ -158,15 +162,40 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Select>> Parser::parse_select() {
         order = order_by;
     }
 
-    if (m_tokens[m_offset].type != Token::Type::Semicolon)
-        return Core::DbError { "Expected ';', got '" + m_tokens[m_offset].value + "'", m_offset };
-
     return std::make_unique<Core::AST::Select>(start, Core::AST::SelectColumns { std::move(columns) },
         from_token.value,
         std::move(where),
         std::move(order),
         std::move(top),
         distinct);
+}
+
+Core::DbErrorOr<std::unique_ptr<Core::AST::DeleteFrom>> Parser::parse_delete_from() {
+    auto start = m_offset;
+    m_offset++;
+
+    // FROM
+    auto from = m_tokens[m_offset++];
+    if (from.type != Token::Type::KeywordFrom)
+        return Core::DbError { "Expected 'FROM', got " + from.value, m_offset - 1 };
+
+    auto from_token = m_tokens[m_offset++];
+    if (from_token.type != Token::Type::Identifier)
+        return Core::DbError { "Expected table name after 'FROM'", m_offset - 1 };
+
+    // WHERE
+    std::unique_ptr<Core::AST::Expression> where;
+    if (m_tokens[m_offset].type == Token::Type::KeywordWhere) {
+        m_offset++;
+        where = TRY(parse_expression());
+        // std::cout << "WHERE " << where->to_string() << std::endl;
+        // std::cout << "~~~ " << m_tokens[m_offset].value << std::endl;
+    }
+
+
+    return std::make_unique<Core::AST::DeleteFrom>(start,
+        from_token.value,
+        std::move(where));
 }
 
 Core::DbErrorOr<std::unique_ptr<Core::AST::CreateTable>> Parser::parse_create_table() {

@@ -18,7 +18,9 @@ public:
     size_t size() const { return m_rows.size(); }
     std::vector<Column> const& columns() const { return m_columns; }
     std::vector<Row> const& rows() const { return m_rows; }
+
     void truncate() {m_rows.clear();}
+    void delete_row(size_t index);
 
     void export_to_csv(const std::string& path) const;
     DbErrorOr<void> import_from_csv(const std::string& path);
