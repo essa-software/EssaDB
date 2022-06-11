@@ -33,8 +33,18 @@ public:
     auto begin() const { return m_values.begin(); }
     auto end() const { return m_values.end(); }
 
+    void clear_row(){m_values.clear();}
+
 private:
     std::vector<Value> m_values;
 };
+
+inline bool operator==(Row const& lhs, Row const& rhs){
+    for(auto it1 = lhs.begin(), it2 = rhs.begin(); it1 != lhs.end(); it1++, it2++){
+        if(it1->to_string().value() != it2->to_string().value())
+            return false;
+    }
+    return true;
+}
 
 }

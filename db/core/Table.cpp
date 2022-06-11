@@ -188,8 +188,7 @@ DbErrorOr<void> Table::import_from_csv(const std::string& path) {
             case Value::Type::Bool:
                 map.insert({ col.name(), Value::create_bool((*it)[i] == "true" ? true : false) });
                 break;
-            case Value::Type::Null:
-            case Value::Type::SelectResult:
+            default:
                 break;
             }
             i++;

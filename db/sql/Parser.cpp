@@ -57,6 +57,12 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Select>> Parser::parse_select() {
 
     std::optional<Core::AST::Top> top;
     std::optional<Core::AST::OrderBy> order;
+    bool distinct = false;
+
+    if(m_tokens[m_offset].type == Token::Type::KeywordDistinct){
+        m_offset++;
+        distinct = true;
+    }
 
     if (m_tokens[m_offset].type == Token::Type::KeywordTop) {
         m_offset++;
@@ -159,7 +165,8 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Select>> Parser::parse_select() {
         from_token.value,
         std::move(where),
         std::move(order),
-        std::move(top));
+        std::move(top),
+        distinct);
 }
 
 Core::DbErrorOr<std::unique_ptr<Core::AST::CreateTable>> Parser::parse_create_table() {

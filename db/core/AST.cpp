@@ -2,11 +2,14 @@
 
 #include "Database.hpp"
 #include "db/core/DbError.hpp"
+#include "db/core/Row.hpp"
 #include "db/core/Value.hpp"
 
 #include <iostream>
 #include <string>
+#include <utility>
 #include <vector>
+#include <unordered_set>
 
 namespace Db::Core::AST {
 
@@ -155,7 +158,25 @@ DbErrorOr<Value> Select::execute(Database& db) const {
         rows.push_back(Row { values });
     }
 
-    // TODO: DISTINCT
+    // DISTINCT
+    if(m_distinct){
+        std::vector<Row> occurences;
+
+        for(const auto& row : rows){
+            bool distinct = true;
+            for(const auto& to_compare : occurences){
+                if(row == to_compare){
+                    distinct = false;
+                    break;
+                }
+            }
+
+            if(distinct)
+                occurences.push_back(row);
+        }
+        
+        rows = std::move(occurences);
+    }
 
     // ORDER BY
     if (m_order_by) {

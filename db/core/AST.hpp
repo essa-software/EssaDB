@@ -202,13 +202,14 @@ public:
 
 class Select : public Statement {
 public:
-    Select(ssize_t start, SelectColumns columns, std::string from, std::unique_ptr<Expression> where = {}, std::optional<OrderBy> order_by = {}, std::optional<Top> top = {})
+    Select(ssize_t start, SelectColumns columns, std::string from, std::unique_ptr<Expression> where = {}, std::optional<OrderBy> order_by = {}, std::optional<Top> top = {}, bool distinct = false)
         : Statement(start)
         , m_columns(std::move(columns))
         , m_from(std::move(from))
         , m_where(std::move(where))
         , m_order_by(std::move(order_by))
-        , m_top(std::move(top)) { }
+        , m_top(std::move(top))
+        , m_distinct(distinct) { }
 
     virtual DbErrorOr<Value> execute(Database&) const override;
 
@@ -218,6 +219,7 @@ private:
     std::unique_ptr<Expression> m_where;
     std::optional<OrderBy> m_order_by;
     std::optional<Top> m_top;
+    const bool m_distinct;
 };
 
 class CreateTable : public Statement {
