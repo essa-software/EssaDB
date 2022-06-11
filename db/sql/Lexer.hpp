@@ -24,13 +24,13 @@ struct Token {
         OrderByParam,
         Identifier,
         Number,
+        String,
         Asterisk,
         Comma,
         ParenOpen,
         ParenClose,
         Semicolon,
         Exclamation,
-        Quote,
 
         OpEqual,    // =
         OpNotEqual, // !=

@@ -144,7 +144,7 @@ std::vector<Token> Lexer::lex() {
             while (isspace(id.back()))
                 id.pop_back();
 
-            tokens.push_back(Token { .type = Token::Type::Identifier, .value = id, .start = start });
+            tokens.push_back(Token { .type = Token::Type::String, .value = id, .start = start });
         }
         else if (next == ';') {
             m_in.get();
@@ -174,8 +174,14 @@ std::vector<Token> Lexer::lex() {
             }
         }
         else if (next == '\'') {
-            tokens.push_back(Token { .type = Token::Type::Quote, .value = "'", .start = start });
             m_in.get();
+            m_in >> std::ws;
+            std::string id;
+            while (m_in.peek() != '\'')
+                id += m_in.get();
+            m_in.get();
+
+            tokens.push_back(Token { .type = Token::Type::String, .value = id, .start = start });
         }
         else {
             tokens.push_back(Token { .type = Token::Type::Garbage, .value = { next }, .start = start });

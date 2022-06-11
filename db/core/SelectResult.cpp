@@ -1,6 +1,8 @@
 #include "SelectResult.hpp"
 
 #include "Row.hpp"
+#include "db/core/Database.hpp"
+#include "db/core/Table.hpp"
 
 #include <iomanip>
 #include <iostream>

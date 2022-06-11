@@ -68,7 +68,7 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Select>> Parser::parse_select() {
 
             if (m_tokens[m_offset].type == Token::Type::KeywordAlias) {
                 m_offset++;
-                alias = TRY(parse_identifier())->to_string();
+                alias = m_tokens[m_offset++].value;
             }
 
             assert(expression);
@@ -259,20 +259,6 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Expression>> Parser::parse_expression
             lhs = TRY(parse_identifier());
         }
     }
-    else if (token.type == Token::Type::Quote) {
-        std::string str = "";
-
-        // TODO: This should be handled in lexer
-        while (m_tokens[m_offset++ + 1].type != Token::Type::Quote) {
-            if (m_tokens[m_offset].type == Token::Type::Eof)
-                return Core::DbError { "Unclosed quote", start };
-            str += m_tokens[m_offset].value;
-        }
-
-        m_offset++; // the last `'`
-        // std::cout << str << "\n";
-        lhs = std::make_unique<Core::AST::Literal>(start, Core::Value::create_varchar(str));
-    }
     else if (token.type == Token::Type::Number) {
         m_offset++;
         lhs = std::make_unique<Core::AST::Literal>(start, Core::Value::create_int(std::stoi(token.value)));
@@ -297,6 +283,7 @@ static int operator_precedence(Token::Type op) {
     case Token::Type::KeywordBetween:
         return 20;
     case Token::Type::OpAnd:
+        return 15;
     case Token::Type::OpOr:
         return 10;
     default:

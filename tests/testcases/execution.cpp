@@ -14,21 +14,21 @@ using namespace Db::Core;
 DbErrorOr<Database> setup_db() {
     Database db;
     TRY(Db::Sql::run_query(db, "CREATE TABLE test (id INT, number INT, string VARCHAR, integer INT)"));
-    TRY(Db::Sql::run_query(db, "INSERT INTO test (id, number, string, integer) VALUES (0, 69, test, 48)"));
+    TRY(Db::Sql::run_query(db, "INSERT INTO test (id, number, string, integer) VALUES (0, 69, 'test', 48)"));
     TRY(Db::Sql::run_query(db, "INSERT INTO test (id, number, integer) VALUES (1, 2137, 65)"));
     TRY(Db::Sql::run_query(db, "INSERT INTO test (id, number, integer) VALUES (2, null, 89)"));
     TRY(Db::Sql::run_query(db, "INSERT INTO test (id, number, integer) VALUES (3, 420, 100)"));
-    TRY(Db::Sql::run_query(db, "INSERT INTO test (id, number, string, integer) VALUES (4, 69, testa, 122)"));
-    TRY(Db::Sql::run_query(db, "INSERT INTO test (id, number, string, integer) VALUES (5, 69, testb, 58)"));
+    TRY(Db::Sql::run_query(db, "INSERT INTO test (id, number, string, integer) VALUES (4, 69, 'test1', 122)"));
+    TRY(Db::Sql::run_query(db, "INSERT INTO test (id, number, string, integer) VALUES (5, 69, 'test2', 58)"));
     return db;
 }
 
 DbErrorOr<void> select_simple() {
     auto db = TRY(setup_db());
     auto result = TRY(TRY(Db::Sql::run_query(db, "SELECT * FROM test;")).to_select_result());
-    TRY(expect(result.column_names() == std::vector<std::string> { "id", "number", "string" }, "columns have proper names"));
+    TRY(expect(result.column_names() == std::vector<std::string> { "id", "number", "string", "integer" }, "columns have proper names"));
     TRY(expect(result.rows().size() == 6, "all rows were returned"));
-    TRY(expect(result.rows()[0].value_count() == 3, "rows have proper column count"));
+    TRY(expect(result.rows()[0].value_count() == 4, "rows have proper column count"));
     return {};
 }
 
