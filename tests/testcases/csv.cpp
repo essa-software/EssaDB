@@ -42,13 +42,13 @@ DbErrorOr<void> csv_export_import_with_aliases() {
 
     auto result = TRY(TRY(Db::Sql::run_query(db, "SELECT id AS [ID], number AS [NUM], string AS [STR], integer AS [INT] FROM test;")).to_select_result());
     result.dump(std::cout);
-    auto& table = db.create_table_from_query(result, "testfromquery");
+    auto& table = db.create_table_from_query(result, "test_from_query");
     table.export_to_csv("test.csv");
 
-    auto& new_table = db.create_table("newtest");
+    auto& new_table = db.create_table("new_test");
     TRY(new_table.import_from_csv("test.csv"));
     
-    result = TRY(TRY(Db::Sql::run_query(db, "SELECT * FROM newtest;")).to_select_result());
+    result = TRY(TRY(Db::Sql::run_query(db, "SELECT * FROM [new_test];")).to_select_result());
     result.dump(std::cout);
 
     TRY(expect_equal(table.size(), new_table.size(), "original and imported tables have equal sizes"));

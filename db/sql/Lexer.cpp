@@ -147,7 +147,7 @@ std::vector<Token> Lexer::lex() {
             while (isspace(id.back()))
                 id.pop_back();
 
-            tokens.push_back(Token { .type = Token::Type::String, .value = id, .start = start });
+            tokens.push_back(Token { .type = Token::Type::Identifier, .value = id, .start = start });
         }
         else if (next == ';') {
             m_in.get();
