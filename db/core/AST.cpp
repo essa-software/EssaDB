@@ -228,6 +228,8 @@ DbErrorOr<Value> DropTable::execute(Database& db) const {
 }
 
 DbErrorOr<Value> InsertInto::execute(Database& db) const {
+    if(m_values.size() == 0)
+        return { Value::null() };
     auto table = TRY(db.table(m_name));
 
     RowWithColumnNames::MapType map;

@@ -38,10 +38,7 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Statement>> Parser::parse_statement()
 
 Core::DbErrorOr<std::unique_ptr<Core::AST::Select>> Parser::parse_select() {
     auto start = m_offset;
-
-    auto select = m_tokens[m_offset++];
-    if (select.type != Token::Type::KeywordSelect)
-        return Core::DbError { "Expected 'SELECT'", start };
+    m_offset++;
 
     std::optional<Core::AST::Top> top;
     std::optional<Core::AST::OrderBy> order;
@@ -217,6 +214,7 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::InsertInto>> Parser::parse_insert_int
     m_offset++;
 
     std::vector<std::string> columns;
+    std::vector<std::unique_ptr<Core::AST::Expression>> values;
     while (true) {
         auto name = m_tokens[m_offset++];
         if (name.type != Token::Type::Identifier)
@@ -235,30 +233,39 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::InsertInto>> Parser::parse_insert_int
         return Core::DbError { "Expected ')' to close column list", m_offset - 1 };
 
     auto value_token = m_tokens[m_offset++];
-    if (value_token.type != Token::Type::KeywordValues)
-        return Core::DbError { "Expected keyword 'VALUES'", m_offset - 1 };
-
-    paren_open = m_tokens[m_offset];
-    if (paren_open.type != Token::Type::ParenOpen)
-        return std::make_unique<Core::AST::InsertInto>(start, table_name.value, std::vector<std::string> {}, std::vector<std::unique_ptr<Core::AST::Expression>> {});
-    m_offset++;
-
-    std::vector<std::unique_ptr<Core::AST::Expression>> values;
-    while (true) {
-        values.push_back(TRY(parse_expression()));
-
-        auto comma = m_tokens[m_offset];
-        if (comma.type != Token::Type::Comma)
-            break;
+    if (value_token.type == Token::Type::KeywordValues){
+        paren_open = m_tokens[m_offset];
+        if (paren_open.type != Token::Type::ParenOpen)
+            return std::make_unique<Core::AST::InsertInto>(start, table_name.value, std::vector<std::string> {}, std::vector<std::unique_ptr<Core::AST::Expression>> {});
         m_offset++;
+
+        while (true) {
+            values.push_back(TRY(parse_expression()));
+
+            auto comma = m_tokens[m_offset];
+            if (comma.type != Token::Type::Comma)
+                break;
+            m_offset++;
+        }
+
+        paren_close = m_tokens[m_offset++];
+        if (paren_close.type != Token::Type::ParenClose)
+            return Core::DbError { "Expected ')' to close values list", m_offset - 1 };
+        return std::make_unique<Core::AST::InsertInto>(start, table_name.value, std::move(columns), std::move(values));
+    }else if(value_token.type == Token::Type::KeywordSelect){
+        m_offset--;
+        auto result = TRY(parse_select())->execute(m_db);
+        auto table = result.value().to_select_result().value();
+        for(const auto& row : table.rows()){
+            for(size_t i = 0; i < table.column_names().size(); i++){
+                values.push_back(std::make_unique<Core::AST::Literal>(start, row.value(i)));
+            }
+            Core::AST::InsertInto query(start, table_name.value, columns, std::move(values));
+            TRY(query.execute(m_db));
+        }
     }
-
-    paren_close = m_tokens[m_offset++];
-    if (paren_close.type != Token::Type::ParenClose)
-        return Core::DbError { "Expected ')' to close values list", m_offset - 1 };
-
     return std::make_unique<Core::AST::InsertInto>(start, table_name.value, std::move(columns), std::move(values));
-}
+}   
 
 Core::DbErrorOr<std::unique_ptr<Core::AST::Expression>> Parser::parse_expression(int min_precedence) {
     std::unique_ptr<Core::AST::Expression> lhs;
