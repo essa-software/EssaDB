@@ -12,11 +12,15 @@ DbErrorOr<RowWithColumnNames> RowWithColumnNames::from_map(Table const& table, M
     row.resize(columns.size());
     for (auto& value : map) {
         auto column = table.get_column(value.first);
-        if (!column)
-            return DbError { "No such column in table: " + value.first };
+        if (!column) {
+            // TODO: Save location info
+            return DbError { "No such column in table: " + value.first, 0 };
+        }
 
-        if (column->first.type() != value.second.type() && value.second.type() != Value::Type::Null)
-            return DbError { "Invalid value type for column '" + value.first + "': " + value.second.to_debug_string() };
+        if (column->first.type() != value.second.type() && value.second.type() != Value::Type::Null) {
+            // TODO: Save location info
+            return DbError { "Invalid value type for column '" + value.first + "': " + value.second.to_debug_string(), 0 };
+        }
         row[column->second] = std::move(value.second);
     }
     // TODO: Null check

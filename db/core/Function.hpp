@@ -5,8 +5,9 @@ namespace Db::Core::AST {
 
 class Function : public Expression {
 public:
-    explicit Function(std::string name, std::vector<std::unique_ptr<Expression>> args)
-        : m_name(std::move(name))
+    explicit Function(size_t start, std::string name, std::vector<std::unique_ptr<Expression>> args)
+        : Expression(start)
+        , m_name(std::move(name))
         , m_args(std::move(args)) { }
 
     virtual DbErrorOr<Value> evaluate(EvaluationContext&, Row const&) const override;

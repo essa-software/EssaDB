@@ -47,6 +47,7 @@ struct Token {
 
     Type type {};
     std::string value {};
+    ssize_t start {};
 };
 
 class Lexer {

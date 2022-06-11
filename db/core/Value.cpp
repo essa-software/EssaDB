@@ -39,13 +39,15 @@ DbErrorOr<int> Value::to_int() const {
         try {
             return std::stoi(str);
         } catch (...) {
-            return DbError { "'" + str + "' is not a valid int" };
+            // TODO: Save location info
+            return DbError { "'" + str + "' is not a valid int", 0 };
         }
     }
     case Type::Bool:
         return std::get<bool>(*this) ? 1 : 0;
     case Type::SelectResult:
-        return DbError { "SelectResult cannot be converted to int" };
+        // TODO: Save location info
+        return DbError { "SelectResult cannot be converted to int", 0 };
     }
     __builtin_unreachable();
 }
@@ -61,7 +63,8 @@ DbErrorOr<std::string> Value::to_string() const {
     case Type::Bool:
         return std::get<bool>(*this) ? "true" : "false";
     case Type::SelectResult:
-        return DbError { "Select result is not a string" };
+        // TODO: Save location info
+        return DbError { "Select result is not a string", 0 };
     }
     __builtin_unreachable();
 }
@@ -71,8 +74,10 @@ DbErrorOr<bool> Value::to_bool() const {
 }
 
 DbErrorOr<SelectResult> Value::to_select_result() const {
-    if (m_type != Type::SelectResult)
-        return DbError { "Value '" + to_debug_string() + "' is not a select result" };
+    if (m_type != Type::SelectResult) {
+        // TODO: Save location info
+        return DbError { "Value '" + to_debug_string() + "' is not a select result", 0 };
+    }
     return std::get<SelectResult>(*this);
 }
 

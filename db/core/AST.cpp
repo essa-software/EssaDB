@@ -12,7 +12,7 @@ namespace Db::Core::AST {
 DbErrorOr<Value> Identifier::evaluate(EvaluationContext& context, Row const& row) const {
     auto column = context.table.get_column(m_id);
     if (!column)
-        return DbError { "No such column: " + m_id };
+        return DbError { "No such column: " + m_id, start() };
     return row.value(column->second);
 }
 
@@ -102,6 +102,14 @@ DbErrorOr<bool> BinaryOperator::is_true(EvaluationContext& context, Row const& r
     __builtin_unreachable();
 }
 
+DbErrorOr<Value> BetweenExpression::evaluate(EvaluationContext& context, Row const& row) const {
+    // TODO: Implement this for strings etc
+    auto value = TRY(TRY(m_lhs->evaluate(context, row)).to_int());
+    auto min = TRY(TRY(m_min->evaluate(context, row)).to_int());
+    auto max = TRY(TRY(m_max->evaluate(context, row)).to_int());
+    return Value::create_bool(value >= min && value <= max);
+}
+
 DbErrorOr<Value> Select::execute(Database& db) const {
     // Comments specify SQL Conceptional Evaluation:
     // https://docs.microsoft.com/en-us/sql/t-sql/queries/select-transact-sql#logical-processing-order-of-the-select-statement
@@ -134,7 +142,7 @@ DbErrorOr<Value> Select::execute(Database& db) const {
             for (auto const& column : table->columns()) {
                 auto table_column = table->get_column(column.name());
                 if (!table_column)
-                    return DbError { "Internal error: invalid column requested for *: '" + column.name() + "'" };
+                    return DbError { "Internal error: invalid column requested for *: '" + column.name() + "'", start() + 1 };
                 values.push_back(row.value(table_column->second));
             }
         }
@@ -152,8 +160,10 @@ DbErrorOr<Value> Select::execute(Database& db) const {
     if (m_order_by) {
         for (const auto& column : m_order_by->columns) {
             auto order_by_column = table->get_column(column.name)->second;
-            if (!order_by_column)
-                return DbError { "Invalid column to order by: " + column.name };
+            if (!order_by_column) {
+                // TODO: Store source position info in ORDER BY node
+                return DbError { "Invalid column to order by: " + column.name, start() };
+            }
         }
         std::stable_sort(rows.begin(), rows.end(), [&](Row const& lhs, Row const& rhs) -> bool {
             // TODO: Do sorting properly

@@ -9,7 +9,7 @@ using namespace Db::Core;
 Db::Core::DbErrorOr<void> expect(bool b, std::string const& message) {
     if (!b) {
         std::cout << " [X] " << message << std::endl;
-        return DbError { message };
+        return DbError { message, 0 };
     }
     std::cout << " [V] " << message << std::endl;
     return {};

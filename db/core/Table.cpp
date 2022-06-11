@@ -19,8 +19,10 @@ Value::Type find_type(const std::string& str) {
 }
 
 DbErrorOr<void> Table::add_column(Column column) {
-    if (get_column(column.name()))
-        return DbError { "Duplicate column '" + column.name() + "'" };
+    if (get_column(column.name())) {
+        // TODO: Save location info
+        return DbError { "Duplicate column '" + column.name() + "'", 0 };
+    }
     m_columns.push_back(std::move(column));
     return {};
 }

@@ -26,8 +26,22 @@ struct EvaluationContext {
     Table const& table;
 };
 
-class Expression {
+class ASTNode {
 public:
+    explicit ASTNode(ssize_t start)
+        : m_start(start) { }
+
+    auto start() const { return m_start; }
+
+private:
+    size_t m_start;
+};
+
+class Expression : public ASTNode {
+public:
+    explicit Expression(ssize_t start)
+        : ASTNode(start) { }
+
     virtual ~Expression() = default;
     virtual DbErrorOr<Value> evaluate(EvaluationContext&, Row const&) const = 0;
     virtual std::string to_string() const = 0;
@@ -35,8 +49,9 @@ public:
 
 class Literal : public Expression {
 public:
-    explicit Literal(Value val)
-        : m_value(std::move(val)) { }
+    explicit Literal(ssize_t start, Value val)
+        : Expression(start)
+        , m_value(std::move(val)) { }
 
     virtual DbErrorOr<Value> evaluate(EvaluationContext&, Row const&) const override { return m_value; }
     virtual std::string to_string() const override { return m_value.to_string().release_value_but_fixme_should_propagate_errors(); }
@@ -47,8 +62,9 @@ private:
 
 class Identifier : public Expression {
 public:
-    explicit Identifier(std::string id)
-        : m_id(std::move(id)) { }
+    explicit Identifier(ssize_t start, std::string id)
+        : Expression(start)
+        , m_id(std::move(id)) { }
 
     virtual DbErrorOr<Value> evaluate(EvaluationContext&, Row const&) const override;
     virtual std::string to_string() const override { return m_id; }
@@ -75,7 +91,8 @@ public:
     };
 
     BinaryOperator(std::unique_ptr<Expression> lhs, Operation op, std::unique_ptr<Expression> rhs = nullptr)
-        : m_lhs(std::move(lhs))
+        : Expression(lhs->start())
+        , m_lhs(std::move(lhs))
         , m_operation(op)
         , m_rhs(std::move(rhs)) { }
 
@@ -90,6 +107,29 @@ private:
     std::unique_ptr<Expression> m_lhs;
     Operation m_operation {};
     std::unique_ptr<Expression> m_rhs;
+};
+
+class BetweenExpression : public Expression {
+public:
+    BetweenExpression(std::unique_ptr<Expression> lhs, std::unique_ptr<Expression> min, std::unique_ptr<Expression> max)
+        : Expression(lhs->start())
+        , m_lhs(std::move(lhs))
+        , m_min(std::move(min))
+        , m_max(std::move(max)) {
+        assert(m_lhs);
+        assert(m_min);
+        assert(m_max);
+    }
+
+    virtual DbErrorOr<Value> evaluate(EvaluationContext& context, Row const& row) const override;
+    virtual std::string to_string() const override {
+        return "BetweenExpression(" + m_lhs->to_string() + "," + m_min->to_string() + "," + m_max->to_string() + ")";
+    }
+
+private:
+    std::unique_ptr<Expression> m_lhs;
+    std::unique_ptr<Expression> m_min;
+    std::unique_ptr<Expression> m_max;
 };
 
 class SelectColumns {
@@ -114,7 +154,7 @@ public:
 
     SelectColumns(std::vector<IdentifierColumn> columns) {
         for (auto const& column : columns) {
-            m_columns.push_back(Column { .column = std::make_unique<Identifier>(column.column), .alias = column.alias });
+            m_columns.push_back(Column { .column = std::make_unique<Identifier>(0, column.column), .alias = column.alias });
             m_aliases.push_back(std::move(column.alias));
         }
     }
@@ -151,16 +191,20 @@ struct Top {
     unsigned value = 100;
 };
 
-class Statement {
+class Statement : public ASTNode {
 public:
+    explicit Statement(ssize_t start)
+        : ASTNode(start) { }
+
     virtual ~Statement() = default;
     virtual DbErrorOr<Value> execute(Database&) const = 0;
 };
 
 class Select : public Statement {
 public:
-    Select(SelectColumns columns, std::string from, std::unique_ptr<Expression> where = {}, std::optional<OrderBy> order_by = {}, std::optional<Top> top = {})
-        : m_columns(std::move(columns))
+    Select(ssize_t start, SelectColumns columns, std::string from, std::unique_ptr<Expression> where = {}, std::optional<OrderBy> order_by = {}, std::optional<Top> top = {})
+        : Statement(start)
+        , m_columns(std::move(columns))
         , m_from(std::move(from))
         , m_where(std::move(where))
         , m_order_by(std::move(order_by))
@@ -178,8 +222,9 @@ private:
 
 class CreateTable : public Statement {
 public:
-    CreateTable(std::string name, std::vector<Column> columns)
-        : m_name(std::move(name))
+    CreateTable(ssize_t start, std::string name, std::vector<Column> columns)
+        : Statement(start)
+        , m_name(std::move(name))
         , m_columns(std::move(columns)) { }
 
     virtual DbErrorOr<Value> execute(Database&) const override;
