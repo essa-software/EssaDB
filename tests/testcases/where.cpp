@@ -59,9 +59,9 @@ DbErrorOr<void> select_where_multiple_rules_and_or() {
 
 DbErrorOr<void> select_where_with_function_len() {
     auto db = TRY(setup_db());
-    auto result = TRY(TRY(Db::Sql::run_query(db, "SELECT id, string FROM test WHERE LEN(string) > 4;")).to_select_result());
+    auto result = TRY(TRY(Db::Sql::run_query(db, "SELECT id, string, LEN(string) FROM test WHERE LEN(string) = 4;")).to_select_result());
     result.dump(std::cout);
-    TRY(expect(result.rows().size() == 2, "filters were applied properly"));
+    TRY(expect(result.rows().size() == 1, "filters were applied properly"));
     return {};
 }
 
