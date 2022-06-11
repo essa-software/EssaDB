@@ -60,4 +60,6 @@ private:
     Type m_type { Type::Null };
 };
 
+Value::Type find_type(const std::string& str);
+
 }

@@ -7,6 +7,18 @@
 
 namespace Db::Core {
 
+Value::Type find_type(const std::string& str) {
+    if (str == "null")
+        return Value::Type::Null;
+
+    for (const auto& c : str) {
+        if (c < '0' || c > '9')
+            return Value::Type::Varchar;
+    }
+
+    return Value::Type::Int;
+}
+
 Value Value::null() {
     return Value { std::monostate {}, Type::Null };
 }

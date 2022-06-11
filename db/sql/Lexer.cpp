@@ -80,6 +80,15 @@ std::vector<Token> Lexer::lex() {
             else if (compare_case_insensitive(id, "BETWEEN")) {
                 tokens.push_back(Token { .type = Token::Type::KeywordBetween, .value = "BETWEEN", .start = start });
             }
+            else if (compare_case_insensitive(id, "INSERT")) {
+                tokens.push_back(Token { .type = Token::Type::KeywordInsert, .value = "INSERT", .start = start });
+            }
+            else if (compare_case_insensitive(id, "INTO")) {
+                tokens.push_back(Token { .type = Token::Type::KeywordInto, .value = "INTO", .start = start });
+            }
+            else if (compare_case_insensitive(id, "VALUES")) {
+                tokens.push_back(Token { .type = Token::Type::KeywordValues, .value = "VALUES", .start = start });
+            }
             else if (compare_case_insensitive(id, "AND")) {
                 tokens.push_back(Token { .type = Token::Type::OpAnd, .value = "AND", .start = start });
             }

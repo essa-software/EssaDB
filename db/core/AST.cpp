@@ -1,6 +1,7 @@
 #include "AST.hpp"
 
 #include "Database.hpp"
+#include "db/core/DbError.hpp"
 #include "db/core/Value.hpp"
 
 #include <iostream>
@@ -217,6 +218,21 @@ DbErrorOr<Value> CreateTable::execute(Database& db) const {
     for (auto const& column : m_columns) {
         TRY(table.add_column(column));
     }
+    return { Value::null() };
+}
+
+DbErrorOr<Value> InsertInto::execute(Database& db) const {
+    auto table = TRY(db.table(m_name));
+    
+    RowWithColumnNames::MapType map;
+    if(m_columns.size() != m_values.size())
+        return DbError {"Values doesn't have corresponding columns", start()};
+    
+    for(size_t i = 0; i < m_columns.size(); i++){
+        map.insert({m_columns[i], m_values[i]});
+    }
+
+    TRY(table->insert(std::move(map)));
     return { Value::null() };
 }
 

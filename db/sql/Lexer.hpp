@@ -17,6 +17,9 @@ struct Token {
         KeywordBy,
         KeywordWhere,
         KeywordBetween,
+        KeywordInsert,
+        KeywordInto,
+        KeywordValues,
 
         OrderByParam,
         Identifier,

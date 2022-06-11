@@ -1,19 +1,21 @@
 #include <tests/setup.hpp>
 
+#include <db/core/AST.hpp>
+#include <db/core/Database.hpp>
+#include <db/core/SelectResult.hpp>
+#include <db/sql/SQL.hpp>
+
 using namespace Db::Core;
 
 DbErrorOr<Database> setup_db() {
     Database db;
-    db.create_table("test");
-    auto table = TRY(db.table("test"));
-
-    TRY(table->add_column(Column("number", Value::Type::Int)));
-    TRY(table->add_column(Column("string", Value::Type::Varchar)));
-
-    TRY(table->insert({ { "number", Value::create_int(1234) }, { "string", Value::create_varchar("test") } }));
-    TRY(table->insert({ { "number", Value::null() }, { "string", Value::create_varchar("test") } }));
-    TRY(table->insert({ { "number", Value::create_int(4321) }, { "string", Value::null() } }));
-    TRY(table->insert({ { "number", Value::null() }, { "string", Value::null() } }));
+    TRY(Db::Sql::run_query(db, "CREATE TABLE test (id INT, number INT, string VARCHAR, integer INT)"));
+    TRY(Db::Sql::run_query(db, "INSERT INTO test (id, number, string, integer) VALUES (0, 69, test, 48)"));
+    TRY(Db::Sql::run_query(db, "INSERT INTO test (id, number, integer) VALUES (1, 2137, 65)"));
+    TRY(Db::Sql::run_query(db, "INSERT INTO test (id, number, integer) VALUES (2, null, 89)"));
+    TRY(Db::Sql::run_query(db, "INSERT INTO test (id, number, integer) VALUES (3, 420, 100)"));
+    TRY(Db::Sql::run_query(db, "INSERT INTO test (id, number, string, integer) VALUES (4, 69, testa, 122)"));
+    TRY(Db::Sql::run_query(db, "INSERT INTO test (id, number, string, integer) VALUES (5, 69, testb, 58)"));
     return db;
 }
 

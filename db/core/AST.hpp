@@ -234,4 +234,20 @@ private:
     std::vector<Column> m_columns;
 };
 
+class InsertInto : public Statement {
+public:
+    InsertInto(ssize_t start, std::string name, std::vector<std::string> columns, std::vector<Value> values)
+        : Statement(start)
+        , m_name(std::move(name))
+        , m_columns(std::move(columns))
+        , m_values(std::move(values)) { }
+
+    virtual DbErrorOr<Value> execute(Database&) const override;
+
+private:
+    std::string m_name;
+    std::vector<std::string> m_columns;
+    std::vector<Value> m_values;
+};
+
 }

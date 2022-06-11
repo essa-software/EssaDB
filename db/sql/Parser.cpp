@@ -5,6 +5,7 @@
 #include <db/core/AST.hpp>
 
 #include <iostream>
+#include <string>
 #include <utility>
 
 namespace Db::Sql {
@@ -14,11 +15,17 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Statement>> Parser::parse_statement()
     if (keyword.type == Token::Type::KeywordSelect) {
         return TRY(parse_select());
     }
-    if (keyword.type == Token::Type::KeywordCreate) {
+    else if (keyword.type == Token::Type::KeywordCreate) {
         auto what_to_create = m_tokens[m_offset + 1];
         if (what_to_create.type == Token::Type::KeywordTable)
             return TRY(parse_create_table());
         return Core::DbError { "Expected thing to create, got '" + what_to_create.value + "'", m_offset + 1 };
+    }
+    else if (keyword.type == Token::Type::KeywordInsert) {
+        auto into_token = m_tokens[m_offset + 1];
+        if (into_token.type == Token::Type::KeywordInto)
+            return TRY(parse_insert_into());
+        return Core::DbError { "Expected keyword 'INTO', got '" + into_token.value + "'", m_offset + 1 };
     }
     return Core::DbError { "Expected statement, got '" + keyword.value + '"', m_offset };
 }
@@ -177,6 +184,80 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::CreateTable>> Parser::parse_create_ta
         return Core::DbError { "Expected ')' to close column list", m_offset - 1 };
 
     return std::make_unique<Core::AST::CreateTable>(start, table_name.value, columns);
+}
+
+Core::DbErrorOr<std::unique_ptr<Core::AST::InsertInto>> Parser::parse_insert_into() {
+    auto start = m_offset;
+    m_offset += 2; // INSERT INTO
+
+    auto table_name = m_tokens[m_offset++];
+    if (table_name.type != Token::Type::Identifier)
+        return Core::DbError { "Expected table name", m_offset - 1 };
+
+    auto paren_open = m_tokens[m_offset];
+    if (paren_open.type != Token::Type::ParenOpen)
+        return std::make_unique<Core::AST::InsertInto>(start, table_name.value, std::vector<std::string> {}, std::vector<Core::Value> {});
+    m_offset++;
+
+    std::vector<std::string> columns;
+    while (true) {
+        auto name = m_tokens[m_offset++];
+        if (name.type != Token::Type::Identifier)
+            return Core::DbError { "Expected column name", m_offset - 1 };
+
+        columns.push_back(name.value);
+
+        auto comma = m_tokens[m_offset];
+        if (comma.type != Token::Type::Comma)
+            break;
+        m_offset++;
+    }
+
+    auto paren_close = m_tokens[m_offset++];
+    if (paren_close.type != Token::Type::ParenClose)
+        return Core::DbError { "Expected ')' to close column list", m_offset - 1 };
+
+    auto value_token = m_tokens[m_offset++];
+    if (value_token.type != Token::Type::KeywordValues)
+        return Core::DbError { "Expected keyword 'VALUES'", m_offset - 1 };
+
+    paren_open = m_tokens[m_offset];
+    if (paren_open.type != Token::Type::ParenOpen)
+        return std::make_unique<Core::AST::InsertInto>(start, table_name.value, std::vector<std::string> {}, std::vector<Core::Value> {});
+    m_offset++;
+
+    std::vector<Core::Value> values;
+    while (true) {
+        auto name = m_tokens[m_offset++];
+        if (name.type != Token::Type::Identifier && name.type != Token::Type::Number)
+            return Core::DbError { "Expected Value for column", m_offset - 1 };
+
+        auto type = Core::find_type(name.value);
+        Core::Value value;
+
+        switch (type) {
+            case Db::Core::Value::Type::Int:
+                values.push_back(Core::Value::create_int(std::stoi(name.value)));
+            break;
+            case Db::Core::Value::Type::Varchar:
+                values.push_back(Core::Value::create_varchar(name.value));
+            break;
+            default:
+                values.push_back(Core::Value::null());
+            break;
+        }
+
+        auto comma = m_tokens[m_offset];
+        if (comma.type != Token::Type::Comma)
+            break;
+        m_offset++;
+    }
+
+    paren_close = m_tokens[m_offset++];
+    if (paren_close.type != Token::Type::ParenClose)
+        return Core::DbError { "Expected ')' to close values list", m_offset - 1 };
+
+    return std::make_unique<Core::AST::InsertInto>(start, table_name.value, std::move(columns), std::move(values));
 }
 
 Core::DbErrorOr<std::unique_ptr<Core::AST::Expression>> Parser::parse_expression(int min_precedence) {

@@ -14,14 +14,12 @@ using namespace Db::Core;
 DbErrorOr<Database> setup_db() {
     Database db;
     TRY(Db::Sql::run_query(db, "CREATE TABLE test (id INT, number INT, string VARCHAR, integer INT)"));
-    auto table = TRY(db.table("test"));
-
-    TRY(table->insert({ { "id", Value::create_int(0) }, { "number", Value::create_int(69) }, { "string", Value::create_varchar("test") }, { "integer", Value::create_int(48) } }));
-    TRY(table->insert({ { "id", Value::create_int(1) }, { "number", Value::create_int(2137) }, { "integer", Value::create_int(65) } }));
-    TRY(table->insert({ { "id", Value::create_int(2) }, { "number", Value::null() }, { "integer", Value::create_int(89) } }));
-    TRY(table->insert({ { "id", Value::create_int(3) }, { "number", Value::create_int(420) }, { "integer", Value::create_int(100) } }));
-    TRY(table->insert({ { "id", Value::create_int(4) }, { "number", Value::create_int(69) }, { "string", Value::create_varchar("test3") }, { "integer", Value::create_int(122) } }));
-    TRY(table->insert({ { "id", Value::create_int(5) }, { "number", Value::create_int(69) }, { "string", Value::create_varchar("test2") }, { "integer", Value::create_int(58) } }));
+    TRY(Db::Sql::run_query(db, "INSERT INTO test (id, number, string, integer) VALUES (0, 69, test, 48)"));
+    TRY(Db::Sql::run_query(db, "INSERT INTO test (id, number, integer) VALUES (1, 2137, 65)"));
+    TRY(Db::Sql::run_query(db, "INSERT INTO test (id, number, integer) VALUES (2, null, 89)"));
+    TRY(Db::Sql::run_query(db, "INSERT INTO test (id, number, integer) VALUES (3, 420, 100)"));
+    TRY(Db::Sql::run_query(db, "INSERT INTO test (id, number, string, integer) VALUES (4, 69, testa, 122)"));
+    TRY(Db::Sql::run_query(db, "INSERT INTO test (id, number, string, integer) VALUES (5, 69, testb, 58)"));
     return db;
 }
 
