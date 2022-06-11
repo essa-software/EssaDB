@@ -25,6 +25,7 @@ struct Token {
         Identifier,
         Number,
         String,
+        Null,
         Asterisk,
         Comma,
         ParenOpen,

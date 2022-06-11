@@ -263,6 +263,14 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Expression>> Parser::parse_expression
         m_offset++;
         lhs = std::make_unique<Core::AST::Literal>(start, Core::Value::create_int(std::stoi(token.value)));
     }
+    else if (token.type == Token::Type::String) {
+        m_offset++;
+        lhs = std::make_unique<Core::AST::Literal>(start, Core::Value::create_varchar(token.value));
+    }
+    else if (token.type == Token::Type::Null) {
+        m_offset++;
+        lhs = std::make_unique<Core::AST::Literal>(start, Core::Value::null());
+    }
     else {
         return Core::DbError { "Expected expression, got '" + token.value + "'", start };
     }

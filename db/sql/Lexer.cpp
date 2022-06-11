@@ -104,6 +104,9 @@ std::vector<Token> Lexer::lex() {
             else if (compare_case_insensitive(id, "ASC") || compare_case_insensitive(id, "DESC")) {
                 tokens.push_back(Token { .type = Token::Type::OrderByParam, .value = id, .start = start });
             }
+            else if (compare_case_insensitive(id, "NULL")) {
+                tokens.push_back(Token { .type = Token::Type::Null, .value = "null", .start = start });
+            }
             else {
                 tokens.push_back(Token { .type = Token::Type::Identifier, .value = id, .start = start });
             }
