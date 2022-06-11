@@ -28,19 +28,19 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Statement>> Parser::parse_statement()
         auto what_to_create = m_tokens[m_offset + 1];
         if (what_to_create.type == Token::Type::KeywordTable)
             return TRY(parse_drop_table());
-        return Core::DbError { "Expected thing to create, got '" + what_to_create.value + "'", m_offset + 1 };
+        return Core::DbError { "Expected thing to drop, got '" + what_to_create.value + "'", m_offset + 1 };
     }
     else if (keyword.type == Token::Type::KeywordTruncate) {
         auto what_to_create = m_tokens[m_offset + 1];
         if (what_to_create.type == Token::Type::KeywordTable)
             return TRY(parse_truncate_table());
-        return Core::DbError { "Expected thing to create, got '" + what_to_create.value + "'", m_offset + 1 };
+        return Core::DbError { "Expected thing to truncate, got '" + what_to_create.value + "'", m_offset + 1 };
     }
     else if (keyword.type == Token::Type::KeywordAlter) {
         auto what_to_create = m_tokens[m_offset + 1];
         if (what_to_create.type == Token::Type::KeywordTable)
             return TRY(parse_alter_table());
-        return Core::DbError { "Expected thing to create, got '" + what_to_create.value + "'", m_offset + 1 };
+        return Core::DbError { "Expected thing to alter, got '" + what_to_create.value + "'", m_offset + 1 };
     }
     else if (keyword.type == Token::Type::KeywordInsert) {
         auto into_token = m_tokens[m_offset + 1];
@@ -252,6 +252,10 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::AlterTable>> Parser::parse_alter_tabl
             to_add.push_back(Core::Column(column_token.value, Core::Value::type_from_string(type_token.value).value()));
         }else if(m_tokens[m_offset].type == Token::Type::KeywordAlter){
             m_offset++;
+
+            if(m_tokens[m_offset++].type != Token::Type::KeywordColumn)
+                return Core::DbError { "Expected thing to alter!", m_offset - 1 };
+
             auto column_token = m_tokens[m_offset++];
             if(column_token.type != Token::Type::Identifier)
                 return Core::DbError { "Expected column name", m_offset - 1 };
@@ -263,6 +267,9 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::AlterTable>> Parser::parse_alter_tabl
             to_alter.push_back(Core::Column(column_token.value, Core::Value::type_from_string(type_token.value).value()));
         }else if(m_tokens[m_offset].type == Token::Type::KeywordDrop){
             m_offset++;
+            if(m_tokens[m_offset++].type != Token::Type::KeywordColumn)
+                return Core::DbError { "Expected thing to drop!", m_offset - 1 };
+
             auto column_token = m_tokens[m_offset++];
             if(column_token.type != Token::Type::Identifier)
                 return Core::DbError { "Expected column name", m_offset - 1 };
