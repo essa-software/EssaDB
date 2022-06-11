@@ -71,11 +71,20 @@ static void setup_sql_functions() {
         }
     });
     register_sql_function("ASCII", [](ArgumentList args) -> DbErrorOr<Value> {
-        return Value::create_int(static_cast<int>(TRY(args.get_required(0, "char")).to_string().value().front()));
+        // https://docs.microsoft.com/en-us/sql/t-sql/functions/ascii-transact-sql?view=sql-server-ver16
+        auto arg = TRY(args.get_required(0, "char"));
+        if (arg.type() == Value::Type::Null)
+            return Value::null();
+        auto string_ = TRY(arg.to_string());
+        if (string_.size() < 1) {
+            // TODO: Store location info
+            return DbError { "Input string must be at least 1 character long", 0 };
+        }
+        return Value::create_int(static_cast<int>(string_[0]));
     });
     register_sql_function("CHAR", [](ArgumentList args) -> DbErrorOr<Value> {
         std::string c;
-        c += static_cast<char>(TRY(args.get_required(0, "int")).to_int().value());
+        c += static_cast<char>(TRY(TRY(args.get_required(0, "int")).to_int()));
         return Value::create_varchar(c);
     });
     register_sql_function("CHARINDEX", [](ArgumentList args) -> DbErrorOr<Value> {
@@ -97,8 +106,6 @@ DbErrorOr<Value> Function::evaluate(EvaluationContext& context, Row const& row) 
     if (compare_case_insensitive(m_name, "IN")) {
         if (m_args.size() == 0)
             return DbError { "No arguments were provided!", start() + 1 };
-    }
-    else if (compare_case_insensitive(m_name, "CHARINDEX")) {
     }
     else if (compare_case_insensitive(m_name, "CONCAT")) {
         if (m_args.size() == 0)
