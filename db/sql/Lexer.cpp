@@ -95,6 +95,15 @@ std::vector<Token> Lexer::lex() {
             else if (compare_case_insensitive(id, "TRUNCATE")) {
                 tokens.push_back(Token { .type = Token::Type::KeywordTruncate, .value = "TRUNCATE", .start = start });
             }
+            else if (compare_case_insensitive(id, "ALTER")) {
+                tokens.push_back(Token { .type = Token::Type::KeywordAlter, .value = "ALTER", .start = start });
+            }
+            else if (compare_case_insensitive(id, "ADD")) {
+                tokens.push_back(Token { .type = Token::Type::KeywordAdd, .value = "ADD", .start = start });
+            }
+            else if (compare_case_insensitive(id, "COLUMN")) {
+                tokens.push_back(Token { .type = Token::Type::KeywordColumn, .value = "COLUMN", .start = start });
+            }
             else if (compare_case_insensitive(id, "AND")) {
                 tokens.push_back(Token { .type = Token::Type::OpAnd, .value = "AND", .start = start });
             }

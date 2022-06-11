@@ -234,6 +234,24 @@ DbErrorOr<Value> TruncateTable::execute(Database& db) const {
     return { Value::null() };
 }
 
+DbErrorOr<Value> AlterTable::execute(Database& db) const {
+    auto table = TRY(db.table(m_name));
+    
+    for(const auto& to_add : m_to_add){
+        TRY(table->add_column(to_add));
+    }
+    
+    for(const auto& to_alter : m_to_alter){
+        TRY(table->alter_column(to_alter));
+    }
+    
+    for(const auto& to_drop : m_to_drop){
+        TRY(table->drop_column(to_drop));
+    }
+
+    return { Value::null() };
+}
+
 DbErrorOr<Value> InsertInto::execute(Database& db) const {
     if(m_values.size() == 0)
         return { Value::null() };

@@ -2,6 +2,7 @@
 #include <fstream>
 #include <iostream>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace Db::Core {
@@ -32,6 +33,48 @@ DbErrorOr<void> Table::add_column(Column column) {
         return DbError { "Duplicate column '" + column.name() + "'", 0 };
     }
     m_columns.push_back(std::move(column));
+
+    for(auto& row : m_rows){
+        row.extend();
+    }
+    
+    return {};
+}
+
+DbErrorOr<void> Table::alter_column(Column column) {
+    if (!get_column(column.name())) {
+        // TODO: Save location info
+        return DbError { "Couldn't find column '" + column.name() + "'", 0 };
+    }
+
+    for(size_t i = 0; i < m_columns.size(); i++){
+        if(m_columns[i].name() == column.name()){
+            m_columns[i] = std::move(column);
+        }
+    }
+    return {};
+}
+
+DbErrorOr<void> Table::drop_column(Column column) {
+    if (!get_column(column.name())) {
+        // TODO: Save location info
+        return DbError { "Couldn't find column '" + column.name() + "'", 0 };
+    }
+    
+    std::vector<Column> vec;
+
+    for(size_t i = 0; i < m_columns.size(); i++){
+        if(m_columns[i].name() == column.name()){
+            for(auto& row : m_rows){
+                row.remove(i);
+            }
+        }else {
+            vec.push_back(std::move(m_columns[i]));
+        }
+    }
+
+    m_columns = std::move(vec);
+
     return {};
 }
 

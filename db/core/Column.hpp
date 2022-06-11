@@ -14,12 +14,18 @@ public:
 
     std::string name() const { return m_name; }
     Value::Type type() const { return m_type; }
+    void set_type(Value::Type type){ m_type = type; }
 
     std::string to_string() const { return m_name; }
+
 
 private:
     std::string m_name;
     Value::Type m_type {};
 };
+
+inline bool operator==(Column const& lhs, Column const& rhs){
+    return lhs.name() == rhs.name() && lhs.type() == rhs.type();
+}
 
 }

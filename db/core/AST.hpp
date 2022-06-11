@@ -258,6 +258,24 @@ private:
     std::string m_name;
 };
 
+class AlterTable : public Statement {
+public:
+    AlterTable(ssize_t start, std::string name, std::vector<Column> to_add, std::vector<Column> to_alter, std::vector<Column> to_drop)
+        : Statement(start)
+        , m_name(std::move(name))
+        , m_to_add(std::move(to_add))
+        , m_to_alter(std::move(to_alter))
+        , m_to_drop(std::move(to_drop)){}
+
+    virtual DbErrorOr<Value> execute(Database&) const override;
+
+private:
+    std::string m_name;
+    std::vector<Column> m_to_add;
+    std::vector<Column> m_to_alter;
+    std::vector<Column> m_to_drop;
+};
+
 class InsertInto : public Statement {
 public:
     InsertInto(ssize_t start, std::string name, std::vector<std::string> columns, std::vector<std::unique_ptr<Core::AST::Expression>> values)

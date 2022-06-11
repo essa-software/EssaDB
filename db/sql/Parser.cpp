@@ -1,12 +1,15 @@
 #include "Parser.hpp"
+#include "db/core/Column.hpp"
 #include "db/core/Value.hpp"
 #include "db/sql/Lexer.hpp"
 
 #include <db/core/AST.hpp>
 
 #include <iostream>
+#include <memory>
 #include <string>
 #include <utility>
+#include <vector>
 
 namespace Db::Sql {
 
@@ -31,6 +34,12 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Statement>> Parser::parse_statement()
         auto what_to_create = m_tokens[m_offset + 1];
         if (what_to_create.type == Token::Type::KeywordTable)
             return TRY(parse_truncate_table());
+        return Core::DbError { "Expected thing to create, got '" + what_to_create.value + "'", m_offset + 1 };
+    }
+    else if (keyword.type == Token::Type::KeywordAlter) {
+        auto what_to_create = m_tokens[m_offset + 1];
+        if (what_to_create.type == Token::Type::KeywordTable)
+            return TRY(parse_alter_table());
         return Core::DbError { "Expected thing to create, got '" + what_to_create.value + "'", m_offset + 1 };
     }
     else if (keyword.type == Token::Type::KeywordInsert) {
@@ -197,7 +206,7 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::CreateTable>> Parser::parse_create_ta
 
 Core::DbErrorOr<std::unique_ptr<Core::AST::DropTable>> Parser::parse_drop_table() {
     auto start = m_offset;
-    m_offset += 2; // CREATE TABLE
+    m_offset += 2; // DROP TABLE
 
     auto table_name = m_tokens[m_offset++];
     if (table_name.type != Token::Type::Identifier)
@@ -208,13 +217,63 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::DropTable>> Parser::parse_drop_table(
 
 Core::DbErrorOr<std::unique_ptr<Core::AST::TruncateTable>> Parser::parse_truncate_table() {
     auto start = m_offset;
-    m_offset += 2; // CREATE TABLE
+    m_offset += 2; // TRUNCATE TABLE
 
     auto table_name = m_tokens[m_offset++];
     if (table_name.type != Token::Type::Identifier)
         return Core::DbError { "Expected table name", m_offset - 1 };
 
     return std::make_unique<Core::AST::TruncateTable>(start, table_name.value);
+}
+
+Core::DbErrorOr<std::unique_ptr<Core::AST::AlterTable>> Parser::parse_alter_table(){
+    auto start = m_offset;
+    m_offset += 2; // ALTER TABLE
+
+    auto table_name = m_tokens[m_offset++];
+    if (table_name.type != Token::Type::Identifier)
+        return Core::DbError { "Expected table name", m_offset - 1 };
+    
+    std::vector<Core::Column> to_add;
+    std::vector<Core::Column> to_alter;
+    std::vector<Core::Column> to_drop;
+
+    while(m_tokens[m_offset].type == Token::Type::KeywordAdd || m_tokens[m_offset].type == Token::Type::KeywordAlter || m_tokens[m_offset].type == Token::Type::KeywordDrop){
+        if(m_tokens[m_offset].type == Token::Type::KeywordAdd){
+            m_offset++;
+            auto column_token = m_tokens[m_offset++];
+            if(column_token.type != Token::Type::Identifier)
+                return Core::DbError { "Expected column name", m_offset - 1 };
+
+            auto type_token = m_tokens[m_offset++];
+            if(type_token.type != Token::Type::Identifier)
+                return Core::DbError { "Expected column data type", m_offset - 1 };
+            
+            to_add.push_back(Core::Column(column_token.value, Core::Value::type_from_string(type_token.value).value()));
+        }else if(m_tokens[m_offset].type == Token::Type::KeywordAlter){
+            m_offset++;
+            auto column_token = m_tokens[m_offset++];
+            if(column_token.type != Token::Type::Identifier)
+                return Core::DbError { "Expected column name", m_offset - 1 };
+
+            auto type_token = m_tokens[m_offset++];
+            if(type_token.type != Token::Type::Identifier)
+                return Core::DbError { "Expected column data type", m_offset - 1 };
+            
+            to_alter.push_back(Core::Column(column_token.value, Core::Value::type_from_string(type_token.value).value()));
+        }else if(m_tokens[m_offset].type == Token::Type::KeywordDrop){
+            m_offset++;
+            auto column_token = m_tokens[m_offset++];
+            if(column_token.type != Token::Type::Identifier)
+                return Core::DbError { "Expected column name", m_offset - 1 };
+            
+            to_drop.push_back(Core::Column(column_token.value, {}));
+        }else{
+            return Core::DbError { "Unrecognized option", m_offset - 1 };
+        }
+    }
+
+    return std::make_unique<Core::AST::AlterTable>(start, table_name.value, std::move(to_add), std::move(to_alter), std::move(to_drop));
 }
 
 Core::DbErrorOr<std::unique_ptr<Core::AST::InsertInto>> Parser::parse_insert_into() {

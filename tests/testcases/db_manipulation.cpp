@@ -58,10 +58,36 @@ DbErrorOr<void> insert_into_with_select() {
     return {};
 }
 
+DbErrorOr<void> alter_table_add_column() {
+    auto db = TRY(setup_db());
+    auto result = TRY(Db::Sql::run_query(db, "ALTER TABLE test ADD new VARCHAR")).to_select_result();
+    TRY(expect(TRY(db.table("test"))->columns().size() == 5, "Column added successfully!"));
+    return {};
+}
+
+DbErrorOr<void> alter_table_drop_column() {
+    auto db = TRY(setup_db());
+    auto result = TRY(Db::Sql::run_query(db, "ALTER TABLE test DROP string")).to_select_result();
+    TRY(expect(TRY(db.table("test"))->columns().size() == 3, "Column deleted successfully!"));
+    return {};
+}
+
+DbErrorOr<void> alter_table_alter_column() {
+    auto db = TRY(setup_db());
+    auto result = TRY(Db::Sql::run_query(db, "ALTER TABLE test ADD new VARCHAR")).to_select_result();
+    result = TRY(Db::Sql::run_query(db, "ALTER TABLE test ALTER new INT")).to_select_result();
+    TRY(expect(TRY(db.table("test"))->columns().size() == 5, "Column added successfully!"));
+    TRY(expect(TRY(db.table("test"))->columns()[4].type() == Value::Type::Int, "Type changed successfully!"));
+    return {};
+}
+
 std::map<std::string, TestFunc*> get_tests() {
     return {
         { "drop_table", drop_table },
         { "truncate_table", truncate_table },
         { "insert_into_with_select", insert_into_with_select },
+        { "alter_table_add_column", alter_table_add_column },
+        { "alter_table_drop_column", alter_table_drop_column },
+        { "alter_table_alter_column", alter_table_alter_column },
     };
 }

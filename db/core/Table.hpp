@@ -24,6 +24,8 @@ public:
     DbErrorOr<void> import_from_csv(const std::string& path);
 
     DbErrorOr<void> add_column(Column);
+    DbErrorOr<void> alter_column(Column);
+    DbErrorOr<void> drop_column(Column);
     DbErrorOr<void> insert(RowWithColumnNames::MapType);
 
 private:
