@@ -28,8 +28,6 @@ struct Token {
         Comma,
         ParenOpen,
         ParenClose,
-        SquaredParenOpen,
-        SquaredParenClose,
         Semicolon,
         Exclamation,
         Quote,

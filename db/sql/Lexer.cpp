@@ -134,11 +134,17 @@ std::vector<Token> Lexer::lex() {
         }
         else if (next == '[') {
             m_in.get();
-            tokens.push_back(Token { .type = Token::Type::SquaredParenOpen, .value = "[", .start = start });
-        }
-        else if (next == ']') {
-            m_in.get();
-            tokens.push_back(Token { .type = Token::Type::SquaredParenClose, .value = "]", .start = start });
+            m_in >> std::ws;
+            std::string id;
+            while (m_in.peek() != ']')
+                id += m_in.get();
+            m_in.get(); // closing ']'
+
+            // Strip trailing spaces
+            while (isspace(id.back()))
+                id.pop_back();
+
+            tokens.push_back(Token { .type = Token::Type::Identifier, .value = id, .start = start });
         }
         else if (next == ';') {
             m_in.get();

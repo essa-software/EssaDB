@@ -279,6 +279,7 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Expression>> Parser::parse_expression
     else if (token.type == Token::Type::Quote) {
         std::string str = "";
 
+        // TODO: This should be handled in lexer
         while (m_tokens[m_offset++ + 1].type != Token::Type::Quote) {
             if (m_tokens[m_offset].type == Token::Type::Eof)
                 return Core::DbError { "Unclosed quote", start };
@@ -452,34 +453,10 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Function>> Parser::parse_function(std
 }
 
 Core::DbErrorOr<std::unique_ptr<Core::AST::Identifier>> Parser::parse_identifier() {
-    auto start = m_offset;
-    if (m_tokens[m_offset].type == Token::Type::SquaredParenOpen) {
-        m_offset++;
-        std::string string;
-        while (true) {
-            if (m_tokens[m_offset].type == Token::Type::SquaredParenClose) {
-                m_offset++;
-                break;
-            }
-            else if (m_tokens[m_offset].type != Token::Type::Identifier) {
-                // FIXME: Actually anything is allowed between square brackets, maybe we
-                //        should do this on the lexer side?
-                return Core::DbError { "Invalid syntax, expected identifier, got \'" + m_tokens[m_offset].value + "\'", m_offset };
-            }
-
-            string += m_tokens[m_offset++].value + " ";
-        }
-
-        // Remove trailing space
-        string.pop_back();
-        return std::make_unique<Core::AST::Identifier>(start, string);
-    }
-
-    auto name = m_tokens[m_offset];
+    auto name = m_tokens[m_offset++];
     if (name.type != Token::Type::Identifier)
-        return Core::DbError { "Invalid identifier, expected `name` or `[name]`", m_offset };
+        return Core::DbError { "Expected identifier", m_offset - 1 };
 
-    m_offset++;
-    return std::make_unique<Core::AST::Identifier>(start, name.value);
+    return std::make_unique<Core::AST::Identifier>(m_offset - 1, name.value);
 }
 }

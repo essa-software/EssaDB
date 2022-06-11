@@ -86,7 +86,7 @@ DbErrorOr<void> select_aliases_with_square_brackets() {
     auto result = TRY(TRY(Db::Sql::run_query(db, "SELECT id AS [id], number AS [some number], string AS [ some  string ] FROM test;")).to_select_result());
     TRY(expect(result.column_names()[0] == "id", "square brackets are parsed properly"));
     TRY(expect(result.column_names()[1] == "some number", "spaces are recognized"));
-    TRY(expect(result.column_names()[2] == "some string", "spaces are collapsed"));
+    TRY(expect(result.column_names()[2] == "some  string", "spaces are not collapsed, but identifier is trimmed"));
     return {};
 }
 
