@@ -189,9 +189,11 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Expression>> Parser::parse_expression
         auto postfix = m_tokens[m_offset + 1];
         if (postfix.type == Token::Type::ParenOpen) {
             m_offset++;
-            return TRY(parse_function(std::move(token.value)));
+            lhs = TRY(parse_function(std::move(token.value)));
         }
-        lhs = TRY(parse_identifier());
+        else {
+            lhs = TRY(parse_identifier());
+        }
     }
     else if (token.type == Token::Type::Quote) {
         std::string str = "";
