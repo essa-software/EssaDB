@@ -21,6 +21,7 @@ private:
     Core::DbErrorOr<std::unique_ptr<Core::AST::Select>> parse_select();
     Core::DbErrorOr<std::unique_ptr<Core::AST::CreateTable>> parse_create_table();
     Core::DbErrorOr<std::unique_ptr<Core::AST::DropTable>> parse_drop_table();
+    Core::DbErrorOr<std::unique_ptr<Core::AST::TruncateTable>> parse_truncate_table();
     Core::DbErrorOr<std::unique_ptr<Core::AST::InsertInto>> parse_insert_into();
     Core::DbErrorOr<std::unique_ptr<Core::AST::Expression>> parse_expression(int min_precedence = 0);
     struct BetweenRange : public Core::AST::Expression {

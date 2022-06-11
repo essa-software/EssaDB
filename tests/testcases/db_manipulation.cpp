@@ -32,6 +32,13 @@ DbErrorOr<void> drop_table() {
     return {};
 }
 
+DbErrorOr<void> truncate_table() {
+    auto db = TRY(setup_db());
+    auto result = TRY(Db::Sql::run_query(db, "TRUNCATE TABLE test;")).to_select_result();
+    TRY(expect(TRY(db.table("test"))->size() == 0, "Table successfully truncated!"));
+    return {};
+}
+
 DbErrorOr<void> insert_into_with_select() {
     auto db = TRY(setup_db());
     auto& table = db.create_table("new_test");
@@ -54,6 +61,7 @@ DbErrorOr<void> insert_into_with_select() {
 std::map<std::string, TestFunc*> get_tests() {
     return {
         { "drop_table", drop_table },
+        { "truncate_table", truncate_table },
         { "insert_into_with_select", insert_into_with_select },
     };
 }

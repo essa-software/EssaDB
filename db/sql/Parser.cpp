@@ -27,6 +27,12 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Statement>> Parser::parse_statement()
             return TRY(parse_drop_table());
         return Core::DbError { "Expected thing to create, got '" + what_to_create.value + "'", m_offset + 1 };
     }
+    else if (keyword.type == Token::Type::KeywordTruncate) {
+        auto what_to_create = m_tokens[m_offset + 1];
+        if (what_to_create.type == Token::Type::KeywordTable)
+            return TRY(parse_truncate_table());
+        return Core::DbError { "Expected thing to create, got '" + what_to_create.value + "'", m_offset + 1 };
+    }
     else if (keyword.type == Token::Type::KeywordInsert) {
         auto into_token = m_tokens[m_offset + 1];
         if (into_token.type == Token::Type::KeywordInto)
@@ -198,6 +204,17 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::DropTable>> Parser::parse_drop_table(
         return Core::DbError { "Expected table name", m_offset - 1 };
 
     return std::make_unique<Core::AST::DropTable>(start, table_name.value);
+}
+
+Core::DbErrorOr<std::unique_ptr<Core::AST::TruncateTable>> Parser::parse_truncate_table() {
+    auto start = m_offset;
+    m_offset += 2; // CREATE TABLE
+
+    auto table_name = m_tokens[m_offset++];
+    if (table_name.type != Token::Type::Identifier)
+        return Core::DbError { "Expected table name", m_offset - 1 };
+
+    return std::make_unique<Core::AST::TruncateTable>(start, table_name.value);
 }
 
 Core::DbErrorOr<std::unique_ptr<Core::AST::InsertInto>> Parser::parse_insert_into() {

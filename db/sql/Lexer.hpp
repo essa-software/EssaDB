@@ -21,6 +21,7 @@ struct Token {
         KeywordInto,
         KeywordValues,
         KeywordDrop,
+        KeywordTruncate,
 
         OrderByParam,
         Identifier,

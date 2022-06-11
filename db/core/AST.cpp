@@ -227,6 +227,13 @@ DbErrorOr<Value> DropTable::execute(Database& db) const {
     return { Value::null() };
 }
 
+DbErrorOr<Value> TruncateTable::execute(Database& db) const {
+    auto table = TRY(db.table(m_name));
+    table->truncate();
+
+    return { Value::null() };
+}
+
 DbErrorOr<Value> InsertInto::execute(Database& db) const {
     if(m_values.size() == 0)
         return { Value::null() };

@@ -246,6 +246,18 @@ private:
     std::string m_name;
 };
 
+class TruncateTable : public Statement {
+public:
+    TruncateTable(ssize_t start, std::string name)
+        : Statement(start)
+        , m_name(std::move(name)){ }
+
+    virtual DbErrorOr<Value> execute(Database&) const override;
+
+private:
+    std::string m_name;
+};
+
 class InsertInto : public Statement {
 public:
     InsertInto(ssize_t start, std::string name, std::vector<std::string> columns, std::vector<std::unique_ptr<Core::AST::Expression>> values)
