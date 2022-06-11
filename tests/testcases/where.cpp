@@ -13,15 +13,15 @@ using namespace Db::Core;
 
 DbErrorOr<Database> setup_db() {
     Database db;
-    TRY(Db::Sql::run_query(db, "CREATE TABLE test (id INT, number INT, string VARCHAR)"));
+    TRY(Db::Sql::run_query(db, "CREATE TABLE test (id INT, number INT, string VARCHAR, integer INT)"));
     auto table = TRY(db.table("test"));
 
-    TRY(table->insert({ { "id", Value::create_int(0) }, { "number", Value::create_int(69) }, { "string", Value::create_varchar("test") } }));
-    TRY(table->insert({ { "id", Value::create_int(1) }, { "number", Value::create_int(2137) } }));
-    TRY(table->insert({ { "id", Value::create_int(2) }, { "number", Value::null() } }));
-    TRY(table->insert({ { "id", Value::create_int(3) }, { "number", Value::create_int(420) } }));
-    TRY(table->insert({ { "id", Value::create_int(4) }, { "number", Value::create_int(69) }, { "string", Value::create_varchar("test3") } }));
-    TRY(table->insert({ { "id", Value::create_int(5) }, { "number", Value::create_int(69) }, { "string", Value::create_varchar("test2") } }));
+    TRY(table->insert({ { "id", Value::create_int(0) }, { "number", Value::create_int(69) }, { "string", Value::create_varchar("test") }, { "integer", Value::create_int(48) } }));
+    TRY(table->insert({ { "id", Value::create_int(1) }, { "number", Value::create_int(2137) }, { "integer", Value::create_int(65) } }));
+    TRY(table->insert({ { "id", Value::create_int(2) }, { "number", Value::null() }, { "integer", Value::create_int(89) } }));
+    TRY(table->insert({ { "id", Value::create_int(3) }, { "number", Value::create_int(420) }, { "integer", Value::create_int(100) } }));
+    TRY(table->insert({ { "id", Value::create_int(4) }, { "number", Value::create_int(69) }, { "string", Value::create_varchar("test3") }, { "integer", Value::create_int(122) } }));
+    TRY(table->insert({ { "id", Value::create_int(5) }, { "number", Value::create_int(69) }, { "string", Value::create_varchar("test2") }, { "integer", Value::create_int(58) } }));
     return db;
 }
 
@@ -53,6 +53,14 @@ DbErrorOr<void> select_where_multiple_rules_or() {
 DbErrorOr<void> select_where_multiple_rules_and_or() {
     auto db = TRY(setup_db());
     auto result = TRY(TRY(Db::Sql::run_query(db, "SELECT id FROM test WHERE id = 2 OR id = 3 AND number = 420;")).to_select_result());
+    TRY(expect(result.rows().size() == 2, "filters were applied properly"));
+    return {};
+}
+
+DbErrorOr<void> select_where_with_function_len() {
+    auto db = TRY(setup_db());
+    auto result = TRY(TRY(Db::Sql::run_query(db, "SELECT id, string FROM test WHERE LEN(string) > 4;")).to_select_result());
+    result.dump(std::cout);
     TRY(expect(result.rows().size() == 2, "filters were applied properly"));
     return {};
 }
@@ -134,19 +142,12 @@ DbErrorOr<void> select_where_like_with_suffix_asterisk() {
 //     return {};
 // }
 
-// DbErrorOr<void> select_where_like_with_two_asterisks() {
-//     auto db = TRY(setup_db());
-//     auto result = TRY(TRY(AST::Select(
-//                               std::vector<AST::SelectColumns::IdentifierColumn> { { .column = "id", .alias = "ID" }, { .column = "number", .alias = "NUMBER" }, { .column = "string", .alias = "STRING" } },
-//                               "test",
-//                               AST::Filter { .filter_rules = {
-//                                                 AST::Filter::FilterSet { .column = "string", .operation = AST::Filter::Operation::Like, .args = { Value::create_varchar("*st*") }, .logic = AST::Filter::LogicOperator::AND },
-//                                             } })
-//                               .execute(db))
-//                           .to_select_result());
-//     TRY(expect(result.rows().size() == 2, "2 rows returned"));
-//     return {};
-// }
+DbErrorOr<void> select_where_like_with_two_asterisks() {
+    auto db = TRY(setup_db());
+    auto result = TRY(TRY(Db::Sql::run_query(db, "SELECT * FROM test WHERE string LIKE '*st*';")).to_select_result());
+    TRY(expect(result.rows().size() == 2, "2 rows returned"));
+    return {};
+}
 
 std::map<std::string, TestFunc*> get_tests() {
     return {
@@ -154,13 +155,14 @@ std::map<std::string, TestFunc*> get_tests() {
         { "select_where_multiple_rules_and", select_where_multiple_rules_and },
         { "select_where_multiple_rules_or", select_where_multiple_rules_or },
         { "select_where_multiple_rules_and_or", select_where_multiple_rules_and_or },
+        { "select_where_with_function_len", select_where_with_function_len },
         // { "select_where_between", select_where_between },
         // { "select_where_in_statement", select_where_in_statement },
         // { "select_where_but_more_complex", select_where_but_more_complex },
         { "select_where_like_without_asterisks", select_where_like_without_asterisks },
         { "select_where_like_with_prefix_asterisk", select_where_like_with_prefix_asterisk },
         { "select_where_like_with_suffix_asterisk", select_where_like_with_suffix_asterisk },
-        // { "select_where_like_with_two_asterisks", select_where_like_with_two_asterisks },
+        { "select_where_like_with_two_asterisks", select_where_like_with_two_asterisks },
         // { "select_where_like_with_suffix_asterisk_and_in_statement", select_where_like_with_suffix_asterisk_and_in_statement },
     };
 }

@@ -220,8 +220,9 @@ int operator_precedence(Core::AST::BinaryOperator::Operation op) {
     case Core::AST::BinaryOperator::Operation::Less:
     case Core::AST::BinaryOperator::Operation::LessEqual:
     case Core::AST::BinaryOperator::Operation::Like:
-        return 10;
+        return 15;
     case Core::AST::BinaryOperator::Operation::And:
+        return 10;
     case Core::AST::BinaryOperator::Operation::Or:
         return 5;
     default:
@@ -305,6 +306,12 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Function>> Parser::parse_function(std
         }
         m_offset++;
     }
+
+    // std::cout << name << ": ";
+    // for(const auto& arg : args){
+    //     std::cout << arg->to_string() << ", ";
+    // }
+    // std::cout << "\b\b\n";
     return std::make_unique<Core::AST::Function>(std::move(name), std::move(args));
 }
 
