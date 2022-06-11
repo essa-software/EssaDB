@@ -1,7 +1,10 @@
 #include "Function.hpp"
-#include "db/core/Value.hpp"
+
+#include "Value.hpp"
+
 #include <cctype>
 #include <cstddef>
+#include <functional>
 
 namespace Db::Core::AST {
 
@@ -20,63 +23,82 @@ bool compare_case_insensitive(const std::string& lhs, const std::string& rhs) {
     return true;
 }
 
-DbErrorOr<Value> Function::evaluate(EvaluationContext& context, Row const& row) const {
-    if (compare_case_insensitive(m_name, "LEN")) {
+class ArgumentList {
+public:
+    ArgumentList(std::vector<Value> values)
+        : m_args(std::move(values)) { }
+
+    Value operator[](size_t index) const { return m_args[index]; }
+
+    DbErrorOr<Value> get_required(size_t index, std::string const& name) const {
+        if (m_args.size() <= index) {
+            // TODO: Store location info
+            return DbError { "Required argument " + std::to_string(index) + " `" + name + "` not given", 0 };
+        }
+        return m_args[index];
+    }
+
+    Value get_optional(size_t index, Value alternative) const {
+        if (m_args.size() <= index) {
+            return alternative;
+        }
+        return m_args[index];
+    }
+
+private:
+    std::vector<Value> m_args;
+};
+
+using SQLFunction = std::function<DbErrorOr<Value>(ArgumentList)>;
+
+static std::map<std::string, SQLFunction> s_functions;
+
+static void register_sql_function(std::string name, SQLFunction function) {
+    s_functions.insert({ std::move(name), std::move(function) });
+}
+
+static void setup_sql_functions() {
+    register_sql_function("LEN", [](ArgumentList args) -> DbErrorOr<Value> {
         // https://www.w3schools.com/sqL/func_sqlserver_len.asp
-        if (m_args.size() != 1)
-            return DbError { "Expected arg 0: string", start() + 1 };
-        auto arg = TRY(m_args[0]->evaluate(context, row));
-        // std::cout << arg.to_string().value() << "\n";
-        switch (arg.type()) {
+        auto string = TRY(args.get_required(0, "string"));
+        switch (string.type()) {
         case Value::Type::Null:
             // If string is NULL, it returns NULL
             return Value::null();
         default:
             // FIXME: What to do with ints?
-            return Value::create_int(TRY(arg.to_string()).size());
+            return Value::create_int(TRY(string.to_string()).size());
         }
-    }
-    else if (compare_case_insensitive(m_name, "IN")) {
-        if (m_args.size() == 0)
-            return DbError { "No arguments were provided!", start() + 1 };
-    }
-    else if (compare_case_insensitive(m_name, "ASCII")) {
-        if (m_args.size() != 1)
-            return DbError { "Expected arg 0: char", start() + 1 };
-
-        auto arg = TRY(m_args[0]->evaluate(context, row));
-
-        return Value::create_int(static_cast<int>(arg.to_string().value().front()));
-    }
-    else if (compare_case_insensitive(m_name, "CHAR")) {
-        if (m_args.size() != 1)
-            return DbError { "Expected arg 0: int", start() + 1 };
-
-        auto arg = TRY(m_args[0]->evaluate(context, row));
-
-        std::string c = "";
-        c += static_cast<char>(arg.to_int().value());
-
+    });
+    register_sql_function("ASCII", [](ArgumentList args) -> DbErrorOr<Value> {
+        return Value::create_int(static_cast<int>(TRY(args.get_required(0, "char")).to_string().value().front()));
+    });
+    register_sql_function("CHAR", [](ArgumentList args) -> DbErrorOr<Value> {
+        std::string c;
+        c += static_cast<char>(TRY(args.get_required(0, "int")).to_int().value());
         return Value::create_varchar(c);
-    }
-    else if (compare_case_insensitive(m_name, "CHARINDEX")) {
-        if (m_args.size() < 1)
-            return DbError { "Expected arg 0: substr", start() + 1 };
-        if (m_args.size() < 2)
-            return DbError { "Expected arg 1: string", start() + 1 };
-
-        auto substr = m_args[0]->to_string();
-        auto str = TRY(m_args[1]->evaluate(context, row).value().to_string());
-        size_t start = 0;
-
-        if (m_args.size() == 3)
-            start = std::stoi(m_args[2]->to_string());
+    });
+    register_sql_function("CHARINDEX", [](ArgumentList args) -> DbErrorOr<Value> {
+        // https://docs.microsoft.com/en-us/sql/t-sql/functions/charindex-transact-sql?view=sql-server-ver16
+        auto substr = TRY(TRY(args.get_required(0, "substr")).to_string());
+        auto str = TRY(TRY(args.get_required(1, "str")).to_string());
+        auto start = TRY(args.get_optional(2, Value::create_int(0)).to_int());
 
         auto find_index = str.find(substr, start);
 
         if (find_index == std::string::npos)
-            return Value::create_int(0);
+            return Value::null();
         return Value::create_int(find_index);
+    });
+}
+
+DbErrorOr<Value> Function::evaluate(EvaluationContext& context, Row const& row) const {
+    // TODO: Port all these to new register_sql_function API
+    if (compare_case_insensitive(m_name, "IN")) {
+        if (m_args.size() == 0)
+            return DbError { "No arguments were provided!", start() + 1 };
+    }
+    else if (compare_case_insensitive(m_name, "CHARINDEX")) {
     }
     else if (compare_case_insensitive(m_name, "CONCAT")) {
         if (m_args.size() == 0)
@@ -177,6 +199,24 @@ DbErrorOr<Value> Function::evaluate(EvaluationContext& context, Row const& row) 
         }
 
         return Value::create_varchar(str);
+    }
+
+    static bool sql_functions_setup = false;
+    if (!sql_functions_setup) {
+        setup_sql_functions();
+        sql_functions_setup = true;
+    }
+
+    std::string name_uppercase;
+    for (auto ch : m_name)
+        name_uppercase += toupper(ch);
+
+    auto function = s_functions.find(name_uppercase);
+    if (function != s_functions.end()) {
+        std::vector<Value> args;
+        for (auto const& arg : m_args)
+            args.push_back(TRY(arg->evaluate(context, row)));
+        return function->second(ArgumentList { std::move(args) });
     }
 
     return DbError { "Undefined function: '" + m_name + "'", start() };

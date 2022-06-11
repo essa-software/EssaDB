@@ -36,7 +36,7 @@ DbErrorOr<void> select_function_len() {
 
 DbErrorOr<void> select_function_charindex() {
     auto db = TRY(setup_db());
-    auto result = TRY(TRY(Db::Sql::run_query(db, "SELECT id, CHARINDEX(st, string) AS [INDEX] FROM test;")).to_select_result());
+    auto result = TRY(TRY(Db::Sql::run_query(db, "SELECT id, CHARINDEX('st', string) AS [INDEX] FROM test;")).to_select_result());
     result.dump(std::cout);
     TRY(expect_equal<size_t>(result.rows().size(), 6, "all rows were returned"));
     return {};
