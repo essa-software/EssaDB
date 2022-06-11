@@ -42,7 +42,7 @@ DbErrorOr<void> csv_export_import_with_aliases() {
 
     auto result = TRY(TRY(Db::Sql::run_query(db, "SELECT id AS [ID], number AS [NUM], string AS [STR], integer AS [INT] FROM test;")).to_select_result());
     result.dump(std::cout);
-    auto& table = db.create_table_from_quary(result, "testfromquary");
+    auto& table = db.create_table_from_query(result, "testfromquery");
     table.export_to_csv("test.csv");
 
     auto& new_table = db.create_table("newtest");

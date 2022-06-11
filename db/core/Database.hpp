@@ -11,7 +11,7 @@ namespace Db::Core {
 class Database : public Util::NonCopyable {
 public:
     Table& create_table(std::string name);
-    Table& create_table_from_quary(SelectResult select, std::string name);
+    Table& create_table_from_query(SelectResult select, std::string name);
     DbErrorOr<Table*> table(std::string name);
 
 private:
