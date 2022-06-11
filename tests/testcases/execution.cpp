@@ -90,6 +90,14 @@ DbErrorOr<void> select_aliases_with_square_brackets() {
     return {};
 }
 
+DbErrorOr<void> drop_table() {
+    auto db = TRY(setup_db());
+    // TODO: Returns columns in given order, not in table order
+    auto result = TRY(Db::Sql::run_query(db, "DROP TABLE test;")).to_select_result();
+    TRY(expect(!db.exists("test"), "Table successfully deleted!"));
+    return {};
+}
+
 std::map<std::string, TestFunc*> get_tests() {
     return {
         { "select_simple", select_simple },
@@ -100,5 +108,6 @@ std::map<std::string, TestFunc*> get_tests() {
         { "select_top_perc", select_top_perc },
         { "select_with_aliases", select_with_aliases },
         { "select_aliases_with_square_brackets", select_aliases_with_square_brackets },
+        { "drop_table", drop_table },
     };
 }

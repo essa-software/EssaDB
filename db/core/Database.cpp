@@ -6,6 +6,13 @@ Table& Database::create_table(std::string name) {
     return m_tables.emplace(name, Table()).first->second;
 }
 
+DbErrorOr<void> Database::drop_table(std::string name){
+    TRY(table(name));
+
+    m_tables.erase(name);
+    return {};
+}
+
 Table& Database::create_table_from_query(SelectResult select, std::string name){
     return m_tables.emplace(name, Table(select)).first->second;
 }

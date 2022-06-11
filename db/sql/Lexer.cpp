@@ -89,6 +89,9 @@ std::vector<Token> Lexer::lex() {
             else if (compare_case_insensitive(id, "VALUES")) {
                 tokens.push_back(Token { .type = Token::Type::KeywordValues, .value = "VALUES", .start = start });
             }
+            else if (compare_case_insensitive(id, "DROP")) {
+                tokens.push_back(Token { .type = Token::Type::KeywordDrop, .value = "DROP", .start = start });
+            }
             else if (compare_case_insensitive(id, "AND")) {
                 tokens.push_back(Token { .type = Token::Type::OpAnd, .value = "AND", .start = start });
             }

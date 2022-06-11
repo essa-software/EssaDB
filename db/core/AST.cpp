@@ -221,6 +221,12 @@ DbErrorOr<Value> CreateTable::execute(Database& db) const {
     return { Value::null() };
 }
 
+DbErrorOr<Value> DropTable::execute(Database& db) const {
+    TRY(db.drop_table(m_name));
+
+    return { Value::null() };
+}
+
 DbErrorOr<Value> InsertInto::execute(Database& db) const {
     auto table = TRY(db.table(m_name));
 

@@ -20,6 +20,7 @@ struct Token {
         KeywordInsert,
         KeywordInto,
         KeywordValues,
+        KeywordDrop,
 
         OrderByParam,
         Identifier,
