@@ -11,9 +11,8 @@ namespace Db::Sql {
 class Parser {
 public:
     // NOTE: This stores a reference.
-    explicit Parser(std::vector<Token> const& tokens, Core::Database& db)
-        : m_tokens(std::move(tokens))
-        , m_db(db) { }
+    explicit Parser(std::vector<Token> const& tokens)
+        : m_tokens(std::move(tokens)){ }
 
     Core::DbErrorOr<std::unique_ptr<Core::AST::Statement>> parse_statement();
 
@@ -45,7 +44,6 @@ private:
 
     std::vector<Token> const& m_tokens;
 
-    Core::Database& m_db;
     size_t m_offset = 0;
 };
 

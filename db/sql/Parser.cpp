@@ -373,17 +373,11 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::InsertInto>> Parser::parse_insert_int
         return std::make_unique<Core::AST::InsertInto>(start, table_name.value, std::move(columns), std::move(values));
     }else if(value_token.type == Token::Type::KeywordSelect){
         m_offset--;
-        auto result = TRY(parse_select())->execute(m_db);
-        auto table = result.value().to_select_result().value();
-        for(const auto& row : table.rows()){
-            for(size_t i = 0; i < table.column_names().size(); i++){
-                values.push_back(std::make_unique<Core::AST::Literal>(start, row.value(i)));
-            }
-            Core::AST::InsertInto query(start, table_name.value, columns, std::move(values));
-            TRY(query.execute(m_db));
-        }
+        auto result = TRY(parse_select());
+        return std::make_unique<Core::AST::InsertInto>(start, table_name.value, std::move(columns), std::move(result));
     }
-    return std::make_unique<Core::AST::InsertInto>(start, table_name.value, std::move(columns), std::move(values));
+    
+    return Core::DbError { "Expected 'VALUES' or 'INSERT', got " + value_token.value, m_offset - 1 };
 }   
 
 Core::DbErrorOr<std::unique_ptr<Core::AST::Expression>> Parser::parse_expression(int min_precedence) {

@@ -43,7 +43,7 @@ void run_query(Db::Core::Database& db, std::string const& query) {
     //     std::cout << (int)token.type << ": " << token.value << std::endl;
     // }
 
-    Db::Sql::Parser parser { tokens, db};
+    Db::Sql::Parser parser { tokens };
     auto statement = parser.parse_statement();
     if (statement.is_error()) {
         auto error = statement.release_error();
