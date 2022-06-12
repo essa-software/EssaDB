@@ -32,6 +32,8 @@ struct Token {
         Identifier,
         Number,
         String,
+        Bool,
+        Date,
         Null,
         Asterisk,
         Comma,

@@ -404,6 +404,14 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Expression>> Parser::parse_expression
         m_offset++;
         lhs = std::make_unique<Core::AST::Literal>(start, Core::Value::create_varchar(token.value));
     }
+    else if (token.type == Token::Type::Bool) {
+        m_offset++;
+        lhs = std::make_unique<Core::AST::Literal>(start, Core::Value::create_bool((token.value == "true") ? 1 : 0));
+    }
+    else if (token.type == Token::Type::Date) {
+        m_offset++;
+        lhs = std::make_unique<Core::AST::Literal>(start, Core::Value::create_time(token.value, Util::Clock::Format::NO_CLOCK_AMERICAN));
+    }
     else if (token.type == Token::Type::Null) {
         m_offset++;
         lhs = std::make_unique<Core::AST::Literal>(start, Core::Value::null());

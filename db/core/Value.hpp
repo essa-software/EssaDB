@@ -2,6 +2,7 @@
 
 #include "DbError.hpp"
 #include "SelectResult.hpp"
+#include "../util/Clock.hpp"
 
 #include <optional>
 #include <string>
@@ -11,7 +12,7 @@ namespace Db::Core {
 
 class SelectResult;
 
-using ValueBase = std::variant<std::monostate, int, std::string, bool, SelectResult>;
+using ValueBase = std::variant<std::monostate, int, std::string, bool, Util::Clock::time_point, SelectResult>;
 
 class Value : public ValueBase {
 public:
@@ -20,6 +21,7 @@ public:
         Int,
         Varchar,
         Bool,
+        Time,
         SelectResult,
     };
 
@@ -31,6 +33,8 @@ public:
             return Type::Varchar;
         if (str == "BOOL")
             return Type::Bool;
+        if (str == "TIME")
+            return Type::Time;
         return {};
     }
 
@@ -39,6 +43,8 @@ public:
     static Value create_int(int i);
     static Value create_varchar(std::string s);
     static Value create_bool(bool b);
+    static Value create_time(Util::Clock::time_point clock);
+    static Value create_time(std::string str, Util::Clock::Format format);
     static Value create_select_result(SelectResult);
 
     DbErrorOr<int> to_int() const;

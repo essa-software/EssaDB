@@ -128,6 +128,9 @@ std::vector<Token> Lexer::lex() {
             else if (compare_case_insensitive(id, "NULL")) {
                 tokens.push_back(Token { .type = Token::Type::Null, .value = "null", .start = start });
             }
+            else if (id == "true" || id == "false") {
+                tokens.push_back(Token { .type = Token::Type::Bool, .value = id, .start = start });
+            }
             else {
                 tokens.push_back(Token { .type = Token::Type::Identifier, .value = id, .start = start });
             }
@@ -194,7 +197,7 @@ std::vector<Token> Lexer::lex() {
                 m_in.get();
             }
             else {
-                tokens.push_back(Token { .type = Token::Type::Exclamation, .value = "=", .start = start });
+                tokens.push_back(Token { .type = Token::Type::Exclamation, .value = "!", .start = start });
             }
         }
         else if (next == '\'') {
@@ -206,6 +209,16 @@ std::vector<Token> Lexer::lex() {
             m_in.get();
 
             tokens.push_back(Token { .type = Token::Type::String, .value = id, .start = start });
+        }
+        else if (next == '#') {
+            m_in.get();
+            m_in >> std::ws;
+            std::string id;
+            while (m_in.peek() != '#')
+                id += m_in.get();
+            m_in.get();
+
+            tokens.push_back(Token { .type = Token::Type::Date, .value = id, .start = start });
         }
         else {
             tokens.push_back(Token { .type = Token::Type::Garbage, .value = { next }, .start = start });

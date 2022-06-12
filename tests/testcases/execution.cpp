@@ -13,23 +13,24 @@ using namespace Db::Core;
 
 DbErrorOr<Database> setup_db() {
     Database db;
-    TRY(Db::Sql::run_query(db, "CREATE TABLE test (id INT, number INT, string VARCHAR, integer INT)"));
-    TRY(Db::Sql::run_query(db, "INSERT INTO test (id, number, string, integer) VALUES (0, 69, 'test', 48)"));
-    TRY(Db::Sql::run_query(db, "INSERT INTO test (id, number, integer) VALUES (1, 2137, 65)"));
-    TRY(Db::Sql::run_query(db, "INSERT INTO test (id, number, integer) VALUES (2, null, 89)"));
-    TRY(Db::Sql::run_query(db, "INSERT INTO test (id, number, integer) VALUES (3, 420, 100)"));
-    TRY(Db::Sql::run_query(db, "INSERT INTO test (id, number, string, integer) VALUES (4, 69, 'test1', 122)"));
-    TRY(Db::Sql::run_query(db, "INSERT INTO test (id, number, string, integer) VALUES (5, 69, 'test2', 58)"));
-    TRY(Db::Sql::run_query(db, "INSERT INTO test (id, number, integer) VALUES (3, 420, 100)"));
+    TRY(Db::Sql::run_query(db, "CREATE TABLE test (id INT, number INT, string VARCHAR, integer INT, date TIME)"));
+    TRY(Db::Sql::run_query(db, "INSERT INTO test (id, number, string, integer, date) VALUES (0, 69, 'test', 48, #1990-02-12#)"));
+    TRY(Db::Sql::run_query(db, "INSERT INTO test (id, number, integer, date) VALUES (1, 2137, 65, #1990-02-12#)"));
+    TRY(Db::Sql::run_query(db, "INSERT INTO test (id, number, integer, date) VALUES (2, null, 89, #1990-02-12#)"));
+    TRY(Db::Sql::run_query(db, "INSERT INTO test (id, number, integer, date) VALUES (3, 420, 100, #1990-02-12#)"));
+    TRY(Db::Sql::run_query(db, "INSERT INTO test (id, number, string, integer, date) VALUES (4, 69, 'test1', 122, #1990-02-12#)"));
+    TRY(Db::Sql::run_query(db, "INSERT INTO test (id, number, string, integer, date) VALUES (5, 69, 'test2', 58, #1990-02-12#)"));
+    TRY(Db::Sql::run_query(db, "INSERT INTO test (id, number, integer, date) VALUES (3, 420, 100, #1990-02-12#)"));
     return db;
 }
 
 DbErrorOr<void> select_simple() {
     auto db = TRY(setup_db());
     auto result = TRY(TRY(Db::Sql::run_query(db, "SELECT * FROM test;")).to_select_result());
-    TRY(expect(result.column_names() == std::vector<std::string> { "id", "number", "string", "integer" }, "columns have proper names"));
+    result.dump(std::cout);
+    TRY(expect(result.column_names() == std::vector<std::string> { "id", "number", "string", "integer", "date" }, "columns have proper names"));
     TRY(expect(result.rows().size() == 7, "all rows were returned"));
-    TRY(expect(result.rows()[0].value_count() == 4, "rows have proper column count"));
+    TRY(expect(result.rows()[0].value_count() == 5, "rows have proper column count"));
     return {};
 }
 

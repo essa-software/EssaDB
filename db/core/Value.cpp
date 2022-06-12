@@ -3,7 +3,9 @@
 #include "Row.hpp"
 #include "SelectResult.hpp"
 
+#include <cctype>
 #include <ostream>
+#include <sstream>
 
 namespace Db::Core {
 
@@ -34,6 +36,44 @@ Value Value::create_varchar(std::string s) {
 Value Value::create_bool(bool b) {
     return Value { b, Type::Bool };
 }
+Value Value::create_time(Util::Clock::time_point t){
+    return Value { t, Type::Time };
+}
+
+Value Value::create_time(std::string time, Util::Clock::Format format){
+    // FIXME: Add some ate format checking ASAP
+    switch (format) {
+        case Util::Clock::Format::NO_CLOCK_AMERICAN:{
+            size_t year = 0, month = 0, day = 0, counter = 0;
+            std::string str = "";
+
+            for(const auto& t : time){
+                if(t == '-'){
+                    if(counter == 0)
+                        year = std::stoi(str);
+                    else if(counter == 1)
+                        month = std::stoi(str);
+                    else if(counter == 2)
+                        day = std::stoi(str);
+                    else    
+                        break;
+                    str = "";
+                    counter++;
+                }else {
+                    if(isdigit(t))
+                        str += t;
+                    else
+                        return Value::null();
+                }
+            }
+
+            if(!str.empty())
+                day = std::stoi(str);
+            return Value (Util::Time::create(year, month, day), Type::Time);
+        }default:
+            return Value::null();
+    }
+}
 
 Value Value::create_select_result(SelectResult result) {
     return Value { std::move(result), Type::SelectResult };
@@ -57,6 +97,8 @@ DbErrorOr<int> Value::to_int() const {
     }
     case Type::Bool:
         return std::get<bool>(*this) ? 1 : 0;
+    case Type::Time:
+        return static_cast<int>(std::get<Util::Clock::time_point>(*this).time_since_epoch().count());
     case Type::SelectResult:
         // TODO: Save location info
         return DbError { "SelectResult cannot be converted to int", 0 };
@@ -74,7 +116,13 @@ DbErrorOr<std::string> Value::to_string() const {
         return std::get<std::string>(*this);
     case Type::Bool:
         return std::get<bool>(*this) ? "true" : "false";
-    case Type::SelectResult:
+    case Type::Time:{
+        Util::time_format = Util::Clock::Format::NO_CLOCK_AMERICAN;
+        auto time_point = std::get<Util::Clock::time_point>(*this);
+        std::ostringstream stream;
+        stream << time_point;
+        return stream.str();
+    }case Type::SelectResult:
         // TODO: Save location info
         return DbError { "Select result is not a string", 0 };
     }
@@ -104,6 +152,8 @@ std::string Value::to_debug_string() const {
         return "varchar '" + value + "'";
     case Type::Bool:
         return "bool " + value;
+    case Type::Time:
+        return "time " + value;
     case Type::SelectResult:
         return "SelectResult (" + std::to_string(std::get<SelectResult>(*this).rows().size()) + " rows)";
     }
