@@ -228,4 +228,39 @@ DbErrorOr<Value> Function::evaluate(EvaluationContext& context, Tuple const& row
 
     return DbError { "Undefined function: '" + m_name + "'", start() };
 }
+
+DbErrorOr<Value> AggregateFunction::evaluate(EvaluationContext& context, Tuple const& tuple) const {
+    auto column = context.table.get_column(m_column);
+    if (!column)
+        return DbError { "Invalid column '" + m_column + "' used in aggregate function", start() };
+    return tuple.value(column->second);
+}
+
+DbErrorOr<Value> AggregateFunction::aggregate(EvaluationContext& context, std::vector<Tuple> const& rows) const {
+    auto column = context.table.get_column(m_column);
+    if (!column)
+        return DbError { "Invalid column '" + m_column + "' used in aggregate function", start() };
+    switch (m_function) {
+    case Function::Count: {
+        int count = 0;
+        for (auto& row : rows) {
+            if (row.value(column->second).type() != Value::Type::Null)
+                count += 1;
+        }
+        return Value::create_int(count);
+    }
+    case Function::Sum: {
+        int sum = 0;
+        for (auto& row : rows) {
+            sum += TRY(row.value(column->second).to_int());
+        }
+
+        return Value::create_int(sum);
+    }
+    default:
+        break;
+    }
+    __builtin_unreachable();
+}
+
 }

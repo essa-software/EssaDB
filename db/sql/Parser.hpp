@@ -12,7 +12,7 @@ class Parser {
 public:
     // NOTE: This stores a reference.
     explicit Parser(std::vector<Token> const& tokens)
-        : m_tokens(std::move(tokens)){ }
+        : m_tokens(std::move(tokens)) { }
 
     Core::DbErrorOr<std::unique_ptr<Core::AST::Statement>> parse_statement();
 
@@ -39,7 +39,7 @@ private:
     };
     Core::DbErrorOr<std::unique_ptr<Parser::BetweenRange>> parse_between_range();                                                              // (BETWEEN) x AND y
     Core::DbErrorOr<std::unique_ptr<Core::AST::Expression>> parse_operand(std::unique_ptr<Core::AST::Expression> lhs, int min_precedence = 0); // parses operator + rhs
-    Core::DbErrorOr<std::unique_ptr<Core::AST::Function>> parse_function(std::string name);
+    Core::DbErrorOr<std::unique_ptr<Core::AST::Expression>> parse_function(std::string name);
     Core::DbErrorOr<std::unique_ptr<Core::AST::Identifier>> parse_identifier();
 
     std::vector<Token> const& m_tokens;

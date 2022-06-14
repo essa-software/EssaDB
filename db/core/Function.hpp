@@ -18,4 +18,27 @@ private:
     std::vector<std::unique_ptr<Expression>> m_args;
 };
 
+class AggregateFunction : public Expression {
+public:
+    enum class Function {
+        Count,
+        Sum,
+        Invalid
+    };
+
+    explicit AggregateFunction(size_t start, Function function, std::string column)
+        : Expression(start)
+        , m_function(function)
+        , m_column(std::move(column)) { }
+
+    virtual DbErrorOr<Value> evaluate(EvaluationContext&, Tuple const&) const override;
+    virtual std::string to_string() const override { return "AggregateFunction?(TODO)"; }
+
+    DbErrorOr<Value> aggregate(EvaluationContext&, std::vector<Tuple> const&) const;
+
+private:
+    Function m_function {};
+    std::string m_column;
+};
+
 }

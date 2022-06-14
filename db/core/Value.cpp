@@ -1,7 +1,7 @@
 #include "Value.hpp"
 
-#include "Tuple.hpp"
 #include "SelectResult.hpp"
+#include "Tuple.hpp"
 
 #include <cctype>
 #include <ostream>
@@ -36,42 +36,44 @@ Value Value::create_varchar(std::string s) {
 Value Value::create_bool(bool b) {
     return Value { b, Type::Bool };
 }
-Value Value::create_time(Util::Clock::time_point t){
+Value Value::create_time(Util::Clock::time_point t) {
     return Value { t, Type::Time };
 }
 
-Value Value::create_time(std::string time, Util::Clock::Format format){
+Value Value::create_time(std::string time, Util::Clock::Format format) {
     // FIXME: Add some ate format checking ASAP
     switch (format) {
-        case Util::Clock::Format::NO_CLOCK_AMERICAN:{
-            size_t year = 0, month = 0, day = 0, counter = 0;
-            std::string str = "";
+    case Util::Clock::Format::NO_CLOCK_AMERICAN: {
+        size_t year = 0, month = 0, day = 0, counter = 0;
+        std::string str = "";
 
-            for(const auto& t : time){
-                if(t == '-'){
-                    if(counter == 0)
-                        year = std::stoi(str);
-                    else if(counter == 1)
-                        month = std::stoi(str);
-                    else if(counter == 2)
-                        day = std::stoi(str);
-                    else    
-                        break;
-                    str = "";
-                    counter++;
-                }else {
-                    if(isdigit(t))
-                        str += t;
-                    else
-                        return Value::null();
-                }
+        for (const auto& t : time) {
+            if (t == '-') {
+                if (counter == 0)
+                    year = std::stoi(str);
+                else if (counter == 1)
+                    month = std::stoi(str);
+                else if (counter == 2)
+                    day = std::stoi(str);
+                else
+                    break;
+                str = "";
+                counter++;
             }
+            else {
+                if (isdigit(t))
+                    str += t;
+                else
+                    return Value::null();
+            }
+        }
 
-            if(!str.empty())
-                day = std::stoi(str);
-            return Value (Util::Time::create(year, month, day), Type::Time);
-        }default:
-            return Value::null();
+        if (!str.empty())
+            day = std::stoi(str);
+        return Value(Util::Time::create(year, month, day), Type::Time);
+    }
+    default:
+        return Value::null();
     }
 }
 
@@ -99,9 +101,14 @@ DbErrorOr<int> Value::to_int() const {
         return std::get<bool>(*this) ? 1 : 0;
     case Type::Time:
         return static_cast<int>(std::get<Util::Clock::time_point>(*this).time_since_epoch().count());
-    case Type::SelectResult:
-        // TODO: Save location info
-        return DbError { "SelectResult cannot be converted to int", 0 };
+    case Type::SelectResult: {
+        auto select_result = std::get<SelectResult>(*this);
+        if (select_result.rows().size() != 1)
+            return DbError { "SelectResult must have only one 1 row to be convertible to int", 0 };
+        if (select_result.rows()[0].value_count() != 1)
+            return DbError { "SelectResult must have only one 1 column to be convertible to int", 0 };
+        return TRY(select_result.rows()[0].value(0).to_int());
+    }
     }
     __builtin_unreachable();
 }
@@ -116,15 +123,21 @@ DbErrorOr<std::string> Value::to_string() const {
         return std::get<std::string>(*this);
     case Type::Bool:
         return std::get<bool>(*this) ? "true" : "false";
-    case Type::Time:{
+    case Type::Time: {
         Util::time_format = Util::Clock::Format::NO_CLOCK_AMERICAN;
         auto time_point = std::get<Util::Clock::time_point>(*this);
         std::ostringstream stream;
         stream << time_point;
         return stream.str();
-    }case Type::SelectResult:
-        // TODO: Save location info
-        return DbError { "Select result is not a string", 0 };
+    }
+    case Type::SelectResult: {
+        auto select_result = std::get<SelectResult>(*this);
+        if (select_result.rows().size() != 1)
+            return DbError { "SelectResult must have only one 1 row to be convertible to string", 0 };
+        if (select_result.rows()[0].value_count() != 1)
+            return DbError { "SelectResult must have only one 1 column to be convertible to string", 0 };
+        return TRY(select_result.rows()[0].value(0).to_string());
+    }
     }
     __builtin_unreachable();
 }
@@ -175,5 +188,4 @@ std::ostream& operator<<(std::ostream& out, Value const& value) {
         return out << "<invalid>";
     return out << error.release_value();
 }
-
 }

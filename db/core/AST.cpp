@@ -1,10 +1,12 @@
 #include "AST.hpp"
 
 #include "Database.hpp"
-#include "db/core/DbError.hpp"
-#include "db/core/Tuple.hpp"
-#include "db/core/Value.hpp"
+#include "DbError.hpp"
+#include "Function.hpp"
+#include "Tuple.hpp"
+#include "Value.hpp"
 
+#include <db/util/Is.hpp>
 #include <iostream>
 #include <string>
 #include <unordered_set>
@@ -156,6 +158,34 @@ DbErrorOr<Value> Select::execute(Database& db) const {
             }
         }
         rows.push_back(Tuple { values });
+    }
+
+    // Aggregation + TODO: GROUP BY
+    {
+        auto old_rows = std::move(rows);
+        bool contains_non_aggregate = false;
+        bool contains_aggregate = false;
+
+        std::vector<Value> aggregate_values;
+
+        for (auto& it : m_columns.columns()) {
+            if (Util::is<AggregateFunction>(*it.column)) {
+                contains_aggregate |= true;
+                aggregate_values.push_back(TRY(static_cast<AggregateFunction&>(*it.column).aggregate(context, old_rows)));
+            }
+            else {
+                contains_non_aggregate |= true;
+            }
+        }
+        if (contains_aggregate && contains_non_aggregate) {
+            // TODO: Handle GROUP BY here
+            return DbError { "All columns must be either aggregate or non-aggregate", start() };
+        }
+
+        if (contains_aggregate)
+            rows = { Tuple { aggregate_values } };
+        else
+            rows = std::move(old_rows);
     }
 
     // DISTINCT
