@@ -79,7 +79,7 @@ DbErrorOr<void> Table::drop_column(Column column) {
 }
 
 void Table::delete_row(size_t index){
-    std::vector<Row> vec;
+    std::vector<Tuple> vec;
     for(size_t i = 0; i < m_rows.size(); i++){
         if(i != index)
             vec.push_back(m_rows[i]);

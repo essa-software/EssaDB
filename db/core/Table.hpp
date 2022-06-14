@@ -17,7 +17,7 @@ public:
     std::optional<std::pair<Column, size_t>> get_column(std::string const& name) const;
     size_t size() const { return m_rows.size(); }
     std::vector<Column> const& columns() const { return m_columns; }
-    std::vector<Row> const& rows() const { return m_rows; }
+    std::vector<Tuple> const& rows() const { return m_rows; }
 
     void truncate() {m_rows.clear();}
     void delete_row(size_t index);
@@ -31,7 +31,7 @@ public:
     DbErrorOr<void> insert(RowWithColumnNames::MapType);
 
 private:
-    std::vector<Row> m_rows;
+    std::vector<Tuple> m_rows;
     std::vector<Column> m_columns;
 };
 

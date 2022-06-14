@@ -10,7 +10,7 @@ public:
         , m_name(std::move(name))
         , m_args(std::move(args)) { }
 
-    virtual DbErrorOr<Value> evaluate(EvaluationContext&, Row const&) const override;
+    virtual DbErrorOr<Value> evaluate(EvaluationContext&, Tuple const&) const override;
     virtual std::string to_string() const override { return m_name + "(TODO)"; }
 
 private:

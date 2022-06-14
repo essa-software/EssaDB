@@ -24,7 +24,7 @@ DbErrorOr<RowWithColumnNames> RowWithColumnNames::from_map(Table const& table, M
         row[column->second] = std::move(value.second);
     }
     // TODO: Null check
-    return RowWithColumnNames { Row { row }, table };
+    return RowWithColumnNames { Tuple { row }, table };
 }
 
 std::ostream& operator<<(std::ostream& out, RowWithColumnNames const& row) {

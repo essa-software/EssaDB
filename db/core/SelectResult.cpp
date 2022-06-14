@@ -1,6 +1,6 @@
 #include "SelectResult.hpp"
 
-#include "Row.hpp"
+#include "Tuple.hpp"
 #include "db/core/Database.hpp"
 #include "db/core/Table.hpp"
 
@@ -9,7 +9,7 @@
 
 namespace Db::Core {
 
-SelectResult::SelectResult(std::vector<std::string> column_names, std::vector<Row> rows)
+SelectResult::SelectResult(std::vector<std::string> column_names, std::vector<Tuple> rows)
     : m_column_names(std::move(column_names))
     , m_rows(std::move(rows)) {
 }

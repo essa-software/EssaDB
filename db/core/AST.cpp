@@ -2,25 +2,25 @@
 
 #include "Database.hpp"
 #include "db/core/DbError.hpp"
-#include "db/core/Row.hpp"
+#include "db/core/Tuple.hpp"
 #include "db/core/Value.hpp"
 
 #include <iostream>
 #include <string>
+#include <unordered_set>
 #include <utility>
 #include <vector>
-#include <unordered_set>
 
 namespace Db::Core::AST {
 
-DbErrorOr<Value> Identifier::evaluate(EvaluationContext& context, Row const& row) const {
+DbErrorOr<Value> Identifier::evaluate(EvaluationContext& context, Tuple const& row) const {
     auto column = context.table.get_column(m_id);
     if (!column)
         return DbError { "No such column: " + m_id, start() };
     return row.value(column->second);
 }
 
-DbErrorOr<bool> BinaryOperator::is_true(EvaluationContext& context, Row const& row) const {
+DbErrorOr<bool> BinaryOperator::is_true(EvaluationContext& context, Tuple const& row) const {
     // TODO: Implement proper comparison
     switch (m_operation) {
     case Operation::Equal:
@@ -106,7 +106,7 @@ DbErrorOr<bool> BinaryOperator::is_true(EvaluationContext& context, Row const& r
     __builtin_unreachable();
 }
 
-DbErrorOr<Value> BetweenExpression::evaluate(EvaluationContext& context, Row const& row) const {
+DbErrorOr<Value> BetweenExpression::evaluate(EvaluationContext& context, Tuple const& row) const {
     // TODO: Implement this for strings etc
     auto value = TRY(TRY(m_lhs->evaluate(context, row)).to_int());
     auto min = TRY(TRY(m_min->evaluate(context, row)).to_int());
@@ -122,7 +122,7 @@ DbErrorOr<Value> Select::execute(Database& db) const {
 
     EvaluationContext context { .table = *table };
 
-    auto should_include_row = [&](Row const& row) -> DbErrorOr<bool> {
+    auto should_include_row = [&](Tuple const& row) -> DbErrorOr<bool> {
         if (!m_where)
             return true;
         return TRY(m_where->evaluate(context, row)).to_bool();
@@ -131,7 +131,7 @@ DbErrorOr<Value> Select::execute(Database& db) const {
     // TODO: ON
     // TODO: JOIN
 
-    std::vector<Row> rows;
+    std::vector<Tuple> rows;
     for (auto const& row : table->rows()) {
         // WHERE
         if (!TRY(should_include_row(row)))
@@ -155,26 +155,26 @@ DbErrorOr<Value> Select::execute(Database& db) const {
                 values.push_back(TRY(column.column->evaluate(context, row)));
             }
         }
-        rows.push_back(Row { values });
+        rows.push_back(Tuple { values });
     }
 
     // DISTINCT
-    if(m_distinct){
-        std::vector<Row> occurences;
+    if (m_distinct) {
+        std::vector<Tuple> occurences;
 
-        for(const auto& row : rows){
+        for (const auto& row : rows) {
             bool distinct = true;
-            for(const auto& to_compare : occurences){
-                if(row == to_compare){
+            for (const auto& to_compare : occurences) {
+                if (row == to_compare) {
                     distinct = false;
                     break;
                 }
             }
 
-            if(distinct)
+            if (distinct)
                 occurences.push_back(row);
         }
-        
+
         rows = std::move(occurences);
     }
 
@@ -187,7 +187,7 @@ DbErrorOr<Value> Select::execute(Database& db) const {
                 return DbError { "Invalid column to order by: " + column.name, start() };
             }
         }
-        std::stable_sort(rows.begin(), rows.end(), [&](Row const& lhs, Row const& rhs) -> bool {
+        std::stable_sort(rows.begin(), rows.end(), [&](Tuple const& lhs, Tuple const& rhs) -> bool {
             // TODO: Do sorting properly
             for (const auto& column : m_order_by->columns) {
                 auto order_by_column = table->get_column(column.name)->second;
@@ -239,15 +239,15 @@ DbErrorOr<Value> DeleteFrom::execute(Database& db) const {
 
     EvaluationContext context { .table = *table };
 
-    auto should_include_row = [&](Row const& row) -> DbErrorOr<bool> {
+    auto should_include_row = [&](Tuple const& row) -> DbErrorOr<bool> {
         if (!m_where)
             return true;
         return TRY(m_where->evaluate(context, row)).to_bool();
     };
-    label:;
+label:;
 
     for (size_t i = 0; i < table->rows().size(); i++) {
-        if (TRY(should_include_row(table->rows()[i]))){
+        if (TRY(should_include_row(table->rows()[i]))) {
             table->delete_row(i);
 
             goto label;
@@ -280,16 +280,16 @@ DbErrorOr<Value> TruncateTable::execute(Database& db) const {
 
 DbErrorOr<Value> AlterTable::execute(Database& db) const {
     auto table = TRY(db.table(m_name));
-    
-    for(const auto& to_add : m_to_add){
+
+    for (const auto& to_add : m_to_add) {
         TRY(table->add_column(to_add));
     }
-    
-    for(const auto& to_alter : m_to_alter){
+
+    for (const auto& to_alter : m_to_alter) {
         TRY(table->alter_column(to_alter));
     }
-    
-    for(const auto& to_drop : m_to_drop){
+
+    for (const auto& to_drop : m_to_drop) {
         TRY(table->drop_column(to_drop));
     }
 
@@ -301,25 +301,26 @@ DbErrorOr<Value> InsertInto::execute(Database& db) const {
 
     RowWithColumnNames::MapType map;
     EvaluationContext context { .table = *table };
-    if(m_select){
+    if (m_select) {
         auto result = TRY(TRY(m_select->value()->execute(db)).to_select_result());
 
         if (m_columns.size() != result.column_names().size())
             return DbError { "Values doesn't have corresponding columns", start() };
 
-        for(const auto& row : result.rows()){
-            for(size_t i = 0; i < m_columns.size(); i++){
-                map.insert({m_columns[i], row.value(i)});
+        for (const auto& row : result.rows()) {
+            for (size_t i = 0; i < m_columns.size(); i++) {
+                map.insert({ m_columns[i], row.value(i) });
             }
 
             TRY(table->insert(std::move(map)));
         }
-    }else {
+    }
+    else {
         if (m_columns.size() != m_values.size())
             return DbError { "Values doesn't have corresponding columns", start() };
 
         for (size_t i = 0; i < m_columns.size(); i++) {
-            map.insert({ m_columns[i], TRY(m_values[i]->evaluate(context, Row({}))) });
+            map.insert({ m_columns[i], TRY(m_values[i]->evaluate(context, Tuple({}))) });
         }
 
         TRY(table->insert(std::move(map)));

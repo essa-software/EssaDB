@@ -101,7 +101,7 @@ static void setup_sql_functions() {
     });
 }
 
-DbErrorOr<Value> Function::evaluate(EvaluationContext& context, Row const& row) const {
+DbErrorOr<Value> Function::evaluate(EvaluationContext& context, Tuple const& row) const {
     // TODO: Port all these to new register_sql_function API
     if (compare_case_insensitive(m_name, "IN")) {
         if (m_args.size() == 0)

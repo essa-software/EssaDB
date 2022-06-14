@@ -1,7 +1,7 @@
 #pragma once
 
 #include "DbError.hpp"
-#include "Row.hpp"
+#include "Tuple.hpp"
 
 #include <map>
 #include <string>
@@ -16,16 +16,16 @@ public:
 
     static DbErrorOr<RowWithColumnNames> from_map(Table const& table, MapType map);
 
-    RowWithColumnNames(Row row, Table const& table)
+    RowWithColumnNames(Tuple row, Table const& table)
         : m_row(std::move(row))
         , m_table(table) { }
 
-    Row row() const { return m_row; }
+    Tuple row() const { return m_row; }
 
     friend std::ostream& operator<<(std::ostream& out, RowWithColumnNames const& row);
 
 private:
-    Row m_row;
+    Tuple m_row;
     Table const& m_table;
 };
 

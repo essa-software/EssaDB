@@ -9,9 +9,9 @@
 
 namespace Db::Core {
 
-class Row {
+class Tuple {
 public:
-    Row(std::span<Value> values)
+    Tuple(std::span<Value> values)
         : m_values(values.size()) {
         std::copy(values.begin(), values.end(), m_values.begin());
     }
@@ -39,7 +39,7 @@ private:
     std::vector<Value> m_values;
 };
 
-inline bool operator==(Row const& lhs, Row const& rhs){
+inline bool operator==(Tuple const& lhs, Tuple const& rhs){
     for(auto it1 = lhs.begin(), it2 = rhs.begin(); it1 != lhs.end(); it1++, it2++){
         if(it1->to_string().value() != it2->to_string().value())
             return false;

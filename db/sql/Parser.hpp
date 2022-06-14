@@ -34,7 +34,7 @@ private:
             , min(std::move(min))
             , max(std::move(max)) { }
 
-        virtual Core::DbErrorOr<Core::Value> evaluate(Core::AST::EvaluationContext&, Core::Row const&) const override { return Core::Value(); }
+        virtual Core::DbErrorOr<Core::Value> evaluate(Core::AST::EvaluationContext&, Core::Tuple const&) const override { return Core::Value(); }
         virtual std::string to_string() const override { return "BetweenRange(min,max)"; }
     };
     Core::DbErrorOr<std::unique_ptr<Parser::BetweenRange>> parse_between_range();                                                              // (BETWEEN) x AND y

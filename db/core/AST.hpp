@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Row.hpp"
+#include "Tuple.hpp"
 #include "SelectResult.hpp"
 #include "Table.hpp"
 #include "Value.hpp"
@@ -43,7 +43,7 @@ public:
         : ASTNode(start) { }
 
     virtual ~Expression() = default;
-    virtual DbErrorOr<Value> evaluate(EvaluationContext&, Row const&) const = 0;
+    virtual DbErrorOr<Value> evaluate(EvaluationContext&, Tuple const&) const = 0;
     virtual std::string to_string() const = 0;
 };
 
@@ -53,7 +53,7 @@ public:
         : Expression(start)
         , m_value(std::move(val)) { }
 
-    virtual DbErrorOr<Value> evaluate(EvaluationContext&, Row const&) const override { return m_value; }
+    virtual DbErrorOr<Value> evaluate(EvaluationContext&, Tuple const&) const override { return m_value; }
     virtual std::string to_string() const override { return m_value.to_string().release_value_but_fixme_should_propagate_errors(); }
 
 private:
@@ -66,7 +66,7 @@ public:
         : Expression(start)
         , m_id(std::move(id)) { }
 
-    virtual DbErrorOr<Value> evaluate(EvaluationContext&, Row const&) const override;
+    virtual DbErrorOr<Value> evaluate(EvaluationContext&, Tuple const&) const override;
     virtual std::string to_string() const override { return m_id; }
 
 private:
@@ -96,13 +96,13 @@ public:
         , m_operation(op)
         , m_rhs(std::move(rhs)) { }
 
-    virtual DbErrorOr<Value> evaluate(EvaluationContext& context, Row const& row) const override {
+    virtual DbErrorOr<Value> evaluate(EvaluationContext& context, Tuple const& row) const override {
         return Value::create_bool(TRY(is_true(context, row)));
     }
     virtual std::string to_string() const override { return "BinaryOperator(" + m_lhs->to_string() + "," + m_rhs->to_string() + ")"; }
 
 private:
-    DbErrorOr<bool> is_true(EvaluationContext&, Row const&) const;
+    DbErrorOr<bool> is_true(EvaluationContext&, Tuple const&) const;
 
     std::unique_ptr<Expression> m_lhs;
     Operation m_operation {};
@@ -121,7 +121,7 @@ public:
         assert(m_max);
     }
 
-    virtual DbErrorOr<Value> evaluate(EvaluationContext& context, Row const& row) const override;
+    virtual DbErrorOr<Value> evaluate(EvaluationContext& context, Tuple const& row) const override;
     virtual std::string to_string() const override {
         return "BetweenExpression(" + m_lhs->to_string() + "," + m_min->to_string() + "," + m_max->to_string() + ")";
     }
