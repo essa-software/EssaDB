@@ -42,17 +42,17 @@ DbErrorOr<void> truncate_table() {
 DbErrorOr<void> insert_into_with_select() {
     auto db = TRY(setup_db());
     auto& table = db.create_table("new_test");
-    TRY(table.add_column(Column("id", Value::Type::Int)));
-    TRY(table.add_column(Column("number", Value::Type::Int)));
-    TRY(table.add_column(Column("string", Value::Type::Varchar)));
-    TRY(table.add_column(Column("integer", Value::Type::Int)));
+    TRY(table.add_column(Column("id", Value::Type::Int, Column::AutoIncrement::No)));
+    TRY(table.add_column(Column("number", Value::Type::Int, Column::AutoIncrement::No)));
+    TRY(table.add_column(Column("string", Value::Type::Varchar, Column::AutoIncrement::No)));
+    TRY(table.add_column(Column("integer", Value::Type::Int, Column::AutoIncrement::No)));
 
     // TRY(Db::Sql::run_query(db, "CREATE TABLE [mew_test] (id INT, number INT, string VARCHAR, integer INT)"));
     TRY(expect(db.exists("new_test"), "Table successfully created!"));
     TRY(Db::Sql::run_query(db, "INSERT INTO [new_test] (id, number, string, integer) SELECT * FROM test WHERE id < 2;"));
 
     auto result = TRY(TRY(Db::Sql::run_query(db, "SELECT * FROM [new_test];")).to_select_result());
-    
+
     TRY(expect(result.rows().size() == 2, "all rows were returned"));
     TRY(expect(result.rows()[0].value_count() == 4, "rows have proper column count"));
     return {};
@@ -88,6 +88,21 @@ DbErrorOr<void> delete_with_where() {
     return {};
 }
 
+DbErrorOr<void> autoincrement() {
+    Database db;
+    TRY(Db::Sql::run_query(db, "CREATE TABLE test (id INT AUTO_INCREMENT, value INT)"));
+    TRY(Db::Sql::run_query(db, "INSERT INTO test (value) VALUES (1000)"));
+    TRY(Db::Sql::run_query(db, "INSERT INTO test (id, value) VALUES (5, 1001)"));
+    TRY(Db::Sql::run_query(db, "INSERT INTO test (value) VALUES (1002)"));
+    // TODO: Check SELECT:
+    // | id | value |
+    // | 0  | 1000  |
+    // | 5  | 1001  |
+    // | 1  | 1002  |
+    TRY(Db::Sql::run_query(db, "SELECT * FROM test;")).repl_dump(std::cout);
+    return {};
+}
+
 std::map<std::string, TestFunc*> get_tests() {
     return {
         { "drop_table", drop_table },
@@ -97,5 +112,6 @@ std::map<std::string, TestFunc*> get_tests() {
         { "alter_table_drop_column", alter_table_drop_column },
         { "alter_table_alter_column", alter_table_alter_column },
         { "delete_with_where", delete_with_where },
+        { "autoincrement", autoincrement }
     };
 }

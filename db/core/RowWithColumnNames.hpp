@@ -14,7 +14,7 @@ class RowWithColumnNames {
 public:
     using MapType = std::map<std::string, Value>;
 
-    static DbErrorOr<RowWithColumnNames> from_map(Table const& table, MapType map);
+    static DbErrorOr<RowWithColumnNames> from_map(Table& table, MapType map);
 
     RowWithColumnNames(Tuple row, Table const& table)
         : m_row(std::move(row))

@@ -5,8 +5,8 @@
 #include "RowWithColumnNames.hpp"
 #include "db/core/SelectResult.hpp"
 
-#include <set>
 #include <db/util/NonCopyable.hpp>
+#include <set>
 
 namespace Db::Core {
 
@@ -19,7 +19,7 @@ public:
     std::vector<Column> const& columns() const { return m_columns; }
     std::vector<Tuple> const& rows() const { return m_rows; }
 
-    void truncate() {m_rows.clear();}
+    void truncate() { m_rows.clear(); }
     void delete_row(size_t index);
 
     void export_to_csv(const std::string& path) const;
@@ -31,8 +31,13 @@ public:
     DbErrorOr<void> insert(RowWithColumnNames::MapType);
 
 private:
+    friend class RowWithColumnNames;
+
+    auto increment(std::string column) { return ++m_auto_increment_values[column]; }
+
     std::vector<Tuple> m_rows;
     std::vector<Column> m_columns;
+    std::map<std::string, int> m_auto_increment_values;
 };
 
 }

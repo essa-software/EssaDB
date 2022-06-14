@@ -25,7 +25,7 @@ std::vector<Token> Lexer::lex() {
 
     auto consume_identifier = [&]() {
         std::string s;
-        while (isalpha(m_in.peek())) {
+        while (isalpha(m_in.peek()) || m_in.peek() == '_') {
             s += m_in.get();
         }
         return s;

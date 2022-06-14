@@ -6,7 +6,7 @@
 
 namespace Db::Core {
 
-DbErrorOr<RowWithColumnNames> RowWithColumnNames::from_map(Table const& table, MapType map) {
+DbErrorOr<RowWithColumnNames> RowWithColumnNames::from_map(Table& table, MapType map) {
     std::vector<Value> row;
     auto& columns = table.columns();
     row.resize(columns.size());
@@ -23,7 +23,21 @@ DbErrorOr<RowWithColumnNames> RowWithColumnNames::from_map(Table const& table, M
         }
         row[column->second] = std::move(value.second);
     }
-    // TODO: Null check
+
+    // Null check
+    for (size_t s = 0; s < row.size(); s++) {
+        auto& value = row[s];
+        if (value.type() == Value::Type::Null) {
+            if (columns[s].auto_increment()) {
+                if (columns[s].type() == Value::Type::Int)
+                    value = Value::create_int(table.increment(columns[s].name()));
+                else
+                    return DbError { "Internal error: AUTO_INCREMENT used on non-int field", 0 };
+            }
+            // TODO: Error if field is NOT NULL
+        }
+    }
+
     return RowWithColumnNames { Tuple { row }, table };
 }
 

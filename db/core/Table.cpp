@@ -7,20 +7,20 @@
 
 namespace Db::Core {
 
-Table::Table(SelectResult const& select){
+Table::Table(SelectResult const& select) {
     auto columns = select.column_names();
     auto rows = select.rows();
     size_t i = 0;
-    
-    for(const auto& col : columns){
-        auto column = add_column(Column(col, rows[0].value(i).type()));
+
+    for (const auto& col : columns) {
+        auto column = add_column(Column(col, rows[0].value(i).type(), Column::AutoIncrement::No));
     }
 
-    for(const auto& row : rows){
+    for (const auto& row : rows) {
         RowWithColumnNames::MapType map;
 
-        for(size_t i = 0; i < columns.size(); i++){
-            map.insert({columns[i], row.value(i)});
+        for (size_t i = 0; i < columns.size(); i++) {
+            map.insert({ columns[i], row.value(i) });
         }
 
         auto insert_result = insert(map);
@@ -34,10 +34,10 @@ DbErrorOr<void> Table::add_column(Column column) {
     }
     m_columns.push_back(std::move(column));
 
-    for(auto& row : m_rows){
+    for (auto& row : m_rows) {
         row.extend();
     }
-    
+
     return {};
 }
 
@@ -47,8 +47,8 @@ DbErrorOr<void> Table::alter_column(Column column) {
         return DbError { "Couldn't find column '" + column.name() + "'", 0 };
     }
 
-    for(size_t i = 0; i < m_columns.size(); i++){
-        if(m_columns[i].name() == column.name()){
+    for (size_t i = 0; i < m_columns.size(); i++) {
+        if (m_columns[i].name() == column.name()) {
             m_columns[i] = std::move(column);
         }
     }
@@ -60,15 +60,16 @@ DbErrorOr<void> Table::drop_column(Column column) {
         // TODO: Save location info
         return DbError { "Couldn't find column '" + column.name() + "'", 0 };
     }
-    
+
     std::vector<Column> vec;
 
-    for(size_t i = 0; i < m_columns.size(); i++){
-        if(m_columns[i].name() == column.name()){
-            for(auto& row : m_rows){
+    for (size_t i = 0; i < m_columns.size(); i++) {
+        if (m_columns[i].name() == column.name()) {
+            for (auto& row : m_rows) {
                 row.remove(i);
             }
-        }else {
+        }
+        else {
             vec.push_back(std::move(m_columns[i]));
         }
     }
@@ -78,10 +79,10 @@ DbErrorOr<void> Table::drop_column(Column column) {
     return {};
 }
 
-void Table::delete_row(size_t index){
+void Table::delete_row(size_t index) {
     std::vector<Tuple> vec;
-    for(size_t i = 0; i < m_rows.size(); i++){
-        if(i != index)
+    for (size_t i = 0; i < m_rows.size(); i++) {
+        if (i != index)
             vec.push_back(m_rows[i]);
     }
     m_rows = std::move(vec);
@@ -176,7 +177,7 @@ DbErrorOr<void> Table::import_from_csv(const std::string& path) {
                 type = Value::Type::Varchar;
         }
 
-        TRY(add_column(Column(table[0][i], type)));
+        TRY(add_column(Column(table[0][i], type, Column::AutoIncrement::No)));
     }
 
     for (auto it = table.begin() + 1; it < table.end() - 1; it++) {
