@@ -482,6 +482,7 @@ static bool is_operator(Token::Type op) {
     case Token::Type::OpLess:
     case Token::Type::OpLike:
     case Token::Type::KeywordBetween:
+    case Token::Type::KeywordIn:
     case Token::Type::OpAnd:
     case Token::Type::OpOr:
         return true;
@@ -543,7 +544,14 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Expression>> Parser::parse_operand(st
         //  only the "y" is used as rhs for recursive parse_operand. The "x" operand is handled
         //  entirely by BETWEEN.
         auto current_precedence = operator_precedence(current_operator);
-        auto rhs = current_operator == Token::Type::KeywordBetween ? TRY(parse_between_range()) : TRY(parse_expression(current_precedence));
+        std::unique_ptr<Core::AST::Expression> rhs;
+
+        if(current_operator == Token::Type::KeywordBetween)
+            rhs = TRY(parse_between_range());
+        else if(current_operator == Token::Type::KeywordIn)
+            rhs = TRY(parse_in());
+        else
+            rhs = TRY(parse_expression(current_precedence));
         // std::cout << "3. " << m_offset << ": " << m_tokens[m_offset].value << std::endl;
 
         auto next_operator = peek_operator();
@@ -556,7 +564,8 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Expression>> Parser::parse_operand(st
                 lhs = std::make_unique<Core::AST::BetweenExpression>(std::move(lhs), std::move(rhs_between_range.min), std::move(rhs_between_range.max));
             }
             else if (current_operator == Token::Type::KeywordIn) {
-                lhs = TRY(parse_in(std::move(lhs)));
+                auto& rhs_in_args = static_cast<InArgs&>(*rhs);
+                lhs = std::make_unique<Core::AST::InExpression>(std::move(lhs), std::move(rhs_in_args.args));
             }
             else {
                 lhs = std::make_unique<Core::AST::BinaryOperator>(std::move(lhs), token_type_to_binary_operation(current_operator), std::move(rhs));
@@ -568,7 +577,8 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Expression>> Parser::parse_operand(st
                 lhs = std::make_unique<Core::AST::BetweenExpression>(std::move(lhs), std::move(rhs_between_range.min), TRY(parse_operand(std::move(rhs_between_range.max))));
             }
             else if (current_operator == Token::Type::KeywordIn) {
-                lhs = TRY(parse_in(std::move(lhs)));
+                auto& rhs_in_args = static_cast<InArgs&>(*rhs);
+                lhs = std::make_unique<Core::AST::InExpression>(std::move(lhs), std::move(rhs_in_args.args));
             }
             else {
                 lhs = std::make_unique<Core::AST::BinaryOperator>(std::move(lhs), token_type_to_binary_operation(current_operator), TRY(parse_operand(std::move(rhs))));
@@ -621,8 +631,13 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Expression>> Parser::parse_function(s
     return std::make_unique<Core::AST::Function>(start, std::move(name), std::move(args));
 }
 
-Core::DbErrorOr<std::unique_ptr<Core::AST::Expression>> Parser::parse_in(std::unique_ptr<Core::AST::Expression> lhs){
+Core::DbErrorOr<std::unique_ptr<Parser::InArgs>> Parser::parse_in(){
     std::vector<std::unique_ptr<Core::AST::Expression>> args;
+    auto paren_open = m_tokens[m_offset++];
+
+    if(paren_open.type != Token::Type::ParenOpen)
+        return Core::DbError { "Expected '('", m_offset };
+
     while (true) {
         auto expression = TRY(parse_expression());
         args.push_back(std::move(expression));
@@ -636,7 +651,7 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Expression>> Parser::parse_in(std::un
         }
         m_offset++;
     }
-    return std::make_unique<Core::AST::InExpression>(std::move(lhs), std::move(args));
+    return std::make_unique<Parser::InArgs>(std::move(args));
 }
 
 Core::DbErrorOr<std::unique_ptr<Core::AST::Identifier>> Parser::parse_identifier() {

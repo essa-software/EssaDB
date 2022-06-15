@@ -37,10 +37,20 @@ private:
         virtual Core::DbErrorOr<Core::Value> evaluate(Core::AST::EvaluationContext&, Core::Tuple const&) const override { return Core::Value(); }
         virtual std::string to_string() const override { return "BetweenRange(min,max)"; }
     };
+    struct InArgs : public Core::AST::Expression {
+        std::vector<std::unique_ptr<Core::AST::Expression>> args;
+
+        InArgs(std::vector<std::unique_ptr<Core::AST::Expression>> arg_list)
+            : Expression(arg_list.front()->start())
+            , args(std::move(arg_list)){ }
+
+        virtual Core::DbErrorOr<Core::Value> evaluate(Core::AST::EvaluationContext&, Core::Tuple const&) const override { return Core::Value(); }
+        virtual std::string to_string() const override { return "InArgs(args)"; }
+    };
     Core::DbErrorOr<std::unique_ptr<Parser::BetweenRange>> parse_between_range();                                                              // (BETWEEN) x AND y
     Core::DbErrorOr<std::unique_ptr<Core::AST::Expression>> parse_operand(std::unique_ptr<Core::AST::Expression> lhs, int min_precedence = 0); // parses operator + rhs
     Core::DbErrorOr<std::unique_ptr<Core::AST::Expression>> parse_function(std::string name);
-    Core::DbErrorOr<std::unique_ptr<Core::AST::Expression>> parse_in(std::unique_ptr<Core::AST::Expression> lhs);
+    Core::DbErrorOr<std::unique_ptr<Parser::InArgs>> parse_in();
     Core::DbErrorOr<std::unique_ptr<Core::AST::Identifier>> parse_identifier();
 
     std::vector<Token> const& m_tokens;
