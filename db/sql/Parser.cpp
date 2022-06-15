@@ -452,6 +452,7 @@ static int operator_precedence(Token::Type op) {
     case Token::Type::OpLike:
         return 50;
     case Token::Type::KeywordBetween:
+    case Token::Type::KeywordIn:
         return 20;
     case Token::Type::OpAnd:
         return 15;
@@ -554,6 +555,9 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Expression>> Parser::parse_operand(st
                 auto& rhs_between_range = static_cast<BetweenRange&>(*rhs);
                 lhs = std::make_unique<Core::AST::BetweenExpression>(std::move(lhs), std::move(rhs_between_range.min), std::move(rhs_between_range.max));
             }
+            else if (current_operator == Token::Type::KeywordIn) {
+                lhs = TRY(parse_in(std::move(lhs)));
+            }
             else {
                 lhs = std::make_unique<Core::AST::BinaryOperator>(std::move(lhs), token_type_to_binary_operation(current_operator), std::move(rhs));
             }
@@ -562,6 +566,9 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Expression>> Parser::parse_operand(st
             if (current_operator == Token::Type::KeywordBetween) {
                 auto& rhs_between_range = static_cast<BetweenRange&>(*rhs);
                 lhs = std::make_unique<Core::AST::BetweenExpression>(std::move(lhs), std::move(rhs_between_range.min), TRY(parse_operand(std::move(rhs_between_range.max))));
+            }
+            else if (current_operator == Token::Type::KeywordIn) {
+                lhs = TRY(parse_in(std::move(lhs)));
             }
             else {
                 lhs = std::make_unique<Core::AST::BinaryOperator>(std::move(lhs), token_type_to_binary_operation(current_operator), TRY(parse_operand(std::move(rhs))));
@@ -612,6 +619,24 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Expression>> Parser::parse_function(s
         m_offset++;
     }
     return std::make_unique<Core::AST::Function>(start, std::move(name), std::move(args));
+}
+
+Core::DbErrorOr<std::unique_ptr<Core::AST::Expression>> Parser::parse_in(std::unique_ptr<Core::AST::Expression> lhs){
+    std::vector<std::unique_ptr<Core::AST::Expression>> args;
+    while (true) {
+        auto expression = TRY(parse_expression());
+        args.push_back(std::move(expression));
+
+        auto comma_or_paren_close = m_tokens[m_offset];
+        if (comma_or_paren_close.type != Token::Type::Comma) {
+            if (comma_or_paren_close.type != Token::Type::ParenClose)
+                return Core::DbError { "Expected ')' to close In Expression", m_offset };
+            m_offset++;
+            break;
+        }
+        m_offset++;
+    }
+    return std::make_unique<Core::AST::InExpression>(std::move(lhs), std::move(args));
 }
 
 Core::DbErrorOr<std::unique_ptr<Core::AST::Identifier>> Parser::parse_identifier() {

@@ -40,6 +40,7 @@ private:
     Core::DbErrorOr<std::unique_ptr<Parser::BetweenRange>> parse_between_range();                                                              // (BETWEEN) x AND y
     Core::DbErrorOr<std::unique_ptr<Core::AST::Expression>> parse_operand(std::unique_ptr<Core::AST::Expression> lhs, int min_precedence = 0); // parses operator + rhs
     Core::DbErrorOr<std::unique_ptr<Core::AST::Expression>> parse_function(std::string name);
+    Core::DbErrorOr<std::unique_ptr<Core::AST::Expression>> parse_in(std::unique_ptr<Core::AST::Expression> lhs);
     Core::DbErrorOr<std::unique_ptr<Core::AST::Identifier>> parse_identifier();
 
     std::vector<Token> const& m_tokens;

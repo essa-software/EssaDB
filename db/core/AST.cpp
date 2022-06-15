@@ -116,6 +116,18 @@ DbErrorOr<Value> BetweenExpression::evaluate(EvaluationContext& context, Tuple c
     return Value::create_bool(value >= min && value <= max);
 }
 
+DbErrorOr<Value> InExpression::evaluate(EvaluationContext& context, Tuple const& row) const {
+    // TODO: Implement this for strings etc
+    auto value = TRY(TRY(m_lhs->evaluate(context, row)).to_string());
+    for(const auto& arg : m_args){
+        auto to_compare = TRY(TRY(arg->evaluate(context, row)).to_string());
+
+        if(value == to_compare)
+            return Value::create_bool(true);;
+    }
+    return Value::create_bool(false);
+}
+
 DbErrorOr<Value> Select::execute(Database& db) const {
     // Comments specify SQL Conceptional Evaluation:
     // https://docs.microsoft.com/en-us/sql/t-sql/queries/select-transact-sql#logical-processing-order-of-the-select-statement

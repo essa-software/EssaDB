@@ -132,6 +132,34 @@ private:
     std::unique_ptr<Expression> m_max;
 };
 
+class InExpression : public Expression {
+public:
+    InExpression(std::unique_ptr<Expression> lhs, std::vector<std::unique_ptr<Core::AST::Expression>> args)
+        : Expression(lhs->start())
+        , m_lhs(std::move(lhs))
+        , m_args(std::move(args)) {
+        assert(m_lhs);
+    }
+
+    virtual DbErrorOr<Value> evaluate(EvaluationContext& context, Tuple const& row) const override;
+    virtual std::string to_string() const override {
+        std::string result = "InExpression(";
+        for(auto i = m_args.begin(); i < m_args.end(); i++){
+            result += (*i)->to_string();
+            if(i != m_args.end() - 1)
+                result += ", ";
+        }
+
+        result += ")";
+
+        return result;
+    }
+
+private:
+    std::unique_ptr<Expression> m_lhs;
+    std::vector<std::unique_ptr<Core::AST::Expression>> m_args;
+};
+
 class SelectColumns {
 public:
     SelectColumns() = default;
