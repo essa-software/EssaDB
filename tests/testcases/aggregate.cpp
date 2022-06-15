@@ -21,6 +21,9 @@ DbErrorOr<void> aggregate_simple() {
     auto db = TRY(setup_db());
     TRY(expect_equal<int>(TRY(TRY(Db::Sql::run_query(db, "SELECT COUNT(id) FROM test;")).to_int()), 7, "proper row count was returned"));
     TRY(expect_equal<int>(TRY(TRY(Db::Sql::run_query(db, "SELECT SUM(id) FROM test;")).to_int()), 28, "proper row sum was returned"));
+    TRY(expect_equal<int>(TRY(TRY(Db::Sql::run_query(db, "SELECT MIN(id) FROM test;")).to_int()), 0, "proper row min was returned"));
+    TRY(expect_equal<int>(TRY(TRY(Db::Sql::run_query(db, "SELECT MAX(id) FROM test;")).to_int()), 7, "proper row max was returned"));
+    TRY(expect_equal<int>(TRY(TRY(Db::Sql::run_query(db, "SELECT AVG(id) FROM test;")).to_int()), 3, "proper row avg was returned"));
     return {};
 }
 

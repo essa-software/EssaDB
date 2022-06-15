@@ -23,6 +23,8 @@ public:
     enum class Function {
         Count,
         Sum,
+        Min, Max,
+        Avg,
         Invalid
     };
 

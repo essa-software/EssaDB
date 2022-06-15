@@ -14,6 +14,20 @@
 
 namespace Db::Sql {
 
+bool Parser::compare_case_insensitive(const std::string& lhs, const std::string& rhs) {
+    if (lhs.size() != rhs.size())
+        return false;
+    for (auto l = lhs.begin(), r = rhs.begin(); l != lhs.end() && r != rhs.end(); l++, r++) {
+        char c1 = (*l > 97) ? *l - 32 : *l;
+        char c2 = (*r > 97) ? *r - 32 : *r;
+
+        if (c1 != c2)
+            return false;
+    }
+
+    return true;
+}
+
 Core::DbErrorOr<std::unique_ptr<Core::AST::Statement>> Parser::parse_statement() {
     auto keyword = m_tokens[m_offset];
     // std::cout << keyword.value << "\n";
@@ -589,10 +603,16 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Expression>> Parser::parse_operand(st
 
 Core::AST::AggregateFunction::Function to_aggregate_function(std::string const& name) {
     // TODO: Case-insensitive match
-    if (name == "COUNT")
+    if (Parser::compare_case_insensitive(name, "COUNT"))
         return Core::AST::AggregateFunction::Function::Count;
-    if (name == "SUM")
+    else if (Parser::compare_case_insensitive(name, "SUM"))
         return Core::AST::AggregateFunction::Function::Sum;
+    else if (Parser::compare_case_insensitive(name, "MIN"))
+        return Core::AST::AggregateFunction::Function::Min;
+    else if (Parser::compare_case_insensitive(name, "MAX"))
+        return Core::AST::AggregateFunction::Function::Max;
+    else if (Parser::compare_case_insensitive(name, "AVG"))
+        return Core::AST::AggregateFunction::Function::Avg;
     return Core::AST::AggregateFunction::Function::Invalid;
 }
 

@@ -1,27 +1,14 @@
 #include "Function.hpp"
 
 #include "Value.hpp"
+#include "db/sql/Parser.hpp"
 
 #include <cctype>
 #include <cstddef>
 #include <functional>
+#include <limits>
 
 namespace Db::Core::AST {
-
-bool compare_case_insensitive(const std::string& lhs, const std::string& rhs) {
-    if (lhs.size() != rhs.size())
-        return false;
-
-    for (auto l = lhs.begin(), r = rhs.begin(); l != lhs.end() && r != rhs.end(); l++, r++) {
-        char c1 = (*l > 97) ? *l - 32 : *l;
-        char c2 = (*r > 97) ? *r - 32 : *r;
-
-        if (c1 != c2)
-            return false;
-    }
-
-    return true;
-}
 
 class ArgumentList {
 public:
@@ -103,11 +90,11 @@ static void setup_sql_functions() {
 
 DbErrorOr<Value> Function::evaluate(EvaluationContext& context, Tuple const& row) const {
     // TODO: Port all these to new register_sql_function API
-    if (compare_case_insensitive(m_name, "IN")) {
+    if (Db::Sql::Parser::compare_case_insensitive(m_name, "IN")) {
         if (m_args.size() == 0)
             return DbError { "No arguments were provided!", start() + 1 };
     }
-    else if (compare_case_insensitive(m_name, "CONCAT")) {
+    else if (Db::Sql::Parser::compare_case_insensitive(m_name, "CONCAT")) {
         if (m_args.size() == 0)
             return DbError { "No arguments were provided!", start() + 1 };
         std::string str = "";
@@ -123,15 +110,15 @@ DbErrorOr<Value> Function::evaluate(EvaluationContext& context, Tuple const& row
 
         return Value::create_varchar(str);
     }
-    else if (compare_case_insensitive(m_name, "DATALENGTH")) {
+    else if (Db::Sql::Parser::compare_case_insensitive(m_name, "DATALENGTH")) {
     }
-    else if (compare_case_insensitive(m_name, "DIFFERENCE")) {
+    else if (Db::Sql::Parser::compare_case_insensitive(m_name, "DIFFERENCE")) {
     }
-    else if (compare_case_insensitive(m_name, "FORMAT")) {
+    else if (Db::Sql::Parser::compare_case_insensitive(m_name, "FORMAT")) {
     }
-    else if (compare_case_insensitive(m_name, "LEFT")) {
+    else if (Db::Sql::Parser::compare_case_insensitive(m_name, "LEFT")) {
     }
-    else if (compare_case_insensitive(m_name, "LOWER")) {
+    else if (Db::Sql::Parser::compare_case_insensitive(m_name, "LOWER")) {
         if (m_args.size() != 1)
             return DbError { "Expected arg 0: string", start() + 1 };
 
@@ -145,27 +132,27 @@ DbErrorOr<Value> Function::evaluate(EvaluationContext& context, Tuple const& row
 
         return Value::create_varchar(str);
     }
-    else if (compare_case_insensitive(m_name, "LTRIM")) {
+    else if (Db::Sql::Parser::compare_case_insensitive(m_name, "LTRIM")) {
     }
-    else if (compare_case_insensitive(m_name, "NCHAR")) {
+    else if (Db::Sql::Parser::compare_case_insensitive(m_name, "NCHAR")) {
     }
-    else if (compare_case_insensitive(m_name, "PATINDEX")) {
+    else if (Db::Sql::Parser::compare_case_insensitive(m_name, "PATINDEX")) {
     }
-    else if (compare_case_insensitive(m_name, "REPLACE")) {
+    else if (Db::Sql::Parser::compare_case_insensitive(m_name, "REPLACE")) {
     }
-    else if (compare_case_insensitive(m_name, "REPLICATE")) {
+    else if (Db::Sql::Parser::compare_case_insensitive(m_name, "REPLICATE")) {
     }
-    else if (compare_case_insensitive(m_name, "REVERSE")) {
+    else if (Db::Sql::Parser::compare_case_insensitive(m_name, "REVERSE")) {
     }
-    else if (compare_case_insensitive(m_name, "RIGHT")) {
+    else if (Db::Sql::Parser::compare_case_insensitive(m_name, "RIGHT")) {
     }
-    else if (compare_case_insensitive(m_name, "RTRIM")) {
+    else if (Db::Sql::Parser::compare_case_insensitive(m_name, "RTRIM")) {
     }
-    else if (compare_case_insensitive(m_name, "SOUNDEX")) {
+    else if (Db::Sql::Parser::compare_case_insensitive(m_name, "SOUNDEX")) {
     }
-    else if (compare_case_insensitive(m_name, "SPACE")) {
+    else if (Db::Sql::Parser::compare_case_insensitive(m_name, "SPACE")) {
     }
-    else if (compare_case_insensitive(m_name, "STR")) {
+    else if (Db::Sql::Parser::compare_case_insensitive(m_name, "STR")) {
         if (m_args.size() != 1)
             return DbError { "Expected arg 0: int", start() + 1 };
 
@@ -173,9 +160,9 @@ DbErrorOr<Value> Function::evaluate(EvaluationContext& context, Tuple const& row
 
         return Value::create_varchar(arg.to_string().value());
     }
-    else if (compare_case_insensitive(m_name, "STUFF")) {
+    else if (Db::Sql::Parser::compare_case_insensitive(m_name, "STUFF")) {
     }
-    else if (compare_case_insensitive(m_name, "SUBSTRING")) {
+    else if (Db::Sql::Parser::compare_case_insensitive(m_name, "SUBSTRING")) {
         if (m_args.size() == 0)
             return DbError { "Expected arg 0: string", start() + 1 };
         else if (m_args.size() == 1)
@@ -189,11 +176,11 @@ DbErrorOr<Value> Function::evaluate(EvaluationContext& context, Tuple const& row
 
         return Value::create_varchar(arg.to_string().value().substr(start, len));
     }
-    else if (compare_case_insensitive(m_name, "TRANSLATE")) {
+    else if (Db::Sql::Parser::compare_case_insensitive(m_name, "TRANSLATE")) {
     }
-    else if (compare_case_insensitive(m_name, "TRIM")) {
+    else if (Db::Sql::Parser::compare_case_insensitive(m_name, "TRIM")) {
     }
-    else if (compare_case_insensitive(m_name, "UPPER")) {
+    else if (Db::Sql::Parser::compare_case_insensitive(m_name, "UPPER")) {
         if (m_args.size() != 1)
             return DbError { "Expected arg 0: string", start() + 1 };
 
@@ -256,6 +243,31 @@ DbErrorOr<Value> AggregateFunction::aggregate(EvaluationContext& context, std::v
         }
 
         return Value::create_int(sum);
+    }
+    case Function::Min: {
+        int min = std::numeric_limits<int>::max();
+        for (auto& row : rows) {
+            min = std::min(min, TRY(row.value(column->second).to_int()));
+        }
+
+        return Value::create_int(min);
+    }
+    case Function::Max: {
+        int max = std::numeric_limits<int>::min();
+        for (auto& row : rows) {
+            max = std::max(max, TRY(row.value(column->second).to_int()));
+        }
+
+        return Value::create_int(max);
+    }
+    case Function::Avg: {
+        int sum = 0, count = 0;
+        for (auto& row : rows) {
+            sum += TRY(row.value(column->second).to_int());
+            count++;
+        }
+
+        return Value::create_int(sum / (count != 0 ? count : 1));
     }
     default:
         break;
