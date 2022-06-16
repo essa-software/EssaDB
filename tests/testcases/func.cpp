@@ -94,6 +94,41 @@ DbErrorOr<void> select_function_replace() {
     return {};
 }
 
+DbErrorOr<void> select_function_replicate() {
+    auto db = TRY(setup_db());
+    auto result = TRY(TRY(Db::Sql::run_query(db, "SELECT id, REPLICATE(CONCAT(string, ', '), 3) AS STRING FROM test;")).to_select_result());
+    TRY(expect_equal<size_t>(result.rows().size(), 6, "all rows were returned"));
+    return {};
+}
+
+DbErrorOr<void> select_function_reverse() {
+    auto db = TRY(setup_db());
+    auto result = TRY(TRY(Db::Sql::run_query(db, "SELECT id, REVERSE(TRIM([to_trim])) AS STRING FROM test;")).to_select_result());
+    TRY(expect_equal<size_t>(result.rows().size(), 6, "all rows were returned"));
+    return {};
+}
+
+DbErrorOr<void> select_function_left_right() {
+    auto db = TRY(setup_db());
+    auto result = TRY(TRY(Db::Sql::run_query(db, "SELECT id, LEFT(string, 4) AS LEFT, RIGHT(string, 4) AS RIGHT FROM test;")).to_select_result());
+    TRY(expect_equal<size_t>(result.rows().size(), 6, "all rows were returned"));
+    return {};
+}
+
+DbErrorOr<void> select_function_stuff() {
+    auto db = TRY(setup_db());
+    auto result = TRY(TRY(Db::Sql::run_query(db, "SELECT id, STUFF(string, 1, 2, ' replaced ') AS REPLACED FROM test;")).to_select_result());
+    TRY(expect_equal<size_t>(result.rows().size(), 6, "all rows were returned"));
+    return {};
+}
+
+DbErrorOr<void> select_function_translate() {
+    auto db = TRY(setup_db());
+    auto result = TRY(TRY(Db::Sql::run_query(db, "SELECT id, TRANSLATE(STUFF(string, 1, 2, ' WORD WORD WORDWORD WORD '), 'WORD', 'TRANSLATION') AS TRANSLATED FROM test;")).to_select_result());
+    TRY(expect_equal<size_t>(result.rows().size(), 6, "all rows were returned"));
+    return {};
+}
+
 std::map<std::string, TestFunc*> get_tests() {
     return {
         { "select_function_len", select_function_len },
@@ -106,5 +141,10 @@ std::map<std::string, TestFunc*> get_tests() {
         { "select_function_rtrim", select_function_rtrim },
         { "select_function_trim", select_function_trim },
         { "select_function_replace", select_function_replace },
+        { "select_function_replicate", select_function_replicate },
+        { "select_function_reverse", select_function_reverse },
+        { "select_function_left_right", select_function_left_right },
+        { "select_function_stuff", select_function_stuff },
+        { "select_function_translate", select_function_translate },
     };
 }

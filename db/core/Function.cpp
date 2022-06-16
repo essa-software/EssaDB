@@ -135,6 +135,12 @@ static void setup_sql_functions() {
 
         return Value::create_varchar(str.substr(0, len));
     });
+    register_sql_function("RIGHT", [](ArgumentList args) -> DbErrorOr<Value>{
+        auto str = TRY(TRY(args.get_required(0, "str")).to_string());
+        auto len = TRY(TRY(args.get_required(1, "len")).to_int());
+
+        return Value::create_varchar(str.substr(str.size() - len, len));
+    });
     register_sql_function("LTRIM", [](ArgumentList args) -> DbErrorOr<Value>{
         auto str = TRY(TRY(args.get_required(0, "str")).to_string());
         
@@ -204,6 +210,64 @@ static void setup_sql_functions() {
             }else
                 result += str[i];
         }
+
+        return Value::create_varchar(result);
+    });
+    register_sql_function("REPLICATE", [](ArgumentList args) -> DbErrorOr<Value>{
+        auto str = TRY(TRY(args.get_required(0, "str")).to_string());
+        size_t count = TRY(TRY(args.get_required(1, "number of times")).to_int());
+        
+        std::string result = "";
+
+        for(size_t i = 0; i < count; i++){
+            result += str;
+        }
+
+        return Value::create_varchar(result);
+    });
+    register_sql_function("REVERSE", [](ArgumentList args) -> DbErrorOr<Value>{
+        auto str = TRY(TRY(args.get_required(0, "str")).to_string());
+        
+        std::string result = "";
+
+        for(int i = str.size() - 1; i >= 0; i--){
+            result += str[i];
+        }
+
+        return Value::create_varchar(result);
+    });
+    register_sql_function("STUFF", [](ArgumentList args) -> DbErrorOr<Value>{
+        auto str = TRY(TRY(args.get_required(0, "str")).to_string());
+        auto index = TRY(TRY(args.get_required(1, "index")).to_int());
+        auto len = TRY(TRY(args.get_required(2, "len")).to_int());
+        auto substr = TRY(TRY(args.get_required(3, "to replace")).to_string());
+        
+        std::string result = str.substr(0, index) + substr + str.substr(index + len);
+
+        return Value::create_varchar(result);
+    });
+    register_sql_function("TRANSLATE", [](ArgumentList args) -> DbErrorOr<Value>{
+        auto str = TRY(TRY(args.get_required(0, "str")).to_string());
+        auto to_translate = TRY(TRY(args.get_required(1, "to translate")).to_string());
+        auto translation = TRY(TRY(args.get_required(2, "translation")).to_string());
+        
+        std::string result = "", temp = "";
+
+        for(const auto& c : str){
+            temp += c;
+            if(isspace(c)){
+                if(temp.substr(0, temp.size() - 1) == to_translate)
+                    temp = translation + " ";
+                
+                result += temp;
+                temp = "";
+            }
+        }
+
+        if(temp == to_translate)
+            temp = to_translate;
+        
+        result += temp;
 
         return Value::create_varchar(result);
     });
