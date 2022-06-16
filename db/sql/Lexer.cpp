@@ -195,7 +195,6 @@ std::vector<Token> Lexer::lex() {
         }
         else if (next == '\'') {
             m_in.get();
-            m_in >> std::ws;
             std::string id;
             while (m_in.peek() != '\'')
                 id += m_in.get();

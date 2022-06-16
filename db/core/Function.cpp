@@ -52,6 +52,12 @@ static void setup_sql_functions() {
             return Value::create_int(TRY(string.to_string()).size());
         }
     });
+    register_sql_function("STR", [](ArgumentList args) -> DbErrorOr<Value> {
+        // https://www.w3schools.com/sqL/func_sqlserver_len.asp
+        auto string = TRY(TRY(args.get_required(0, "sth to convert")).to_string());
+            // FIXME: What to do with ints?
+        return Value::create_varchar(string);
+    });
     register_sql_function("ASCII", [](ArgumentList args) -> DbErrorOr<Value> {
         // https://docs.microsoft.com/en-us/sql/t-sql/functions/ascii-transact-sql?view=sql-server-ver16
         auto arg = TRY(args.get_required(0, "char"));

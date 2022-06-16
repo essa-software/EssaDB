@@ -64,6 +64,14 @@ DbErrorOr<void> select_function_upper_lower() {
     return {};
 }
 
+DbErrorOr<void> select_function_concat() {
+    auto db = TRY(setup_db());
+    auto result = TRY(TRY(Db::Sql::run_query(db, "SELECT id, CONCAT(string, ' ', STR(number)) AS [STRING] FROM test;")).to_select_result());
+    result.dump(std::cout);
+    TRY(expect_equal<size_t>(result.rows().size(), 6, "all rows were returned"));
+    return {};
+}
+
 std::map<std::string, TestFunc*> get_tests() {
     return {
         { "select_function_len", select_function_len },
@@ -71,5 +79,6 @@ std::map<std::string, TestFunc*> get_tests() {
         { "select_function_char", select_function_char },
         { "select_function_upper", select_function_upper },
         { "select_function_upper_lower", select_function_upper_lower },
+        { "select_function_concat", select_function_concat },
     };
 }
