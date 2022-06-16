@@ -1,9 +1,11 @@
 #include "Function.hpp"
 
 #include "Value.hpp"
+#include "db/core/DbError.hpp"
 #include "db/sql/Parser.hpp"
 
 #include <cctype>
+#include <cmath>
 #include <cstddef>
 #include <functional>
 #include <limits>
@@ -270,6 +272,17 @@ static void setup_sql_functions() {
         result += temp;
 
         return Value::create_varchar(result);
+    });
+    register_sql_function("ABS", [](ArgumentList args) -> DbErrorOr<Value>{
+        auto value = TRY(args.get_required(0, "number"));
+        
+        if(value.type() == Value::Type::Int)
+            return Value::create_int(std::abs(TRY(value.to_int())));
+        if(value.type() == Value::Type::Float)
+            return Value::create_float(std::fabs(TRY(value.to_float())));
+        if(value.type() == Value::Type::Null)
+            return Value::null();
+        return DbError( TRY(value.to_string()) + " is not a valid type!", 0 );
     });
 }
 
