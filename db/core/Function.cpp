@@ -190,6 +190,23 @@ static void setup_sql_functions() {
 
         return Value::create_varchar(result);
     });
+    register_sql_function("REPLACE", [](ArgumentList args) -> DbErrorOr<Value>{
+        auto str = TRY(TRY(args.get_required(0, "str")).to_string());
+        auto substr = TRY(TRY(args.get_required(1, "replaced substr")).to_string());
+        auto to_replace = TRY(TRY(args.get_required(2, "substr to replace")).to_string());
+        
+        std::string result = "";
+
+        for(size_t i = 0; i < str.size(); i++){
+            if(str.substr(i, substr.size()) == substr){
+                result += to_replace;
+                i += substr.size() - 1;
+            }else
+                result += str[i];
+        }
+
+        return Value::create_varchar(result);
+    });
 }
 
 DbErrorOr<Value> Function::evaluate(EvaluationContext& context, Tuple const& row) const {

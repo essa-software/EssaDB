@@ -26,7 +26,6 @@ DbErrorOr<Database> setup_db() {
 DbErrorOr<void> select_function_len() {
     auto db = TRY(setup_db());
     auto result = TRY(TRY(Db::Sql::run_query(db, "SELECT id, LEN(string) AS [STRING LEN] FROM test;")).to_select_result());
-    result.dump(std::cout);
     TRY(expect_equal<size_t>(result.rows().size(), 6, "all rows were returned"));
     TRY(expect_equal<size_t>(TRY(result.rows()[0].value(1).to_int()), 4, "string length was returned"));
     return {};
@@ -35,7 +34,6 @@ DbErrorOr<void> select_function_len() {
 DbErrorOr<void> select_function_charindex() {
     auto db = TRY(setup_db());
     auto result = TRY(TRY(Db::Sql::run_query(db, "SELECT id, CHARINDEX('st', string) AS [INDEX] FROM test;")).to_select_result());
-    result.dump(std::cout);
     TRY(expect_equal<size_t>(result.rows().size(), 6, "all rows were returned"));
     return {};
 }
@@ -43,7 +41,6 @@ DbErrorOr<void> select_function_charindex() {
 DbErrorOr<void> select_function_char() {
     auto db = TRY(setup_db());
     auto result = TRY(TRY(Db::Sql::run_query(db, "SELECT id, CHAR(integer) AS [CHAR] FROM test;")).to_select_result());
-    result.dump(std::cout);
     TRY(expect_equal<size_t>(result.rows().size(), 6, "all rows were returned"));
     return {};
 }
@@ -51,7 +48,6 @@ DbErrorOr<void> select_function_char() {
 DbErrorOr<void> select_function_upper() {
     auto db = TRY(setup_db());
     auto result = TRY(TRY(Db::Sql::run_query(db, "SELECT id, UPPER(string) AS [UPPER STRING] FROM test;")).to_select_result());
-    result.dump(std::cout);
     TRY(expect_equal<size_t>(result.rows().size(), 6, "all rows were returned"));
     return {};
 }
@@ -59,7 +55,6 @@ DbErrorOr<void> select_function_upper() {
 DbErrorOr<void> select_function_upper_lower() {
     auto db = TRY(setup_db());
     auto result = TRY(TRY(Db::Sql::run_query(db, "SELECT id, LOWER(UPPER(string)) AS [STRING] FROM test;")).to_select_result());
-    result.dump(std::cout);
     TRY(expect_equal<size_t>(result.rows().size(), 6, "all rows were returned"));
     return {};
 }
@@ -67,7 +62,6 @@ DbErrorOr<void> select_function_upper_lower() {
 DbErrorOr<void> select_function_concat() {
     auto db = TRY(setup_db());
     auto result = TRY(TRY(Db::Sql::run_query(db, "SELECT id, CONCAT(string, ' ', STR(number)) AS [STRING] FROM test;")).to_select_result());
-    result.dump(std::cout);
     TRY(expect_equal<size_t>(result.rows().size(), 6, "all rows were returned"));
     return {};
 }
@@ -75,7 +69,6 @@ DbErrorOr<void> select_function_concat() {
 DbErrorOr<void> select_function_ltrim() {
     auto db = TRY(setup_db());
     auto result = TRY(TRY(Db::Sql::run_query(db, "SELECT id, LEN([to_trim]) AS [LENGTH], LEN(LTRIM([to_trim])) AS [TRIMMED LENGTH] FROM test;")).to_select_result());
-    result.dump(std::cout);
     TRY(expect_equal<size_t>(result.rows().size(), 6, "all rows were returned"));
     return {};
 }
@@ -83,7 +76,6 @@ DbErrorOr<void> select_function_ltrim() {
 DbErrorOr<void> select_function_rtrim() {
     auto db = TRY(setup_db());
     auto result = TRY(TRY(Db::Sql::run_query(db, "SELECT id, LEN([to_trim]) AS [LENGTH], LEN(RTRIM([to_trim])) AS [TRIMMED LENGTH] FROM test;")).to_select_result());
-    result.dump(std::cout);
     TRY(expect_equal<size_t>(result.rows().size(), 6, "all rows were returned"));
     return {};
 }
@@ -91,7 +83,13 @@ DbErrorOr<void> select_function_rtrim() {
 DbErrorOr<void> select_function_trim() {
     auto db = TRY(setup_db());
     auto result = TRY(TRY(Db::Sql::run_query(db, "SELECT id, LEN([to_trim]) AS [LENGTH], LEN(TRIM([to_trim])) AS [TRIMMED LENGTH], TRIM([to_trim]) AS [TRIMMED] FROM test;")).to_select_result());
-    result.dump(std::cout);
+    TRY(expect_equal<size_t>(result.rows().size(), 6, "all rows were returned"));
+    return {};
+}
+
+DbErrorOr<void> select_function_replace() {
+    auto db = TRY(setup_db());
+    auto result = TRY(TRY(Db::Sql::run_query(db, "SELECT id, REPLACE(string, 'test', 'replaced') AS STRING, REPLACE([to_trim], '2', '69') AS [REPLACED] FROM test;")).to_select_result());
     TRY(expect_equal<size_t>(result.rows().size(), 6, "all rows were returned"));
     return {};
 }
@@ -107,5 +105,6 @@ std::map<std::string, TestFunc*> get_tests() {
         { "select_function_ltrim", select_function_ltrim },
         { "select_function_rtrim", select_function_rtrim },
         { "select_function_trim", select_function_trim },
+        { "select_function_replace", select_function_replace },
     };
 }
