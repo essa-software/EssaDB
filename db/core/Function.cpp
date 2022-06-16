@@ -284,6 +284,117 @@ static void setup_sql_functions() {
             return Value::null();
         return DbError( TRY(value.to_string()) + " is not a valid type!", 0 );
     });
+    register_sql_function("ACOS", [](ArgumentList args) -> DbErrorOr<Value>{
+        auto a = TRY(TRY(args.get_required(0, "number")).to_float());
+        
+        return Value::create_float(std::acos(a));
+    });
+    register_sql_function("ASIN", [](ArgumentList args) -> DbErrorOr<Value>{
+        auto a = TRY(TRY(args.get_required(0, "number")).to_float());
+        
+        return Value::create_float(std::asin(a));
+    });
+    register_sql_function("ATAN", [](ArgumentList args) -> DbErrorOr<Value>{
+        auto a = TRY(TRY(args.get_required(0, "number")).to_float());
+        
+        return Value::create_float(std::atan(a));
+    });
+    register_sql_function("ATN2", [](ArgumentList args) -> DbErrorOr<Value>{
+        auto a = TRY(TRY(args.get_required(0, "number")).to_float());
+        auto b = TRY(TRY(args.get_required(1, "number")).to_float());
+        
+        return Value::create_float(std::atan2(a, b));
+    });
+    register_sql_function("CEILING", [](ArgumentList args) -> DbErrorOr<Value>{
+        auto a = TRY(TRY(args.get_required(0, "number")).to_float());
+        
+        return Value::create_int(std::ceil(a));
+    });
+    register_sql_function("COS", [](ArgumentList args) -> DbErrorOr<Value>{
+        auto a = TRY(TRY(args.get_required(0, "number")).to_float());
+        
+        return Value::create_float(std::cos(a));
+    });
+    register_sql_function("COT", [](ArgumentList args) -> DbErrorOr<Value>{
+        auto a = TRY(TRY(args.get_required(0, "number")).to_float());
+        
+        return Value::create_float(1.f / std::tan(a));
+    });
+    register_sql_function("DEGREES", [](ArgumentList args) -> DbErrorOr<Value>{
+        auto a = TRY(TRY(args.get_required(0, "number")).to_float());
+        
+        return Value::create_float(a / M_PI * 180.f);
+    });
+    register_sql_function("EXP", [](ArgumentList args) -> DbErrorOr<Value>{
+        auto a = TRY(TRY(args.get_required(0, "number")).to_float());
+        
+        return Value::create_float(std::exp(a));
+    });
+    register_sql_function("FLOOR", [](ArgumentList args) -> DbErrorOr<Value>{
+        auto a = TRY(TRY(args.get_required(0, "number")).to_float());
+        
+        return Value::create_int(std::floor(a));
+    });
+    register_sql_function("LOG", [](ArgumentList args) -> DbErrorOr<Value>{
+        auto a = TRY(TRY(args.get_required(0, "number")).to_float());
+        
+        return Value::create_float(std::log(a));
+    });
+    register_sql_function("LOG10", [](ArgumentList args) -> DbErrorOr<Value>{
+        auto a = TRY(TRY(args.get_required(0, "number")).to_float());
+        
+        return Value::create_float(std::log10(a));
+    });
+    register_sql_function("PI", [](ArgumentList args) -> DbErrorOr<Value>{
+        if(args.size() > 0)
+            DbError("Arguments for 'PI' function are not valid!", 0);
+        return Value::create_float(M_PI);
+    });
+    register_sql_function("POWER", [](ArgumentList args) -> DbErrorOr<Value>{
+        auto a = TRY(TRY(args.get_required(0, "number")).to_float());
+        auto b = TRY(TRY(args.get_required(1, "number")).to_float());
+        
+        return Value::create_float(std::pow(a, b));
+    });
+    register_sql_function("RAND", [](ArgumentList args) -> DbErrorOr<Value>{
+        unsigned seed = time(NULL);
+        if(args.size() == 1)
+            seed = TRY(args[0].to_int());
+        
+        std::srand(seed);
+        
+        return Value::create_int(std::rand());
+    });
+    register_sql_function("ROUND", [](ArgumentList args) -> DbErrorOr<Value>{
+        auto a = TRY(TRY(args.get_required(0, "number")).to_float());
+        
+        return Value::create_int(std::round(a));
+    });
+    register_sql_function("SIGN", [](ArgumentList args) -> DbErrorOr<Value>{
+        auto a = TRY(TRY(args.get_required(0, "number")).to_float());
+        
+        return Value::create_int((a == 0) ? 0 : (a < 0 ? -1 : 1));
+    });
+    register_sql_function("SIN", [](ArgumentList args) -> DbErrorOr<Value>{
+        auto a = TRY(TRY(args.get_required(0, "number")).to_float());
+        
+        return Value::create_float(std::sin(a));
+    });
+    register_sql_function("SQRT", [](ArgumentList args) -> DbErrorOr<Value>{
+        auto a = TRY(TRY(args.get_required(0, "number")).to_float());
+        
+        return Value::create_float(std::sqrt(a));
+    });
+    register_sql_function("SQUARE", [](ArgumentList args) -> DbErrorOr<Value>{
+        auto a = TRY(TRY(args.get_required(0, "number")).to_float());
+        
+        return Value::create_float(a * a);
+    });
+    register_sql_function("TAN", [](ArgumentList args) -> DbErrorOr<Value>{
+        auto a = TRY(TRY(args.get_required(0, "number")).to_float());
+        
+        return Value::create_float(std::tan(a));
+    });
 }
 
 DbErrorOr<Value> Function::evaluate(EvaluationContext& context, Tuple const& row) const {
