@@ -88,7 +88,6 @@ static void setup_sql_functions() {
         return Value::create_int(find_index);
     });
     register_sql_function("CONCAT", [](ArgumentList args) -> DbErrorOr<Value>{
-
         if (args.size() == 0)
             return DbError { "No arguments were provided!", 0 };
         std::string result = "";
@@ -102,9 +101,6 @@ static void setup_sql_functions() {
         return Value::create_varchar(result);
     });
     register_sql_function("LOWER", [](ArgumentList args) -> DbErrorOr<Value>{
-        if (args.size() != 1)
-            return DbError { "Expected arg 0: string", 0};
-
         auto str = TRY(TRY(args.get_required(0, "str")).to_string());
 
         std::string result = "";
@@ -116,9 +112,6 @@ static void setup_sql_functions() {
         return Value::create_varchar(str);
     });
     register_sql_function("SUBSTRING", [](ArgumentList args) -> DbErrorOr<Value>{
-        if (args.size() != 1)
-            return DbError { "Expected arg 0: string", 0};
-
         auto str = TRY(TRY(args.get_required(0, "string")).to_string());
         auto start = TRY(TRY(args.get_required(1, "starting index")).to_int());
         auto len = TRY(TRY(args.get_required(2, "substring length")).to_int());
@@ -126,9 +119,6 @@ static void setup_sql_functions() {
         return Value::create_varchar(str.substr(start, len));
     });
     register_sql_function("UPPER", [](ArgumentList args) -> DbErrorOr<Value>{
-        if (args.size() != 1)
-            return DbError { "Expected arg 0: string", 0};
-
         auto str = TRY(TRY(args.get_required(0, "str")).to_string());
 
         std::string result = "";
@@ -138,6 +128,67 @@ static void setup_sql_functions() {
         }
 
         return Value::create_varchar(str);
+    });
+    register_sql_function("LEFT", [](ArgumentList args) -> DbErrorOr<Value>{
+        auto str = TRY(TRY(args.get_required(0, "str")).to_string());
+        auto len = TRY(TRY(args.get_required(1, "len")).to_int());
+
+        return Value::create_varchar(str.substr(0, len));
+    });
+    register_sql_function("LTRIM", [](ArgumentList args) -> DbErrorOr<Value>{
+        auto str = TRY(TRY(args.get_required(0, "str")).to_string());
+        
+        std::string result = "";
+
+        bool con = 0;
+
+        for(const auto& c : str){
+            if(!isspace(c))
+                con = 1;
+            
+            if(con)
+                result += c;
+        }
+
+        return Value::create_varchar(result);
+    });
+    register_sql_function("RTRIM", [](ArgumentList args) -> DbErrorOr<Value>{
+        auto str = TRY(TRY(args.get_required(0, "str")).to_string());
+        
+        std::string result = "", temp = "";
+
+        for(const auto& c : str){
+            temp += c;
+
+            if(!isspace(c)){
+                result += temp;
+                temp = "";
+            }
+        }
+
+        return Value::create_varchar(result);
+    });
+    register_sql_function("TRIM", [](ArgumentList args) -> DbErrorOr<Value>{
+        auto str = TRY(TRY(args.get_required(0, "str")).to_string());
+        
+        std::string result = "", temp = "";
+        bool con = 0;
+
+        for(const auto& c : str){
+            if(con)
+                temp += c;
+
+            if(!isspace(c)){
+                result += temp;
+                temp = "";
+
+                if(!con)
+                    result += c;
+                con = 1;
+            }
+        }
+
+        return Value::create_varchar(result);
     });
 }
 
