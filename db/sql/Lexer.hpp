@@ -32,7 +32,8 @@ struct Token {
 
         OrderByParam,
         Identifier,
-        Number,
+        Int,
+        Float,
         String,
         Bool,
         Date,

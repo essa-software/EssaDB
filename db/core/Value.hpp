@@ -12,13 +12,14 @@ namespace Db::Core {
 
 class SelectResult;
 
-using ValueBase = std::variant<std::monostate, int, std::string, bool, Util::Clock::time_point, SelectResult>;
+using ValueBase = std::variant<std::monostate, int, float, std::string, bool, Util::Clock::time_point, SelectResult>;
 
 class Value : public ValueBase {
 public:
     enum class Type {
         Null,
         Int,
+        Float,
         Varchar,
         Bool,
         Time,
@@ -26,9 +27,10 @@ public:
     };
 
     static std::optional<Type> type_from_string(std::string const& str) {
-        // TODO: Case-insensitive match
         if (str == "INT")
             return Type::Int;
+        if (str == "FLOAT")
+            return Type::Float;
         if (str == "VARCHAR")
             return Type::Varchar;
         if (str == "BOOL")
@@ -41,6 +43,7 @@ public:
     Value() = default;
     static Value null();
     static Value create_int(int i);
+    static Value create_float(float f);
     static Value create_varchar(std::string s);
     static Value create_bool(bool b);
     static Value create_time(Util::Clock::time_point clock);
@@ -48,6 +51,7 @@ public:
     static Value create_select_result(SelectResult);
 
     DbErrorOr<int> to_int() const;
+    DbErrorOr<float> to_float() const;
     DbErrorOr<std::string> to_string() const;
     DbErrorOr<bool> to_bool() const;
     DbErrorOr<SelectResult> to_select_result() const;

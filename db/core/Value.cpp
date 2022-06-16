@@ -29,6 +29,10 @@ Value Value::create_int(int i) {
     return Value { i, Type::Int };
 }
 
+Value Value::create_float(float f) {
+    return Value { f, Type::Float };
+}
+
 Value Value::create_varchar(std::string s) {
     return Value { std::move(s), Type::Varchar };
 }
@@ -88,6 +92,8 @@ DbErrorOr<int> Value::to_int() const {
         return 0;
     case Type::Int:
         return std::get<int>(*this);
+    case Type::Float:
+        return static_cast<int>(std::get<float>(*this));
     case Type::Varchar: {
         auto str = std::get<std::string>(*this);
         try {
@@ -113,12 +119,48 @@ DbErrorOr<int> Value::to_int() const {
     __builtin_unreachable();
 }
 
+DbErrorOr<float> Value::to_float() const {
+    switch (m_type) {
+    // FIXME: Check in spec what should happen when converting null to 0
+    case Type::Null:
+        return 0.f;
+    case Type::Int:
+        return static_cast<float>(std::get<int>(*this));
+    case Type::Float:
+        return std::get<float>(*this);
+    case Type::Varchar: {
+        auto str = std::get<std::string>(*this);
+        try {
+            return std::stof(str);
+        } catch (...) {
+            // TODO: Save location info
+            return DbError { "'" + str + "' is not a valid float", 0 };
+        }
+    }
+    case Type::Bool:
+        return std::get<bool>(*this) ? 1.f : 0.f;
+    case Type::Time:
+            return DbError { "Time is not convertible to float", 0 };
+    case Type::SelectResult: {
+        auto select_result = std::get<SelectResult>(*this);
+        if (select_result.rows().size() != 1)
+            return DbError { "SelectResult must have only one 1 row to be convertible to float", 0 };
+        if (select_result.rows()[0].value_count() != 1)
+            return DbError { "SelectResult must have only one 1 column to be convertible to float", 0 };
+        return TRY(select_result.rows()[0].value(0).to_float());
+    }
+    }
+    __builtin_unreachable();
+}
+
 DbErrorOr<std::string> Value::to_string() const {
     switch (m_type) {
     case Type::Null:
         return "null";
     case Type::Int:
         return std::to_string(std::get<int>(*this));
+    case Type::Float:
+        return std::to_string(std::get<float>(*this));
     case Type::Varchar:
         return std::get<std::string>(*this);
     case Type::Bool:
@@ -161,6 +203,8 @@ std::string Value::to_debug_string() const {
         return value;
     case Type::Int:
         return "int " + value;
+    case Type::Float:
+        return "float " + value;
     case Type::Varchar:
         return "varchar '" + value + "'";
     case Type::Bool:

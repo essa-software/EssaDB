@@ -20,8 +20,20 @@ std::vector<Token> Lexer::lex() {
 
     auto consume_number = [&]() {
         std::string s;
-        while (isdigit(m_in.peek())) {
+
+        bool has_decimal = 0;
+
+        if(m_in.peek() == '-')
             s += m_in.get();
+
+        while (isdigit(m_in.peek()) || m_in.peek() == '.') {
+            char c = m_in.get();
+            if(c == '.'){
+                if(has_decimal)
+                    break;
+                has_decimal = 1;
+            }
+            s += c;
         }
         return s;
     };
@@ -131,10 +143,15 @@ std::vector<Token> Lexer::lex() {
         else if (isspace(next)) {
             m_in >> std::ws;
         }
-        else if (std::isdigit(next)) {
+        else if (std::isdigit(next) || next == '.' || next == '-') {
             auto number = consume_number();
+            Token::Type type = Token::Type::Int;
 
-            tokens.push_back(Token { .type = Token::Type::Number, .value = number, .start = start });
+            if(number.find(".") != std::string::npos){
+                type = Token::Type::Float;
+            }
+
+            tokens.push_back(Token { .type = type, .value = number, .start = start });
         }
         else if (next == '*') {
             m_in.get();

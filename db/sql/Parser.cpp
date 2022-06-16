@@ -450,9 +450,13 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Expression>> Parser::parse_expression
             lhs = TRY(parse_identifier());
         }
     }
-    else if (token.type == Token::Type::Number) {
+    else if (token.type == Token::Type::Int) {
         m_offset++;
         lhs = std::make_unique<Core::AST::Literal>(start, Core::Value::create_int(std::stoi(token.value)));
+    }
+    else if (token.type == Token::Type::Float) {
+        m_offset++;
+        lhs = std::make_unique<Core::AST::Literal>(start, Core::Value::create_float(std::stof(token.value)));
     }
     else if (token.type == Token::Type::String) {
         m_offset++;
