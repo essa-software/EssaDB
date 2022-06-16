@@ -146,30 +146,34 @@ DbErrorOr<Value> Select::execute(Database& db) const {
     // TODO: JOIN
 
     std::vector<Tuple> rows;
-    for (auto const& row : table->rows()) {
-        // WHERE
-        if (!TRY(should_include_row(row)))
-            continue;
 
-        // TODO: GROUP BY
-        // TODO: HAVING
+    if(m_group_by){
 
-        // SELECT
-        std::vector<Value> values;
-        if (m_columns.select_all()) {
-            for (auto const& column : table->columns()) {
-                auto table_column = table->get_column(column.name());
-                if (!table_column)
-                    return DbError { "Internal error: invalid column requested for *: '" + column.name() + "'", start() + 1 };
-                values.push_back(row.value(table_column->second));
+    }else{
+        for (auto const& row : table->rows()) {
+            // WHERE
+            if (!TRY(should_include_row(row)))
+                continue;
+
+            // TODO: HAVING
+
+            // SELECT
+            std::vector<Value> values;
+            if (m_columns.select_all()) {
+                for (auto const& column : table->columns()) {
+                    auto table_column = table->get_column(column.name());
+                    if (!table_column)
+                        return DbError { "Internal error: invalid column requested for *: '" + column.name() + "'", start() + 1 };
+                    values.push_back(row.value(table_column->second));
+                }
             }
-        }
-        else {
-            for (auto const& column : m_columns.columns()) {
-                values.push_back(TRY(column.column->evaluate(context, row)));
+            else {
+                for (auto const& column : m_columns.columns()) {
+                    values.push_back(TRY(column.column->evaluate(context, row)));
+                }
             }
+            rows.push_back(Tuple { values });
         }
-        rows.push_back(Tuple { values });
     }
 
     // Aggregation + TODO: GROUP BY

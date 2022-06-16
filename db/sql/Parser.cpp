@@ -176,12 +176,34 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Select>> Parser::parse_select() {
 
         order = order_by;
     }
+    std::optional<Core::AST::GroupBy> group;
+    if (m_tokens[m_offset].type == Token::Type::KeywordGroup) {
+        m_offset++;
+        if (m_tokens[m_offset++].type != Token::Type::KeywordBy)
+            return Core::DbError { "Expected 'BY' after 'GROUP'", m_offset - 1 };
+
+        Core::AST::GroupBy group_by;
+
+        while (true) {
+            auto expression = TRY(parse_expression());
+
+            group_by.columns.push_back(expression->to_string());
+
+            auto comma = m_tokens[m_offset];
+            if (comma.type != Token::Type::Comma)
+                break;
+            m_offset++;
+        }
+
+        group = group_by;
+    }
 
     return std::make_unique<Core::AST::Select>(start, Core::AST::SelectColumns { std::move(columns) },
         from_token.value,
         std::move(where),
         std::move(order),
         std::move(top),
+        std::move(group),
         distinct);
 }
 

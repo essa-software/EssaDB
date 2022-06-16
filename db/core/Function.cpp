@@ -10,30 +10,25 @@
 
 namespace Db::Core::AST {
 
-class ArgumentList {
+class ArgumentList : public std::vector<Value> {
 public:
     ArgumentList(std::vector<Value> values)
-        : m_args(std::move(values)) { }
-
-    Value operator[](size_t index) const { return m_args[index]; }
+        : std::vector<Value>(std::move(values)) { }
 
     DbErrorOr<Value> get_required(size_t index, std::string const& name) const {
-        if (m_args.size() <= index) {
+        if (size() <= index) {
             // TODO: Store location info
             return DbError { "Required argument " + std::to_string(index) + " `" + name + "` not given", 0 };
         }
-        return m_args[index];
+        return (*this)[index];
     }
 
     Value get_optional(size_t index, Value alternative) const {
-        if (m_args.size() <= index) {
+        if (size() <= index) {
             return alternative;
         }
-        return m_args[index];
+        return (*this)[index];
     }
-
-private:
-    std::vector<Value> m_args;
 };
 
 using SQLFunction = std::function<DbErrorOr<Value>(ArgumentList)>;
@@ -86,115 +81,61 @@ static void setup_sql_functions() {
             return Value::null();
         return Value::create_int(find_index);
     });
+    register_sql_function("CONCAT", [](ArgumentList args) -> DbErrorOr<Value>{
+
+        if (args.size() == 0)
+            return DbError { "No arguments were provided!", 0 };
+        std::string result = "";
+
+        for (size_t i = 0; i < args.size(); i++) {
+            auto str = TRY(TRY(args.get_required(i, "str")).to_string());
+            
+            result += str;
+        }
+
+        return Value::create_varchar(result);
+    });
+    register_sql_function("LOWER", [](ArgumentList args) -> DbErrorOr<Value>{
+        if (args.size() != 1)
+            return DbError { "Expected arg 0: string", 0};
+
+        auto str = TRY(TRY(args.get_required(0, "str")).to_string());
+
+        std::string result = "";
+
+        for (const auto& c : str) {
+            result += c + ((isalpha(c) && c <= 'Z') ? 32 : 0);
+        }
+
+        return Value::create_varchar(str);
+    });
+    register_sql_function("SUBSTRING", [](ArgumentList args) -> DbErrorOr<Value>{
+        if (args.size() != 1)
+            return DbError { "Expected arg 0: string", 0};
+
+        auto str = TRY(TRY(args.get_required(0, "string")).to_string());
+        auto start = TRY(TRY(args.get_required(1, "starting index")).to_int());
+        auto len = TRY(TRY(args.get_required(2, "substring length")).to_int());
+        
+        return Value::create_varchar(str.substr(start, len));
+    });
+    register_sql_function("UPPER", [](ArgumentList args) -> DbErrorOr<Value>{
+        if (args.size() != 1)
+            return DbError { "Expected arg 0: string", 0};
+
+        auto str = TRY(TRY(args.get_required(0, "str")).to_string());
+
+        std::string result = "";
+
+        for (const auto& c : str) {
+            result += c - ((isalpha(c) && c >= 'a') ? 32 : 0);
+        }
+
+        return Value::create_varchar(str);
+    });
 }
 
 DbErrorOr<Value> Function::evaluate(EvaluationContext& context, Tuple const& row) const {
-    // TODO: Port all these to new register_sql_function API
-    if (Db::Sql::Parser::compare_case_insensitive(m_name, "IN")) {
-        if (m_args.size() == 0)
-            return DbError { "No arguments were provided!", start() + 1 };
-    }
-    else if (Db::Sql::Parser::compare_case_insensitive(m_name, "CONCAT")) {
-        if (m_args.size() == 0)
-            return DbError { "No arguments were provided!", start() + 1 };
-        std::string str = "";
-
-        for (const auto& arg : m_args) {
-            auto column = arg->evaluate(context, row);
-
-            if (column.is_error())
-                str += arg->to_string();
-            else
-                str += column.value().to_string().value();
-        }
-
-        return Value::create_varchar(str);
-    }
-    else if (Db::Sql::Parser::compare_case_insensitive(m_name, "DATALENGTH")) {
-    }
-    else if (Db::Sql::Parser::compare_case_insensitive(m_name, "DIFFERENCE")) {
-    }
-    else if (Db::Sql::Parser::compare_case_insensitive(m_name, "FORMAT")) {
-    }
-    else if (Db::Sql::Parser::compare_case_insensitive(m_name, "LEFT")) {
-    }
-    else if (Db::Sql::Parser::compare_case_insensitive(m_name, "LOWER")) {
-        if (m_args.size() != 1)
-            return DbError { "Expected arg 0: string", start() + 1 };
-
-        auto arg = TRY(m_args[0]->evaluate(context, row));
-
-        std::string str = "";
-
-        for (const auto& c : arg.to_string().release_value()) {
-            str += c + ((isalpha(c) && c <= 97) ? 32 : 0);
-        }
-
-        return Value::create_varchar(str);
-    }
-    else if (Db::Sql::Parser::compare_case_insensitive(m_name, "LTRIM")) {
-    }
-    else if (Db::Sql::Parser::compare_case_insensitive(m_name, "NCHAR")) {
-    }
-    else if (Db::Sql::Parser::compare_case_insensitive(m_name, "PATINDEX")) {
-    }
-    else if (Db::Sql::Parser::compare_case_insensitive(m_name, "REPLACE")) {
-    }
-    else if (Db::Sql::Parser::compare_case_insensitive(m_name, "REPLICATE")) {
-    }
-    else if (Db::Sql::Parser::compare_case_insensitive(m_name, "REVERSE")) {
-    }
-    else if (Db::Sql::Parser::compare_case_insensitive(m_name, "RIGHT")) {
-    }
-    else if (Db::Sql::Parser::compare_case_insensitive(m_name, "RTRIM")) {
-    }
-    else if (Db::Sql::Parser::compare_case_insensitive(m_name, "SOUNDEX")) {
-    }
-    else if (Db::Sql::Parser::compare_case_insensitive(m_name, "SPACE")) {
-    }
-    else if (Db::Sql::Parser::compare_case_insensitive(m_name, "STR")) {
-        if (m_args.size() != 1)
-            return DbError { "Expected arg 0: int", start() + 1 };
-
-        auto arg = TRY(m_args[0]->evaluate(context, row));
-
-        return Value::create_varchar(arg.to_string().value());
-    }
-    else if (Db::Sql::Parser::compare_case_insensitive(m_name, "STUFF")) {
-    }
-    else if (Db::Sql::Parser::compare_case_insensitive(m_name, "SUBSTRING")) {
-        if (m_args.size() == 0)
-            return DbError { "Expected arg 0: string", start() + 1 };
-        else if (m_args.size() == 1)
-            return DbError { "Expected arg 1: starting index", start() + 1 };
-        else if (m_args.size() == 2)
-            return DbError { "Expected arg 2: substring length", start() + 1 };
-
-        auto arg = TRY(m_args[0]->evaluate(context, row));
-        size_t start = std::stoi(m_args[1]->to_string());
-        size_t len = std::stoi(m_args[2]->to_string());
-
-        return Value::create_varchar(arg.to_string().value().substr(start, len));
-    }
-    else if (Db::Sql::Parser::compare_case_insensitive(m_name, "TRANSLATE")) {
-    }
-    else if (Db::Sql::Parser::compare_case_insensitive(m_name, "TRIM")) {
-    }
-    else if (Db::Sql::Parser::compare_case_insensitive(m_name, "UPPER")) {
-        if (m_args.size() != 1)
-            return DbError { "Expected arg 0: string", start() + 1 };
-
-        auto arg = TRY(m_args[0]->evaluate(context, row));
-
-        std::string str = "";
-
-        for (const auto& c : arg.to_string().release_value()) {
-            str += c - ((isalpha(c) && c >= 'a') ? 32 : 0);
-        }
-
-        return Value::create_varchar(str);
-    }
-
     static bool sql_functions_setup = false;
     if (!sql_functions_setup) {
         setup_sql_functions();

@@ -24,6 +24,7 @@ public:
 private:
     std::vector<std::string> m_column_names;
     std::vector<Tuple> m_rows;
+    std::vector<std::vector<Tuple>> m_buckets;
 };
 
 }
