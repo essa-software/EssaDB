@@ -19,8 +19,6 @@ DbErrorOr<Database> setup_db() {
 
 DbErrorOr<void> aggregate_simple() {
     auto db = TRY(setup_db());
-    auto result = TRY(TRY(Db::Sql::run_query(db, "SELECT COUNT(id) FROM test;")).to_select_result());
-    result.dump(std::cout);
     TRY(expect_equal<int>(TRY(TRY(Db::Sql::run_query(db, "SELECT COUNT(id) FROM test;")).to_int()), 7, "proper row count was returned"));
     TRY(expect_equal<int>(TRY(TRY(Db::Sql::run_query(db, "SELECT SUM(id) FROM test;")).to_int()), 28, "proper row sum was returned"));
     TRY(expect_equal<int>(TRY(TRY(Db::Sql::run_query(db, "SELECT MIN(id) FROM test;")).to_int()), 0, "proper row min was returned"));
@@ -33,11 +31,15 @@ DbErrorOr<void> aggregate_count_with_group_by() {
     auto db = TRY(setup_db());
     auto result = TRY(TRY(Db::Sql::run_query(db, "SELECT [group], COUNT(id) AS [COUNTED], LEN([group]) AS [len] FROM test GROUP BY [group];")).to_select_result());
     result.dump(std::cout);
-    TRY(expect_equal<size_t>(result.rows().size(), 3, "select result is truncated to specified value"));
-    // TRY(TRY(Db::Sql::run_query(db, "SELECT SUM(id) FROM test GROUP BY [group];")).to_int());
-    // TRY(TRY(Db::Sql::run_query(db, "SELECT MIN(id) FROM test GROUP BY [group];")).to_int());
-    // TRY(TRY(Db::Sql::run_query(db, "SELECT MAX(id) FROM test GROUP BY [group];")).to_int());
-    // TRY(TRY(Db::Sql::run_query(db, "SELECT AVG(id) FROM test GROUP BY [group];")).to_int());
+    TRY(expect_equal<size_t>(result.rows().size(), 3, "Proper row count"));
+    return {};
+}
+
+DbErrorOr<void> aggregate_count_with_where_and_group_by() {
+    auto db = TRY(setup_db());
+    auto result = TRY(TRY(Db::Sql::run_query(db, "SELECT [group], COUNT(id) AS [COUNTED], LEN([group]) AS [len] FROM test WHERE id < 6 GROUP BY [group];")).to_select_result());
+    result.dump(std::cout);
+    TRY(expect_equal<size_t>(result.rows().size(), 3, "Proper row count"));
     return {};
 }
 
@@ -52,5 +54,6 @@ std::map<std::string, TestFunc*> get_tests() {
         { "aggregate_simple", aggregate_simple },
         { "aggregate_error_not_all_columns_aggregate", aggregate_error_not_all_columns_aggregate },
         { "aggregate_count_with_group_by", aggregate_count_with_group_by },
+        { "aggregate_count_with_where_and_group_by", aggregate_count_with_where_and_group_by },
     };
 }

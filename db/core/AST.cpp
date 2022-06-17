@@ -134,6 +134,9 @@ DbErrorOr<Value> Select::execute(Database& db) const {
     // Comments specify SQL Conceptional Evaluation:
     // https://docs.microsoft.com/en-us/sql/t-sql/queries/select-transact-sql#logical-processing-order-of-the-select-statement
     // FROM
+    // TODO: ON
+    // TODO: JOIN
+
     auto table = TRY(db.table(m_from));
 
     EvaluationContext context { .table = *table };
@@ -143,26 +146,19 @@ DbErrorOr<Value> Select::execute(Database& db) const {
     for (auto& it : m_columns.columns()) {
         if (Util::is<AggregateFunction>(*it.column)) {
             is_aggregate |= true;
-        }else if(m_group_by){
-            is_aggregate |= true;
         }
-        else {
-            if(is_aggregate)
-                return DbError { "All columns must be either aggregate or non-aggregate", start() };
+        else if(!m_group_by && is_aggregate){
+            return DbError { "All columns must be either aggregate or non-aggregate", start() };
         }
     }
     std::vector<Tuple> rows;
+    auto should_include_row = [&](Tuple const& row) -> DbErrorOr<bool> {
+        if (!m_where)
+            return true;
+        return TRY(m_where->evaluate(context, row)).to_bool();
+    };
 
     if(!is_aggregate){
-        auto should_include_row = [&](Tuple const& row) -> DbErrorOr<bool> {
-            if (!m_where)
-                return true;
-            return TRY(m_where->evaluate(context, row)).to_bool();
-        };
-
-        // TODO: ON
-        // TODO: JOIN
-
         for (auto const& row : table->rows()) {
             // WHERE
             if (!TRY(should_include_row(row)))
@@ -191,6 +187,10 @@ DbErrorOr<Value> Select::execute(Database& db) const {
         Table aggregate_table;
 
         for(const auto& row : table->rows()){
+            // WHERE
+            if (!TRY(should_include_row(row)))
+                continue;
+            
             std::vector<Value> values;
 
             if(m_group_by){
