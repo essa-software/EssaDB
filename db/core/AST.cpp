@@ -138,46 +138,55 @@ DbErrorOr<Value> Select::execute(Database& db) const {
 
     EvaluationContext context { .table = *table };
 
-    auto should_include_row = [&](Tuple const& row) -> DbErrorOr<bool> {
-        if (!m_where)
-            return true;
-        return TRY(m_where->evaluate(context, row)).to_bool();
-    };
+    bool is_aggregate = m_group_by.has_value();
 
-    // TODO: ON
-    // TODO: JOIN
-
-    std::vector<Tuple> rows;
-
-    for (auto const& row : table->rows()) {
-        // WHERE
-        if (!TRY(should_include_row(row)))
-            continue;
-
-        // SELECT
-        std::vector<Value> values;
-        if (m_columns.select_all()) {
-            for (auto const& column : table->columns()) {
-                auto table_column = table->get_column(column.name());
-                if (!table_column)
-                    return DbError { "Internal error: invalid column requested for *: '" + column.name() + "'", start() + 1 };
-                values.push_back(row.value(table_column->second));
-            }
+    for (auto& it : m_columns.columns()) {
+        if (Util::is<AggregateFunction>(*it.column)) {
+            is_aggregate |= true;
+        }else if(m_group_by){
+            is_aggregate |= true;
         }
         else {
-            for (auto const& column : m_columns.columns()) {
-                values.push_back(TRY(column.column->evaluate(context, row)));
-            }
+            if(is_aggregate)
+                return DbError { "All columns must be either aggregate or non-aggregate", start() };
         }
-        rows.push_back(Tuple { values });
     }
+    std::vector<Tuple> rows;
 
-    // Aggregation + GROUP BY
-    {
-        auto old_rows = std::move(rows);
-        bool contains_non_aggregate = false;
-        bool contains_aggregate = false;
+    if(!is_aggregate){
+        auto should_include_row = [&](Tuple const& row) -> DbErrorOr<bool> {
+            if (!m_where)
+                return true;
+            return TRY(m_where->evaluate(context, row)).to_bool();
+        };
 
+        // TODO: ON
+        // TODO: JOIN
+
+        for (auto const& row : table->rows()) {
+            // WHERE
+            if (!TRY(should_include_row(row)))
+                continue;
+
+            // SELECT
+            std::vector<Value> values;
+            if (m_columns.select_all()) {
+                for (auto const& column : table->columns()) {
+                    auto table_column = table->get_column(column.name());
+                    if (!table_column)
+                        return DbError { "Internal error: invalid column requested for *: '" + column.name() + "'", start() + 1 };
+                    values.push_back(row.value(table_column->second));
+                }
+            }
+            else {
+                for (auto const& column : m_columns.columns()) {
+                    values.push_back(TRY(column.column->evaluate(context, row)));
+                }
+            }
+            rows.push_back(Tuple { values });
+        }
+    }
+    else { // Aggregation + GROUP BY
         std::map<Tuple, std::vector<Tuple>> groups;
         Table aggregate_table;
 
@@ -225,7 +234,6 @@ DbErrorOr<Value> Select::execute(Database& db) const {
             }
         }
 
-        std::vector<Tuple> aggregate_rows;
         EvaluationContext aggregate_context { .table = aggregate_table };
 
         for(const auto& group : groups){
@@ -233,30 +241,15 @@ DbErrorOr<Value> Select::execute(Database& db) const {
 
             for (auto& it : m_columns.columns()) {
                 if (Util::is<AggregateFunction>(*it.column)) {
-                    contains_aggregate |= true;
                     // std::cout << group.first.control_number << "\n";
                     aggregate_values.push_back(TRY(static_cast<AggregateFunction&>(*it.column).aggregate(context, group.second)));
                 }else if(m_group_by){
-                    contains_aggregate |= true;
-
                     aggregate_values.push_back(TRY(it.column->evaluate(aggregate_context, group.first)));
-                }
-                else {
-                    contains_non_aggregate |= true;
                 }
             }
 
-            aggregate_rows.push_back(Tuple(std::span(aggregate_values.data(), aggregate_values.size())));
+            rows.push_back( Tuple { aggregate_values } );
         }
-        if (contains_aggregate && contains_non_aggregate) {
-            // TODO: Handle GROUP BY here
-            return DbError { "All columns must be either aggregate or non-aggregate", start() };
-        }
-
-        if (contains_aggregate)
-            rows = std::move(aggregate_rows);
-        else
-            rows = std::move(old_rows);
     }
 
     // DISTINCT
