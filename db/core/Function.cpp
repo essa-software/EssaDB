@@ -441,37 +441,38 @@ DbErrorOr<Value> AggregateFunction::aggregate(EvaluationContext& context, std::v
         return Value::create_int(count);
     }
     case Function::Sum: {
-        int sum = 0;
+        float sum = 0;
         for (auto& row : rows) {
-            sum += TRY(row.value(column->second).to_int());
+            sum += TRY(row.value(column->second).to_float());
         }
 
-        return Value::create_int(sum);
+        return Value::create_float(sum);
     }
     case Function::Min: {
-        int min = std::numeric_limits<int>::max();
+        float min = std::numeric_limits<float>::max();
         for (auto& row : rows) {
-            min = std::min(min, TRY(row.value(column->second).to_int()));
+            min = std::min(min, TRY(row.value(column->second).to_float()));
         }
 
-        return Value::create_int(min);
+        return Value::create_float(min);
     }
     case Function::Max: {
-        int max = std::numeric_limits<int>::min();
+        float max = std::numeric_limits<float>::min();
         for (auto& row : rows) {
-            max = std::max(max, TRY(row.value(column->second).to_int()));
+            max = std::max(max, TRY(row.value(column->second).to_float()));
         }
 
-        return Value::create_int(max);
+        return Value::create_float(max);
     }
     case Function::Avg: {
-        int sum = 0, count = 0;
+        float sum = 0;
+        size_t count = 0;
         for (auto& row : rows) {
             sum += TRY(row.value(column->second).to_int());
             count++;
         }
 
-        return Value::create_int(sum / (count != 0 ? count : 1));
+        return Value::create_float(sum / (count != 0 ? count : 1));
     }
     default:
         break;

@@ -9,6 +9,7 @@
 
 #include <db/util/Is.hpp>
 #include <iostream>
+#include <memory>
 #include <span>
 #include <string>
 #include <unordered_set>
@@ -184,7 +185,14 @@ DbErrorOr<Value> Select::execute(Database& db) const {
     }
     else { // Aggregation + GROUP BY
         std::map<Tuple, std::vector<Tuple>> groups;
-        Table aggregate_table;
+        std::unique_ptr<Table> aggregate_table = std::make_unique<Table>();
+        EvaluationContext aggregate_context { .table = *aggregate_table };
+
+        auto should_include_group = [&](Tuple const& row) -> DbErrorOr<bool> {
+            if (!m_having)
+                return true;
+            return TRY(m_having->evaluate(aggregate_context, row)).to_bool();
+        };
 
         for(const auto& row : table->rows()){
             // WHERE
@@ -222,7 +230,7 @@ DbErrorOr<Value> Select::execute(Database& db) const {
                 auto column = table->get_column(column_name);
                 if (!column)
                     return DbError { "Internal error: invalid column requested for *: '" + column_name + "'", start() + 1 };
-                TRY(aggregate_table.add_column(column->first));
+                TRY(aggregate_table->add_column(column->first));
             }
 
             RowWithColumnNames::MapType map;
@@ -230,13 +238,16 @@ DbErrorOr<Value> Select::execute(Database& db) const {
                 for(size_t i = 0; i < m_group_by->columns.size(); i++){
                     map.insert({m_group_by->columns[i], group.first.value(i)});
                 }
-                TRY(aggregate_table.insert(std::move(map)));
+                TRY(aggregate_table->insert(std::move(map)));
             }
+            table = aggregate_table.get();
         }
 
-        EvaluationContext aggregate_context { .table = aggregate_table };
-
         for(const auto& group : groups){
+            // HAVING
+            if (!TRY(should_include_group(group.first)))
+                continue;
+            
             std::vector<Value> aggregate_values;
 
             for (auto& it : m_columns.columns()) {

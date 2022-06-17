@@ -244,7 +244,7 @@ public:
 
 class Select : public Statement {
 public:
-    Select(ssize_t start, SelectColumns columns, std::string from, std::unique_ptr<Expression> where = {}, std::optional<OrderBy> order_by = {}, std::optional<Top> top = {}, std::optional<GroupBy> group_by = {}, bool distinct = false)
+    Select(ssize_t start, SelectColumns columns, std::string from, std::unique_ptr<Expression> where = {}, std::optional<OrderBy> order_by = {}, std::optional<Top> top = {}, std::optional<GroupBy> group_by = {}, std::unique_ptr<Expression> having = {}, bool distinct = false)
         : Statement(start)
         , m_columns(std::move(columns))
         , m_from(std::move(from))
@@ -252,6 +252,7 @@ public:
         , m_order_by(std::move(order_by))
         , m_top(std::move(top))
         , m_group_by(std::move(group_by))
+        , m_having(std::move(having))
         , m_distinct(distinct) { }
 
     virtual DbErrorOr<Value> execute(Database&) const override;
@@ -263,6 +264,7 @@ private:
     std::optional<OrderBy> m_order_by;
     std::optional<Top> m_top;
     std::optional<GroupBy> m_group_by;
+    std::unique_ptr<Expression> m_having;
     bool m_distinct;
 };
 

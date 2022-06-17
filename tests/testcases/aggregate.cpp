@@ -20,14 +20,22 @@ DbErrorOr<Database> setup_db() {
 DbErrorOr<void> aggregate_simple() {
     auto db = TRY(setup_db());
     TRY(expect_equal<int>(TRY(TRY(Db::Sql::run_query(db, "SELECT COUNT(id) FROM test;")).to_int()), 7, "proper row count was returned"));
-    TRY(expect_equal<int>(TRY(TRY(Db::Sql::run_query(db, "SELECT SUM(id) FROM test;")).to_int()), 28, "proper row sum was returned"));
-    TRY(expect_equal<int>(TRY(TRY(Db::Sql::run_query(db, "SELECT MIN(id) FROM test;")).to_int()), 0, "proper row min was returned"));
-    TRY(expect_equal<int>(TRY(TRY(Db::Sql::run_query(db, "SELECT MAX(id) FROM test;")).to_int()), 7, "proper row max was returned"));
-    TRY(expect_equal<int>(TRY(TRY(Db::Sql::run_query(db, "SELECT AVG(id) FROM test;")).to_int()), 3, "proper row avg was returned"));
+    TRY(expect_equal<float>(TRY(TRY(Db::Sql::run_query(db, "SELECT SUM(id) FROM test;")).to_float()), 28, "proper row sum was returned"));
+    TRY(expect_equal<float>(TRY(TRY(Db::Sql::run_query(db, "SELECT MIN(id) FROM test;")).to_float()), 0, "proper row min was returned"));
+    TRY(expect_equal<float>(TRY(TRY(Db::Sql::run_query(db, "SELECT MAX(id) FROM test;")).to_float()), 7, "proper row max was returned"));
+    TRY(expect_equal<float>(TRY(TRY(Db::Sql::run_query(db, "SELECT AVG(id) FROM test;")).to_float()), 3.5, "proper row avg was returned"));
     return {};
 }
 
 DbErrorOr<void> aggregate_count_with_group_by() {
+    auto db = TRY(setup_db());
+    auto result = TRY(TRY(Db::Sql::run_query(db, "SELECT [group], COUNT(id) AS [COUNTED], LEN([group]) AS [len] FROM test GROUP BY [group];")).to_select_result());
+    result.dump(std::cout);
+    TRY(expect_equal<size_t>(result.rows().size(), 3, "Proper row count"));
+    return {};
+}
+
+DbErrorOr<void> aggregate_count_with_group_by_and_order_by() {
     auto db = TRY(setup_db());
     auto result = TRY(TRY(Db::Sql::run_query(db, "SELECT [group], COUNT(id) AS [COUNTED], LEN([group]) AS [len] FROM test GROUP BY [group];")).to_select_result());
     result.dump(std::cout);
@@ -43,6 +51,14 @@ DbErrorOr<void> aggregate_count_with_where_and_group_by() {
     return {};
 }
 
+DbErrorOr<void> aggregate_count_with_having_and_group_by() {
+    auto db = TRY(setup_db());
+    auto result = TRY(TRY(Db::Sql::run_query(db, "SELECT [group], COUNT(id) AS [COUNTED], LEN([group]) AS [len] FROM test GROUP BY [group] HAVING COUNT(id) = 2;")).to_select_result());
+    result.dump(std::cout);
+    TRY(expect_equal<size_t>(result.rows().size(), 2, "Proper row count"));
+    return {};
+}
+
 DbErrorOr<void> aggregate_error_not_all_columns_aggregate() {
     auto db = TRY(setup_db());
     TRY(expect_error(Db::Sql::run_query(db, "SELECT COUNT(id), id FROM test;"), "All columns must be either aggregate or non-aggregate"));
@@ -55,5 +71,6 @@ std::map<std::string, TestFunc*> get_tests() {
         { "aggregate_error_not_all_columns_aggregate", aggregate_error_not_all_columns_aggregate },
         { "aggregate_count_with_group_by", aggregate_count_with_group_by },
         { "aggregate_count_with_where_and_group_by", aggregate_count_with_where_and_group_by },
+        { "aggregate_count_with_having_and_group_by", aggregate_count_with_having_and_group_by },
     };
 }

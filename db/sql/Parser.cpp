@@ -144,6 +144,38 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Select>> Parser::parse_select() {
         // std::cout << "~~~ " << m_tokens[m_offset].value << std::endl;
     }
 
+    // GROUP BY
+    std::optional<Core::AST::GroupBy> group;
+    if (m_tokens[m_offset].type == Token::Type::KeywordGroup) {
+        m_offset++;
+        if (m_tokens[m_offset++].type != Token::Type::KeywordBy)
+            return Core::DbError { "Expected 'BY' after 'GROUP'", m_offset - 1 };
+
+        Core::AST::GroupBy group_by;
+
+        while (true) {
+            auto expression = TRY(parse_expression());
+
+            group_by.columns.push_back(expression->to_string());
+
+            auto comma = m_tokens[m_offset];
+            if (comma.type != Token::Type::Comma)
+                break;
+            m_offset++;
+        }
+
+        group = group_by;
+    }
+
+    // HAVING
+    std::unique_ptr<Core::AST::Expression> having;
+    if (m_tokens[m_offset].type == Token::Type::KeywordWhere) {
+        m_offset++;
+        having = TRY(parse_expression());
+        // std::cout << "WHERE " << where->to_string() << std::endl;
+        // std::cout << "~~~ " << m_tokens[m_offset].value << std::endl;
+    }
+
     // ORDER BY
     std::optional<Core::AST::OrderBy> order;
     if (m_tokens[m_offset].type == Token::Type::KeywordOrder) {
@@ -176,27 +208,6 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Select>> Parser::parse_select() {
 
         order = order_by;
     }
-    std::optional<Core::AST::GroupBy> group;
-    if (m_tokens[m_offset].type == Token::Type::KeywordGroup) {
-        m_offset++;
-        if (m_tokens[m_offset++].type != Token::Type::KeywordBy)
-            return Core::DbError { "Expected 'BY' after 'GROUP'", m_offset - 1 };
-
-        Core::AST::GroupBy group_by;
-
-        while (true) {
-            auto expression = TRY(parse_expression());
-
-            group_by.columns.push_back(expression->to_string());
-
-            auto comma = m_tokens[m_offset];
-            if (comma.type != Token::Type::Comma)
-                break;
-            m_offset++;
-        }
-
-        group = group_by;
-    }
 
     return std::make_unique<Core::AST::Select>(start, Core::AST::SelectColumns { std::move(columns) },
         from_token.value,
@@ -204,6 +215,7 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Select>> Parser::parse_select() {
         std::move(order),
         std::move(top),
         std::move(group),
+        std::move(having),
         distinct);
 }
 
