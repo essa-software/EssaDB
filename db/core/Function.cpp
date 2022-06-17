@@ -430,6 +430,7 @@ DbErrorOr<Value> AggregateFunction::aggregate(EvaluationContext& context, std::v
     auto column = context.table.get_column(m_column);
     if (!column)
         return DbError { "Invalid column '" + m_column + "' used in aggregate function", start() };
+        
     switch (m_function) {
     case Function::Count: {
         int count = 0;

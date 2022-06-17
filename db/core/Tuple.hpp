@@ -12,7 +12,7 @@ namespace Db::Core {
 class Tuple {
 public:
     Tuple(std::span<Value> values)
-        : m_values(values.size()) {
+        : control_number(counter++), m_values(values.size()) {
         std::copy(values.begin(), values.end(), m_values.begin());
     }
 
@@ -34,6 +34,8 @@ public:
     auto end() const { return m_values.end(); }
 
     void clear_row(){m_values.clear();}
+    static size_t counter;
+    size_t control_number;
 
 private:
     std::vector<Value> m_values;
@@ -45,6 +47,10 @@ inline bool operator==(Tuple const& lhs, Tuple const& rhs){
             return false;
     }
     return true;
+}
+
+inline bool operator<(Tuple const& lhs, Tuple const& rhs){
+    return lhs.control_number < rhs.control_number;
 }
 
 }

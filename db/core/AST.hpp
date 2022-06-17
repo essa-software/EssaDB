@@ -15,6 +15,7 @@
 #include <sstream>
 #include <string>
 #include <vector>
+#include <map>
 
 namespace Db::Core {
 class Database;
@@ -212,6 +213,15 @@ struct OrderBy {
 
 struct GroupBy{
     std::vector<std::string> columns;
+
+    bool is_valid(std::string const& rhs)const{
+        bool result = 0;
+        for(const auto& lhs : columns){
+            result |= (lhs == rhs);
+        }
+
+        return result;
+    }
 };
 
 struct Top {

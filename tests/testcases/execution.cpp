@@ -75,7 +75,6 @@ DbErrorOr<void> select_top_perc() {
 DbErrorOr<void> select_distinct() {
     auto db = TRY(setup_db());
     auto result = TRY(TRY(Db::Sql::run_query(db, "SELECT DISTINCT * FROM test;")).to_select_result());
-    result.dump(std::cout);
     TRY(expect_equal<size_t>(result.rows().size(), 6, "select result is truncated to specified value"));
     return {};
 }

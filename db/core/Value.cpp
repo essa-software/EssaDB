@@ -9,6 +9,8 @@
 
 namespace Db::Core {
 
+size_t Tuple::counter = 0;
+
 Value::Type find_type(const std::string& str) {
     if (str == "null")
         return Value::Type::Null;

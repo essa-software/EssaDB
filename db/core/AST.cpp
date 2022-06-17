@@ -8,6 +8,7 @@
 
 #include <db/util/Is.hpp>
 #include <iostream>
+#include <span>
 #include <string>
 #include <unordered_set>
 #include <utility>
@@ -147,51 +148,90 @@ DbErrorOr<Value> Select::execute(Database& db) const {
 
     std::vector<Tuple> rows;
 
-    if(m_group_by){
+    for (auto const& row : table->rows()) {
+        // WHERE
+        if (!TRY(should_include_row(row)))
+            continue;
 
-    }else{
-        for (auto const& row : table->rows()) {
-            // WHERE
-            if (!TRY(should_include_row(row)))
-                continue;
-
-            // TODO: HAVING
-
-            // SELECT
-            std::vector<Value> values;
-            if (m_columns.select_all()) {
-                for (auto const& column : table->columns()) {
-                    auto table_column = table->get_column(column.name());
-                    if (!table_column)
-                        return DbError { "Internal error: invalid column requested for *: '" + column.name() + "'", start() + 1 };
-                    values.push_back(row.value(table_column->second));
-                }
+        // SELECT
+        std::vector<Value> values;
+        if (m_columns.select_all()) {
+            for (auto const& column : table->columns()) {
+                auto table_column = table->get_column(column.name());
+                if (!table_column)
+                    return DbError { "Internal error: invalid column requested for *: '" + column.name() + "'", start() + 1 };
+                values.push_back(row.value(table_column->second));
             }
-            else {
-                for (auto const& column : m_columns.columns()) {
-                    values.push_back(TRY(column.column->evaluate(context, row)));
-                }
-            }
-            rows.push_back(Tuple { values });
         }
+        else {
+            for (auto const& column : m_columns.columns()) {
+                values.push_back(TRY(column.column->evaluate(context, row)));
+            }
+        }
+        rows.push_back(Tuple { values });
     }
 
-    // Aggregation + TODO: GROUP BY
+    // Aggregation + GROUP BY
     {
         auto old_rows = std::move(rows);
         bool contains_non_aggregate = false;
         bool contains_aggregate = false;
 
-        std::vector<Value> aggregate_values;
+        std::map<Tuple, std::vector<Tuple>> groups;
+        std::map<std::string, size_t> column_id;
 
-        for (auto& it : m_columns.columns()) {
-            if (Util::is<AggregateFunction>(*it.column)) {
-                contains_aggregate |= true;
-                aggregate_values.push_back(TRY(static_cast<AggregateFunction&>(*it.column).aggregate(context, old_rows)));
+        for(const auto& row : table->rows()){
+            std::vector<Value> values;
+
+            if(m_group_by){
+                size_t i = 0;
+                for(const auto& column_name : m_group_by->columns){
+                    auto column = table->get_column(column_name);
+                    if (!column)
+                        return DbError { "Internal error: invalid column requested for *: '" + column_name + "'", start() + 1 };
+                    values.push_back(row.value(column->second));
+                    column_id.insert({column_name, i});
+                    i++;
+                }
             }
-            else {
-                contains_non_aggregate |= true;
+
+            Tuple key(std::span(values.data(), values.size()));
+            auto it = groups.begin();
+
+            for(it = groups.begin(); it != groups.end(); it++){
+                if(it->first == key){
+                    it->second.push_back(row);
+                    break;
+                }
             }
+
+            if(it == groups.end()){
+                groups.insert({key, std::vector<Tuple>(1, row)});
+            }
+        }
+        std::vector<Tuple> aggregate_rows;
+
+        for(const auto& group : groups){
+            std::vector<Value> aggregate_values;
+
+            for (auto& it : m_columns.columns()) {
+                if (Util::is<AggregateFunction>(*it.column)) {
+                    contains_aggregate |= true;
+                    // std::cout << group.first.control_number << "\n";
+                    aggregate_values.push_back(TRY(static_cast<AggregateFunction&>(*it.column).aggregate(context, group.second)));
+                }else if(m_group_by && column_id.find(it.column->to_string()) != column_id.end()){
+                    contains_aggregate |= true;
+
+                    auto col = column_id.find(it.column->to_string());
+
+                    aggregate_values.push_back(group.first.value(col->second));
+                }
+                else {
+                    contains_non_aggregate |= true;
+                }
+            }
+
+            aggregate_rows.push_back(Tuple(std::span(aggregate_values.data(), aggregate_values.size())));
         }
         if (contains_aggregate && contains_non_aggregate) {
             // TODO: Handle GROUP BY here
@@ -199,7 +239,7 @@ DbErrorOr<Value> Select::execute(Database& db) const {
         }
 
         if (contains_aggregate)
-            rows = { Tuple { aggregate_values } };
+            rows = std::move(aggregate_rows);
         else
             rows = std::move(old_rows);
     }
