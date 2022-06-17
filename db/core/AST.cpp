@@ -5,6 +5,7 @@
 #include "Function.hpp"
 #include "Tuple.hpp"
 #include "Value.hpp"
+#include "db/core/RowWithColumnNames.hpp"
 
 #include <db/util/Is.hpp>
 #include <iostream>
@@ -178,20 +179,17 @@ DbErrorOr<Value> Select::execute(Database& db) const {
         bool contains_aggregate = false;
 
         std::map<Tuple, std::vector<Tuple>> groups;
-        std::map<std::string, size_t> column_id;
+        Table aggregate_table;
 
         for(const auto& row : table->rows()){
             std::vector<Value> values;
 
             if(m_group_by){
-                size_t i = 0;
                 for(const auto& column_name : m_group_by->columns){
                     auto column = table->get_column(column_name);
                     if (!column)
                         return DbError { "Internal error: invalid column requested for *: '" + column_name + "'", start() + 1 };
                     values.push_back(row.value(column->second));
-                    column_id.insert({column_name, i});
-                    i++;
                 }
             }
 
@@ -209,7 +207,26 @@ DbErrorOr<Value> Select::execute(Database& db) const {
                 groups.insert({key, std::vector<Tuple>(1, row)});
             }
         }
+
+        if(m_group_by){
+            for(const auto& column_name : m_group_by->columns){
+                auto column = table->get_column(column_name);
+                if (!column)
+                    return DbError { "Internal error: invalid column requested for *: '" + column_name + "'", start() + 1 };
+                TRY(aggregate_table.add_column(column->first));
+            }
+
+            RowWithColumnNames::MapType map;
+            for(const auto& group : groups){
+                for(size_t i = 0; i < m_group_by->columns.size(); i++){
+                    map.insert({m_group_by->columns[i], group.first.value(i)});
+                }
+                TRY(aggregate_table.insert(std::move(map)));
+            }
+        }
+
         std::vector<Tuple> aggregate_rows;
+        EvaluationContext aggregate_context { .table = aggregate_table };
 
         for(const auto& group : groups){
             std::vector<Value> aggregate_values;
@@ -219,12 +236,10 @@ DbErrorOr<Value> Select::execute(Database& db) const {
                     contains_aggregate |= true;
                     // std::cout << group.first.control_number << "\n";
                     aggregate_values.push_back(TRY(static_cast<AggregateFunction&>(*it.column).aggregate(context, group.second)));
-                }else if(m_group_by && column_id.find(it.column->to_string()) != column_id.end()){
+                }else if(m_group_by){
                     contains_aggregate |= true;
 
-                    auto col = column_id.find(it.column->to_string());
-
-                    aggregate_values.push_back(group.first.value(col->second));
+                    aggregate_values.push_back(TRY(it.column->evaluate(aggregate_context, group.first)));
                 }
                 else {
                     contains_non_aggregate |= true;

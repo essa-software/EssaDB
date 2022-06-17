@@ -6,13 +6,13 @@ using namespace Db::Core;
 DbErrorOr<Database> setup_db() {
     Database db;
     TRY(Db::Sql::run_query(db, "CREATE TABLE test (id INT, [group] VARCHAR);"));
-    TRY(Db::Sql::run_query(db, "INSERT INTO test (id, [group]) VALUES(1, 'A');"));
+    TRY(Db::Sql::run_query(db, "INSERT INTO test (id, [group]) VALUES(1, 'AA');"));
     TRY(Db::Sql::run_query(db, "INSERT INTO test (id, [group]) VALUES(2, 'C');"));
     TRY(Db::Sql::run_query(db, "INSERT INTO test (id, [group]) VALUES(3, 'B');"));
     TRY(Db::Sql::run_query(db, "INSERT INTO test (id, [group]) VALUES(4, 'C');"));
-    TRY(Db::Sql::run_query(db, "INSERT INTO test (id, [group]) VALUES(null, 'A');"));
+    TRY(Db::Sql::run_query(db, "INSERT INTO test (id, [group]) VALUES(null, 'AA');"));
     TRY(Db::Sql::run_query(db, "INSERT INTO test (id, [group]) VALUES(5, 'C');"));
-    TRY(Db::Sql::run_query(db, "INSERT INTO test (id, [group]) VALUES(6, 'A');"));
+    TRY(Db::Sql::run_query(db, "INSERT INTO test (id, [group]) VALUES(6, 'AA');"));
     TRY(Db::Sql::run_query(db, "INSERT INTO test (id, [group]) VALUES(7, 'B');"));
     return db;
 }
@@ -31,7 +31,7 @@ DbErrorOr<void> aggregate_simple() {
 
 DbErrorOr<void> aggregate_count_with_group_by() {
     auto db = TRY(setup_db());
-    auto result = TRY(TRY(Db::Sql::run_query(db, "SELECT [group], COUNT(id) AS [COUNTED] FROM test GROUP BY [group];")).to_select_result());
+    auto result = TRY(TRY(Db::Sql::run_query(db, "SELECT [group], COUNT(id) AS [COUNTED], LEN([group]) AS [len] FROM test GROUP BY [group];")).to_select_result());
     result.dump(std::cout);
     TRY(expect_equal<size_t>(result.rows().size(), 3, "select result is truncated to specified value"));
     // TRY(TRY(Db::Sql::run_query(db, "SELECT SUM(id) FROM test GROUP BY [group];")).to_int());
