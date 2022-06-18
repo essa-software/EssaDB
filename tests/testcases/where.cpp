@@ -101,6 +101,13 @@ DbErrorOr<void> select_where_like_with_specified_char() {
     return {};
 }
 
+DbErrorOr<void> select_where_like_with_negated_specified_char() {
+    auto db = TRY(setup_db());
+    auto result = TRY(TRY(Db::Sql::run_query(db, "SELECT * FROM test WHERE string LIKE 'test[!1]';")).to_select_result());
+    TRY(expect_equal<size_t>(result.rows().size(), 1, "1 row returned"));
+    return {};
+}
+
 DbErrorOr<void> select_where_like_with_specified_char_range() {
     auto db = TRY(setup_db());
     auto result = TRY(TRY(Db::Sql::run_query(db, "SELECT * FROM test WHERE string LIKE 'test[1-2]';")).to_select_result());
@@ -166,6 +173,7 @@ std::map<std::string, TestFunc*> get_tests() {
         { "select_where_like_with_asterisk_in_between", select_where_like_with_asterisk_in_between },
         { "select_where_like_with_hash_mark", select_where_like_with_hash_mark },
         { "select_where_like_with_specified_char", select_where_like_with_specified_char },
+        { "select_where_like_with_negated_specified_char", select_where_like_with_negated_specified_char },
         { "select_where_like_with_specified_char_range", select_where_like_with_specified_char_range },
         { "select_where_like_with_suffix_asterisk_and_in_statement", select_where_like_with_suffix_asterisk_and_in_statement },
         // { "select_where_is_null", select_where_is_null },

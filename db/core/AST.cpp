@@ -26,6 +26,7 @@ DbErrorOr<Value> Identifier::evaluate(EvaluationContext& context, Tuple const& r
     return row.value(column->second);
 }
 
+// FIXME: char ranges doesn't work in row 
 static DbErrorOr<bool> wildcard_parser(std::string const& lhs, std::string const& rhs){
     auto is_string_valid = [](std::string const& lhs, std::string const& rhs){
         size_t len = 0;
@@ -40,7 +41,16 @@ static DbErrorOr<bool> wildcard_parser(std::string const& lhs, std::string const
                 if(!isdigit(*left_it) || lhs.size() < len)
                     return false;
             }else if(*right_it == '['){
+                if(lhs.size() < len)
+                    return false;
+
                 right_it++;
+                bool negate = 0;
+                if(*right_it == '!'){
+                    negate = 1;
+                    right_it++;
+                }
+
                 std::vector<char> allowed_chars;
 
                 for(auto it = right_it; *it != ']'; it++){
@@ -49,8 +59,9 @@ static DbErrorOr<bool> wildcard_parser(std::string const& lhs, std::string const
                 }
                 right_it++;
 
-                if(allowed_chars.size() == 3 && allowed_chars[1] == '-'){
-                    if(!(allowed_chars[0] >= *left_it && *left_it <= allowed_chars[2]))
+                if(allowed_chars.size() == 3 + negate && allowed_chars[1 + negate] == '-'){
+                    bool in_range = (allowed_chars[0 + negate] <= *left_it && *left_it <= allowed_chars[2 + negate]);
+                    if(negate ? in_range : !in_range)
                         return false;
                 }else {
                     bool exists = 0;
@@ -58,7 +69,7 @@ static DbErrorOr<bool> wildcard_parser(std::string const& lhs, std::string const
                         exists |= (c == *left_it);
                     }
 
-                    if(!exists)
+                    if(negate ? exists : !exists)
                         return false;
                 }
             }else if(*right_it != *left_it){
