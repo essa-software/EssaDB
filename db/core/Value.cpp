@@ -321,4 +321,104 @@ DbErrorOr<Value> operator/(Value const& lhs, Value const& rhs){
     }
 }
 
+DbErrorOr<bool> operator<(Value const& lhs, Value const& rhs){
+    switch (lhs.type()) {
+        case Value::Type::Bool:
+            return TRY(lhs.to_bool()) < TRY(rhs.to_bool());
+        case Value::Type::Int:
+            return TRY(lhs.to_int()) < TRY(rhs.to_int());
+        case Value::Type::Float:
+            return TRY(lhs.to_float()) < TRY(rhs.to_float());
+        case Value::Type::Null:
+            return TRY(lhs.to_int()) < TRY(rhs.to_int());
+        case Value::Type::Varchar:
+            return TRY(lhs.to_string()) < TRY(rhs.to_string());
+        case Value::Type::Time:{
+            return TRY(lhs.to_int()) < TRY(rhs.to_int());
+        }
+        case Value::Type::SelectResult:
+            return DbError {"No matching operator '<' for 'SelectResult' type.", 0};
+    }
+}
+
+DbErrorOr<bool> operator<=(Value const& lhs, Value const& rhs){
+    switch (lhs.type()) {
+        case Value::Type::Bool:
+            return TRY(lhs.to_bool()) <= TRY(rhs.to_bool());
+        case Value::Type::Int:
+            return TRY(lhs.to_int()) <= TRY(rhs.to_int());
+        case Value::Type::Float:
+            return TRY(lhs.to_float()) <= TRY(rhs.to_float());
+        case Value::Type::Null:
+            return TRY(lhs.to_int()) <= TRY(rhs.to_int());
+        case Value::Type::Varchar:
+            return TRY(lhs.to_string()) <= TRY(rhs.to_string());
+        case Value::Type::Time:{
+            return TRY(lhs.to_int()) <= TRY(rhs.to_int());
+        }
+        case Value::Type::SelectResult:
+            return DbError {"No matching operator '<=' for 'SelectResult' type.", 0};
+    }
+}
+
+DbErrorOr<bool> operator==(Value const& lhs, Value const& rhs){
+    switch (lhs.type()) {
+        case Value::Type::Bool:
+            return TRY(lhs.to_bool()) == TRY(rhs.to_bool());
+        case Value::Type::Int:
+            return TRY(lhs.to_int()) == TRY(rhs.to_int());
+        case Value::Type::Float:
+            return TRY(lhs.to_float()) == TRY(rhs.to_float());
+        case Value::Type::Null:
+            return TRY(lhs.to_int()) == TRY(rhs.to_int());
+        case Value::Type::Varchar:
+            return TRY(lhs.to_string()) == TRY(rhs.to_string());
+        case Value::Type::Time:{
+            return TRY(lhs.to_int()) == TRY(rhs.to_int());
+        }
+        case Value::Type::SelectResult:
+            return DbError {"No matching operator '==' for 'SelectResult' type.", 0};
+    }
+}
+
+DbErrorOr<bool> operator>=(Value const& lhs, Value const& rhs){
+    switch (lhs.type()) {
+        case Value::Type::Bool:
+            return TRY(lhs.to_bool()) >= TRY(rhs.to_bool());
+        case Value::Type::Int:
+            return TRY(lhs.to_int()) >= TRY(rhs.to_int());
+        case Value::Type::Float:
+            return TRY(lhs.to_float()) >= TRY(rhs.to_float());
+        case Value::Type::Null:
+            return TRY(lhs.to_int()) >= TRY(rhs.to_int());
+        case Value::Type::Varchar:
+            return TRY(lhs.to_string()) >= TRY(rhs.to_string());
+        case Value::Type::Time:{
+            return TRY(lhs.to_int()) >= TRY(rhs.to_int());
+        }
+        case Value::Type::SelectResult:
+            return DbError {"No matching operator '>=' for 'SelectResult' type.", 0};
+    }
+}
+
+DbErrorOr<bool> operator>(Value const& lhs, Value const& rhs){
+    switch (lhs.type()) {
+        case Value::Type::Bool:
+            return TRY(lhs.to_bool()) > TRY(rhs.to_bool());
+        case Value::Type::Int:
+            return TRY(lhs.to_int()) > TRY(rhs.to_int());
+        case Value::Type::Float:
+            return TRY(lhs.to_float()) > TRY(rhs.to_float());
+        case Value::Type::Null:
+            return TRY(lhs.to_int()) > TRY(rhs.to_int());
+        case Value::Type::Varchar:
+            return TRY(lhs.to_string()) > TRY(rhs.to_string());
+        case Value::Type::Time:{
+            return TRY(lhs.to_int()) > TRY(rhs.to_int());
+        }
+        case Value::Type::SelectResult:
+            return DbError {"No matching operator '>' for 'SelectResult' type.", 0};
+    }
+}
+
 }

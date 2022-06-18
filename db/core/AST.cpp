@@ -329,15 +329,16 @@ DbErrorOr<Value> Select::execute(Database& db) const {
             for (const auto& column : m_order_by->columns) {
                 auto order_by_column = table->get_column(column.name)->second;
 
-                auto lhs_value = lhs.value(order_by_column).to_string();
-                auto rhs_value = rhs.value(order_by_column).to_string();
-                if (lhs_value.is_error() || rhs_value.is_error()) {
-                    // TODO: Actually handle error
+                auto lhs_value = lhs.value(order_by_column);
+                auto rhs_value = rhs.value(order_by_column);
+
+                auto result = lhs_value < rhs_value;
+
+                if(result.is_error()){
                     return false;
                 }
 
-                if (lhs_value.value() != rhs_value.value())
-                    return (lhs_value.release_value() < rhs_value.release_value()) == (column.order == OrderBy::Order::Ascending);
+                return result.release_value() == (column.order == OrderBy::Order::Ascending);
             }
 
             return false;

@@ -27,7 +27,6 @@ DbErrorOr<Database> setup_db() {
 DbErrorOr<void> select_simple() {
     auto db = TRY(setup_db());
     auto result = TRY(TRY(Db::Sql::run_query(db, "SELECT * FROM test;")).to_select_result());
-    result.dump(std::cout);
     TRY(expect(result.column_names() == std::vector<std::string> { "id", "number", "string", "integer", "date" }, "columns have proper names"));
     TRY(expect(result.rows().size() == 7, "all rows were returned"));
     TRY(expect(result.rows()[0].value_count() == 5, "rows have proper column count"));
@@ -45,7 +44,6 @@ DbErrorOr<void> select_columns() {
 DbErrorOr<void> select_order_by() {
     auto db = TRY(setup_db());
     auto result = TRY(TRY(Db::Sql::run_query(db, "SELECT id AS [ID], number AS [NUMBER], string AS [STRING] FROM test ORDER BY string, number DESC;")).to_select_result());
-
     TRY(expect(TRY(result.rows()[1].value(1).to_string()) < TRY(result.rows()[5].value(1).to_string()), "values are sorted;"));
     return {};
 }
@@ -53,8 +51,7 @@ DbErrorOr<void> select_order_by() {
 DbErrorOr<void> select_order_by_desc() {
     auto db = TRY(setup_db());
     auto result = TRY(TRY(Db::Sql::run_query(db, "SELECT id AS [ID], number AS [NUMBER], string AS [STRING] FROM test ORDER BY number DESC;")).to_select_result());
-
-    TRY(expect(TRY(result.rows()[1].value(1).to_string()) > TRY(result.rows()[5].value(1).to_string()), "values are sorted"));
+    TRY(expect(TRY(result.rows()[1].value(1).to_int()) > TRY(result.rows()[5].value(1).to_int()), "values are sorted"));
     return {};
 }
 
@@ -99,7 +96,6 @@ DbErrorOr<void> select_aliases_with_square_brackets() {
 DbErrorOr<void> select_case() {
     auto db = TRY(setup_db());
     auto result = TRY(TRY(Db::Sql::run_query(db, "SELECT id AS [ID], CASE WHEN id < 2 THEN 'less than 2' WHEN id < 4 THEN 'less than 4' ELSE 'other cases' END AS [CASE RESULT] FROM test;")).to_select_result());
-    result.dump(std::cout);
     // TRY(expect(result.column_names()[0] == "id", "square brackets are parsed properly"));
     return {};
 }

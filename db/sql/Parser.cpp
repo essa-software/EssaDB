@@ -502,8 +502,6 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Expression>> Parser::parse_expression
             }else if(postfix.value == "ELSE"){
                 m_offset++;
 
-                std::cout << m_tokens[m_offset].value << "\n";
-
                 if(else_value)
                     return Core::DbError { "Expected 'END' after 'ELSE', got '" + token.value + "'", start };
                 
@@ -516,7 +514,6 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Expression>> Parser::parse_expression
             }else{
                 return Core::DbError { "Expected 'WHEN', 'ELSE' or 'END', got '" + token.value + "'", start };
             }
-            std::cout << postfix.value << " " << m_tokens[m_offset].value << " " << cases.size() << "\n";
         }
     }
     else if(is_literal(token.type)){
