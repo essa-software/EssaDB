@@ -22,10 +22,10 @@ void SelectResult::dump(std::ostream& out) const {
     std::vector<int> widths;
     unsigned long index = 0;
 
-    for (auto& column : column_names()) {
+    for (auto const& column : column_names()) {
         unsigned long max_width = column.size();
 
-        for (auto row : m_rows) {
+        for (auto const& row : m_rows) {
             max_width = std::max(max_width, row.value(index).to_string().value().size());
         }
         index++;
@@ -35,10 +35,10 @@ void SelectResult::dump(std::ostream& out) const {
     }
     out << "|" << std::endl;
 
-    for (auto row : m_rows) {
+    for (auto const& row : m_rows) {
         index = 0;
-        for (auto value : row) {
-            out << "| " << std::setw(widths[index]) << value;
+        for (auto const& value : row) {
+            out << "| " << std::setw(index < widths.size() ? widths[index] : 0) << value;
             out << " ";
             index++;
         }
