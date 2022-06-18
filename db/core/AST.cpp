@@ -26,53 +26,57 @@ DbErrorOr<Value> Identifier::evaluate(EvaluationContext& context, Tuple const& r
     return row.value(column->second);
 }
 
-// FIXME: char ranges doesn't work in row 
-static DbErrorOr<bool> wildcard_parser(std::string const& lhs, std::string const& rhs){
-    auto is_string_valid = [](std::string const& lhs, std::string const& rhs){
+// FIXME: char ranges doesn't work in row
+static DbErrorOr<bool> wildcard_parser(std::string const& lhs, std::string const& rhs) {
+    auto is_string_valid = [](std::string const& lhs, std::string const& rhs) {
         size_t len = 0;
 
-        for(auto left_it = lhs.begin(), right_it = rhs.begin(); left_it < lhs.end() || right_it < rhs.end(); left_it++, right_it++){
+        for (auto left_it = lhs.begin(), right_it = rhs.begin(); left_it < lhs.end() || right_it < rhs.end(); left_it++, right_it++) {
             len++;
-            if(*right_it == '?'){
-                if(lhs.size() < len)
+            if (*right_it == '?') {
+                if (lhs.size() < len)
                     return false;
                 continue;
-            }else if(*right_it == '#'){
-                if(!isdigit(*left_it) || lhs.size() < len)
+            }
+            else if (*right_it == '#') {
+                if (!isdigit(*left_it) || lhs.size() < len)
                     return false;
-            }else if(*right_it == '['){
-                if(lhs.size() < len)
+            }
+            else if (*right_it == '[') {
+                if (lhs.size() < len)
                     return false;
 
                 right_it++;
                 bool negate = 0;
-                if(*right_it == '!'){
+                if (*right_it == '!') {
                     negate = 1;
                     right_it++;
                 }
 
                 std::vector<char> allowed_chars;
 
-                for(auto it = right_it; *it != ']'; it++){
+                for (auto it = right_it; *it != ']'; it++) {
                     allowed_chars.push_back(*it);
                     right_it++;
                 }
                 right_it++;
 
-                if(allowed_chars.size() == 3 && allowed_chars[1] == '-'){
+                if (allowed_chars.size() == 3 && allowed_chars[1] == '-') {
                     bool in_range = (allowed_chars[0] <= *left_it && *left_it <= allowed_chars[2]);
-                    if(negate ? in_range : !in_range)
+                    if (negate ? in_range : !in_range)
                         return false;
-                }else {
+                }
+                else {
                     bool exists = 0;
-                    for(const auto& c : allowed_chars){
+                    for (const auto& c : allowed_chars) {
                         exists |= (c == *left_it);
                     }
 
-                    if(negate ? exists : !exists)
+                    if (negate ? exists : !exists)
                         return false;
                 }
-            }else if(*right_it != *left_it){
+            }
+            else if (*right_it != *left_it) {
                 return false;
             }
         }
@@ -83,38 +87,38 @@ static DbErrorOr<bool> wildcard_parser(std::string const& lhs, std::string const
     bool result = 0;
     auto left_it = lhs.begin(), right_it = rhs.begin();
 
-    for(left_it = lhs.begin(), right_it = rhs.begin(); left_it < lhs.end(); left_it++){
+    for (left_it = lhs.begin(), right_it = rhs.begin(); left_it < lhs.end(); left_it++) {
         size_t dist_to_next_asterisk = 0, substr_len = 0;
         bool brackets = false;
-        if(*right_it == '*')
+        if (*right_it == '*')
             right_it++;
-        
-        for(auto it = right_it; it < rhs.end() && *it != '*'; it++){
+
+        for (auto it = right_it; it < rhs.end() && *it != '*'; it++) {
             dist_to_next_asterisk++;
 
-            if(brackets && *it != ']')
+            if (brackets && *it != ']')
                 continue;
-            
+
             substr_len++;
-            
-            if(*it == '[')
+
+            if (*it == '[')
                 brackets = true;
         }
 
         size_t lstart = static_cast<size_t>(left_it - lhs.begin());
         size_t rstart = static_cast<size_t>(right_it - rhs.begin());
-        try{
-            if(is_string_valid(lhs.substr(lstart, substr_len), rhs.substr(rstart, dist_to_next_asterisk))){
+        try {
+            if (is_string_valid(lhs.substr(lstart, substr_len), rhs.substr(rstart, dist_to_next_asterisk))) {
                 left_it += substr_len;
                 right_it += dist_to_next_asterisk;
 
                 result = 1;
             }
-        }catch(...){
+        } catch (...) {
             return false;
         }
     }
-    if(right_it != rhs.end() && rhs.back() != '*')
+    if (right_it != rhs.end() && rhs.back() != '*')
         return false;
     return result;
 }
@@ -149,23 +153,21 @@ DbErrorOr<bool> BinaryOperator::is_true(EvaluationContext& context, Tuple const&
     __builtin_unreachable();
 }
 
-
-
 DbErrorOr<Value> ArithmeticOperator::evaluate(EvaluationContext& context, Tuple const& row) const {
     auto lhs = TRY(m_lhs->evaluate(context, row));
     auto rhs = TRY(m_rhs->evaluate(context, row));
 
     switch (m_operation) {
-        case Operation::Add:
-            return lhs + rhs;
-        case Operation::Sub:
-            return lhs - rhs;
-        case Operation::Mul:
-            return lhs * rhs;
-        case Operation::Div:
-            return lhs / rhs;
-        case Operation::Invalid:
-            break;
+    case Operation::Add:
+        return lhs + rhs;
+    case Operation::Sub:
+        return lhs - rhs;
+    case Operation::Mul:
+        return lhs * rhs;
+    case Operation::Div:
+        return lhs / rhs;
+    case Operation::Invalid:
+        break;
     }
     __builtin_unreachable();
 }
@@ -181,22 +183,22 @@ DbErrorOr<Value> BetweenExpression::evaluate(EvaluationContext& context, Tuple c
 DbErrorOr<Value> InExpression::evaluate(EvaluationContext& context, Tuple const& row) const {
     // TODO: Implement this for strings etc
     auto value = TRY(TRY(m_lhs->evaluate(context, row)).to_string());
-    for(const auto& arg : m_args){
+    for (const auto& arg : m_args) {
         auto to_compare = TRY(TRY(arg->evaluate(context, row)).to_string());
 
-        if(value == to_compare)
+        if (value == to_compare)
             return Value::create_bool(true);
     }
     return Value::create_bool(false);
 }
 
 DbErrorOr<Value> CaseExpression::evaluate(EvaluationContext& context, Tuple const& row) const {
-    for(const auto& case_expression : m_cases){
-        if(TRY(TRY(case_expression.expr->evaluate(context, row)).to_bool()))
+    for (const auto& case_expression : m_cases) {
+        if (TRY(TRY(case_expression.expr->evaluate(context, row)).to_bool()))
             return TRY(case_expression.value->evaluate(context, row));
     }
 
-    if(m_else_value)
+    if (m_else_value)
         return TRY(m_else_value->evaluate(context, row));
     return Value::null();
 }
@@ -210,137 +212,31 @@ DbErrorOr<Value> Select::execute(Database& db) const {
 
     auto table = TRY(db.table(m_from));
 
-    EvaluationContext context { .table = *table };
-
-    bool is_aggregate = m_group_by.has_value();
-
-    for (auto& it : m_columns.columns()) {
-        if (Util::is<AggregateFunction>(*it.column)) {
-            is_aggregate |= true;
+    SelectColumns select_all_columns;
+    SelectColumns const& columns = *([this, table, &select_all_columns]() -> SelectColumns const* {
+        if (m_columns.select_all()) {
+            std::vector<SelectColumns::Column> all_columns;
+            for (auto const& column : table->columns()) {
+                all_columns.push_back(SelectColumns::Column { .column = std::make_unique<Identifier>(start() + 1, column.name()) });
+            }
+            select_all_columns = SelectColumns { std::move(all_columns) };
+            return &select_all_columns;
         }
-        else if(!m_group_by && is_aggregate){
-            return DbError { "All columns must be either aggregate or non-aggregate", start() };
-        }
-    }
-    std::vector<Tuple> rows;
-    auto should_include_row = [&](Tuple const& row) -> DbErrorOr<bool> {
-        if (!m_where)
-            return true;
-        return TRY(m_where->evaluate(context, row)).to_bool();
-    };
+        return &m_columns;
+    })();
 
-    if(!is_aggregate){
-        for (auto const& row : table->rows()) {
-            // WHERE
-            if (!TRY(should_include_row(row)))
-                continue;
-
-            // SELECT
-            std::vector<Value> values;
-            if (m_columns.select_all()) {
-                for (auto const& column : table->columns()) {
-                    auto table_column = table->get_column(column.name());
-                    if (!table_column)
-                        return DbError { "Internal error: invalid column requested for *: '" + column.name() + "'", start() + 1 };
-                    values.push_back(row.value(table_column->second));
-                }
-            }
-            else {
-                for (auto const& column : m_columns.columns()) {
-                    values.push_back(TRY(column.column->evaluate(context, row)));
-                }
-            }
-            rows.push_back(Tuple { values });
-        }
-    }
-    else { // Aggregation + GROUP BY
-        std::map<Tuple, std::vector<Tuple>> groups;
-        std::unique_ptr<Table> aggregate_table = std::make_unique<Table>();
-        EvaluationContext aggregate_context { .table = *aggregate_table };
-
-        auto should_include_group = [&](Tuple const& row) -> DbErrorOr<bool> {
-            if (!m_having)
-                return true;
-            return TRY(m_having->evaluate(aggregate_context, row)).to_bool();
-        };
-
-        for(const auto& row : table->rows()){
-            // WHERE
-            if (!TRY(should_include_row(row)))
-                continue;
-            
-            std::vector<Value> values;
-
-            if(m_group_by){
-                for(const auto& column_name : m_group_by->columns){
-                    auto column = table->get_column(column_name);
-                    if (!column)
-                        return DbError { "Internal error: invalid column requested for *: '" + column_name + "'", start() + 1 };
-                    values.push_back(row.value(column->second));
-                }
-            }
-
-            Tuple key(std::span(values.data(), values.size()));
-            auto it = groups.begin();
-
-            for(it = groups.begin(); it != groups.end(); it++){
-                if(it->first == key){
-                    it->second.push_back(row);
-                    break;
-                }
-            }
-
-            if(it == groups.end()){
-                groups.insert({key, std::vector<Tuple>(1, row)});
-            }
-        }
-
-        if(m_group_by){
-            for(const auto& column_name : m_group_by->columns){
-                auto column = table->get_column(column_name);
-                if (!column)
-                    return DbError { "Internal error: invalid column requested for *: '" + column_name + "'", start() + 1 };
-                TRY(aggregate_table->add_column(column->first));
-            }
-
-            RowWithColumnNames::MapType map;
-            for(const auto& group : groups){
-                for(size_t i = 0; i < m_group_by->columns.size(); i++){
-                    map.insert({m_group_by->columns[i], group.first.value(i)});
-                }
-                TRY(aggregate_table->insert(std::move(map)));
-            }
-            table = aggregate_table.get();
-        }
-
-        for(const auto& group : groups){
-            // HAVING
-            if (!TRY(should_include_group(group.first)))
-                continue;
-            
-            std::vector<Value> aggregate_values;
-
-            for (auto& it : m_columns.columns()) {
-                if (Util::is<AggregateFunction>(*it.column)) {
-                    // std::cout << group.first.control_number << "\n";
-                    aggregate_values.push_back(TRY(static_cast<AggregateFunction&>(*it.column).aggregate(context, group.second)));
-                }else if(m_group_by){
-                    aggregate_values.push_back(TRY(it.column->evaluate(aggregate_context, group.first)));
-                }
-            }
-
-            rows.push_back( Tuple { aggregate_values } );
-        }
-    }
+    // SELECT etc.
+    std::vector<Tuple> rows = TRY(collect_rows(*table, columns, table->rows()));
 
     // DISTINCT
     if (m_distinct) {
         std::vector<Tuple> occurences;
 
+        // FIXME: O(n^2)
         for (const auto& row : rows) {
             bool distinct = true;
             for (const auto& to_compare : occurences) {
-                if (row == to_compare) {
+                if (TRY(row == to_compare)) {
                     distinct = false;
                     break;
                 }
@@ -372,7 +268,7 @@ DbErrorOr<Value> Select::execute(Database& db) const {
 
                 auto result = lhs_value < rhs_value;
 
-                if(result.is_error()){
+                if (result.is_error()) {
                     return false;
                 }
 
@@ -394,53 +290,160 @@ DbErrorOr<Value> Select::execute(Database& db) const {
     }
 
     std::vector<std::string> column_names;
-    if (m_columns.select_all()) {
-        for (auto const& column : table->columns())
-            column_names.push_back(column.name());
+    for (auto const& column : columns.columns()) {
+        if (column.alias)
+            column_names.push_back(*column.alias);
+        else
+            column_names.push_back(column.column->to_string());
+    }
+
+    SelectResult result { column_names, std::move(rows) };
+
+    if (m_select_into) {
+        // TODO: Insert, not overwrite records
+        if (db.exists(*m_select_into))
+            TRY(db.drop_table(*m_select_into));
+        db.create_table_from_query(std::move(result), *m_select_into);
+    }
+    return Value::create_select_result(std::move(result));
+}
+
+DbErrorOr<std::vector<Tuple>> Select::collect_rows(Table const& table, SelectColumns const& columns, std::vector<Tuple> const& input_rows) const {
+    EvaluationContext context_for_nonaggregated_rows { .table = table, .row_group = nullptr };
+
+    auto should_include_row = [&](Tuple const& row) -> DbErrorOr<bool> {
+        if (!m_where)
+            return true;
+        return TRY(m_where->evaluate(context_for_nonaggregated_rows, row)).to_bool();
+    };
+
+    // Collect all rows that should be included (applying WHERE and GROUP BY)
+    // There rows are not yet SELECT'ed - they contain columns from table, no aliases etc.
+    std::map<Tuple, std::vector<Tuple>> nonaggregated_row_groups;
+    for (const auto& row : input_rows) {
+        // WHERE
+        if (!TRY(should_include_row(row)))
+            continue;
+
+        std::vector<Value> group_key;
+
+        if (m_group_by) {
+            for (const auto& column_name : m_group_by->columns) {
+                // TODO: Handle aliases, indexes ("GROUP BY 1") and aggregate functions ("GROUP BY COUNT(x)")
+                // https://docs.microsoft.com/en-us/sql/t-sql/queries/select-transact-sql?view=sql-server-ver16#g-using-group-by-with-an-expression
+                auto column = table.get_column(column_name);
+                if (!column) {
+                    // TODO: Store source location info
+                    return DbError { "Nonexistent column used in GROUP BY: '" + column_name + "'", start() };
+                }
+                group_key.push_back(row.value(column->second));
+            }
+        }
+
+        nonaggregated_row_groups[{ group_key }].push_back(row);
+    }
+
+    // Check if grouping / aggregation should be performed
+    bool should_group = false;
+    if (m_group_by) {
+        should_group = true;
     }
     else {
-        for (auto const& column : m_columns.columns()) {
-            if (column.alias)
-                column_names.push_back(*column.alias);
-            else
-                column_names.push_back(column.column->to_string());
+        for (auto const& column : columns.columns()) {
+            if (Util::is<AggregateFunction>(*column.column)) {
+                should_group = true;
+                break;
+            }
         }
     }
 
-    auto result = Value::create_select_result({ column_names, std::move(rows) });
+    // std::cout << "should_group: " << should_group << std::endl;
+    // std::cout << "nonaggregated_row_groups.size(): " << nonaggregated_row_groups.size() << std::endl;
 
-    if(m_select_into){
-        if(db.exists(*m_select_into))
-            TRY(db.drop_table(*m_select_into));
-        db.create_table_from_query(TRY(result.to_select_result()), *m_select_into);
+    // Group + aggregate rows if needed, otherwise just evaluate column expressions
+    std::vector<Tuple> aggregated_rows;
+    if (should_group) {
+        auto should_include_group = [&](EvaluationContext& context, Tuple const& row) -> DbErrorOr<bool> {
+            if (!m_having)
+                return true;
+            return TRY(m_having->evaluate(context, row)).to_bool();
+        };
+
+        auto is_in_group_by = [&](SelectColumns::Column const& column) {
+            if (!m_group_by)
+                return false;
+            for (auto const& group_by_column : m_group_by->columns) {
+                auto referenced_columns = column.column->referenced_columns();
+                if (std::find(referenced_columns.begin(), referenced_columns.end(), group_by_column) != referenced_columns.end())
+                    return true;
+            }
+            return false;
+        };
+
+        for (auto const& group : nonaggregated_row_groups) {
+            EvaluationContext context { .table = table, .row_group = &group.second };
+            std::vector<Value> values;
+            for (auto& column : columns.columns()) {
+                if (auto aggregate_column = dynamic_cast<AggregateFunction*>(column.column.get()); aggregate_column) {
+                    values.push_back(TRY(aggregate_column->aggregate(context_for_nonaggregated_rows, group.second)));
+                }
+                else if (is_in_group_by(column)) {
+                    values.push_back(TRY(column.column->evaluate(context_for_nonaggregated_rows, group.second[0])));
+                }
+                else {
+                    // "All columns must be either aggregate or occur in GROUP BY clause"
+                    // TODO: Store location info
+                    return DbError { "Column '" + column.column->to_string() + "' must be either aggregate or occur in GROUP BY clause", start() };
+                }
+            }
+
+            Tuple aggregated_row { values };
+
+            // HAVING
+            if (!TRY(should_include_group(context, aggregated_row)))
+                continue;
+
+            aggregated_rows.push_back(std::move(aggregated_row));
+        }
+    }
+    else {
+        for (auto const& group : nonaggregated_row_groups) {
+            for (auto const& row : group.second) {
+                std::vector<Value> values;
+                for (auto& column : columns.columns()) {
+                    values.push_back(TRY(column.column->evaluate(context_for_nonaggregated_rows, row)));
+                }
+                aggregated_rows.push_back({ values });
+            }
+        }
     }
 
-    return std::move(result);
+    return aggregated_rows;
 }
 
-DbErrorOr<Value> Union::execute(Database& db) const{
+DbErrorOr<Value> Union::execute(Database& db) const {
     auto lhs = TRY(TRY(m_lhs->execute(db)).to_select_result());
     auto rhs = TRY(TRY(m_rhs->execute(db)).to_select_result());
 
-    if(lhs.column_names().size() != rhs.column_names().size())
-        return DbError{"Querries with different column count", 0};
-    
-    for(size_t i = 0; i < lhs.column_names().size(); i++){
-        if(lhs.column_names()[i] != rhs.column_names()[i])
-            return DbError{"Querries with different column set", 0};
+    if (lhs.column_names().size() != rhs.column_names().size())
+        return DbError { "Querries with different column count", 0 };
+
+    for (size_t i = 0; i < lhs.column_names().size(); i++) {
+        if (lhs.column_names()[i] != rhs.column_names()[i])
+            return DbError { "Querries with different column set", 0 };
     }
 
     std::vector<Tuple> rows;
 
-    for(const auto& row : lhs.rows()){
+    for (const auto& row : lhs.rows()) {
         rows.push_back(row);
     }
 
-    for(const auto& row : rhs.rows()){
+    for (const auto& row : rhs.rows()) {
         if (m_distinct) {
             bool distinct = true;
             for (const auto& to_compare : lhs.rows()) {
-                if (row == to_compare) {
+                if (TRY(row == to_compare)) {
                     distinct = false;
                     break;
                 }
@@ -448,7 +451,8 @@ DbErrorOr<Value> Union::execute(Database& db) const{
 
             if (distinct)
                 rows.push_back(row);
-        }else {
+        }
+        else {
             rows.push_back(row);
         }
     }
@@ -479,16 +483,16 @@ label:;
     return Value::null();
 }
 
-DbErrorOr<Value> Update::execute(Database& db) const{
+DbErrorOr<Value> Update::execute(Database& db) const {
     auto table = TRY(db.table(m_table));
 
     EvaluationContext context { .table = *table };
 
-    for(const auto& update_pair : m_to_update){
+    for (const auto& update_pair : m_to_update) {
         auto column = table->get_column(update_pair.column);
         size_t i = 0;
 
-        for(auto& row : table->rows()){
+        for (auto& row : table->rows()) {
             TRY(table->update_cell(i, column->second, TRY(update_pair.expr->evaluate(context, row))));
             i++;
         }

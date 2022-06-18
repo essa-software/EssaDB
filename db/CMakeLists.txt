@@ -7,6 +7,7 @@ add_library(
     core/RowWithColumnNames.cpp
     core/SelectResult.cpp
     core/Table.cpp
+    core/Tuple.cpp
     core/Value.cpp
 
     sql/Lexer.cpp

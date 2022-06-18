@@ -207,7 +207,7 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Select>> Parser::parse_select() {
 
     // HAVING
     std::unique_ptr<Core::AST::Expression> having;
-    if (m_tokens[m_offset].type == Token::Type::KeywordWhere) {
+    if (m_tokens[m_offset].type == Token::Type::KeywordHaving) {
         m_offset++;
         having = TRY(parse_expression());
         // std::cout << "WHERE " << where->to_string() << std::endl;

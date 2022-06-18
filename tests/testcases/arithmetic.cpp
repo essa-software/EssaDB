@@ -27,8 +27,9 @@ DbErrorOr<Database> setup_db() {
 DbErrorOr<void> select_simple_with_addition() {
     auto db = TRY(setup_db());
     auto result = TRY(TRY(Db::Sql::run_query(db, "SELECT number, number + 5 AS [ADDED] FROM test;")).to_select_result());
-    TRY(expect(result.rows().size() == 7, "all rows were returned"));
-    TRY(expect_equal<size_t>(TRY(result.rows()[0].value(1).to_int()), 74, "Values added properly"));
+    result.dump(std::cout);
+    TRY(expect_equal<size_t>(result.rows().size(), 7, "all rows were returned"));
+    TRY(expect_equal(TRY(result.rows()[0].value(1).to_int()), 74, "Values added properly"));
     return {};
 }
 
@@ -63,6 +64,55 @@ DbErrorOr<void> select_simple_with_string_addition() {
     return {};
 }
 
+DbErrorOr<void> tuple_less_than() {
+
+    TRY(expect_equal(Db::Core::Tuple { Value::create_int(1) }
+            < Db::Core::Tuple { Value::create_int(2) },
+        true, "(1) < (2)"));
+
+    TRY(expect_equal(Db::Core::Tuple { Value::create_int(1) }
+            < Db::Core::Tuple { Value::create_int(1) },
+        false, "(1) <! (1)"));
+
+    TRY(expect_equal(Db::Core::Tuple { Value::create_int(1) }
+            < Db::Core::Tuple { Value::create_int(1) },
+        false, "(1) <! (1)"));
+
+    TRY(expect_equal(Db::Core::Tuple { Value::create_int(1), Value::create_int(1) }
+            < Db::Core::Tuple { Value::create_int(1), Value::create_int(2) },
+        true, "(1, 1) < (1, 2)"));
+
+    TRY(expect_equal(Db::Core::Tuple { Value::create_int(1), Value::create_int(2) }
+            < Db::Core::Tuple { Value::create_int(1), Value::create_int(1) },
+        false, "(1, 2) <! (1, 1)"));
+
+    TRY(expect_equal(Db::Core::Tuple { Value::create_int(1), Value::create_int(1) }
+            < Db::Core::Tuple { Value::create_int(2) },
+        true, "(1, 1) < (2)"));
+
+    TRY(expect_equal(Db::Core::Tuple { Value::create_int(2), Value::create_int(1) }
+            < Db::Core::Tuple { Value::create_int(1) },
+        false, "(2, 1) <! (1)"));
+
+    TRY(expect_equal(Db::Core::Tuple { Value::create_int(1), Value::create_int(1) }
+            < Db::Core::Tuple { Value::create_int(1) },
+        false, "(1, 1) <! (1)"));
+
+    TRY(expect_equal(Db::Core::Tuple { Value::create_int(1) }
+            < Db::Core::Tuple { Value::create_int(1), Value::create_int(2) },
+        true, "(1) < (1, 2)"));
+
+    TRY(expect_equal(Db::Core::Tuple { Value::create_int(2) }
+            < Db::Core::Tuple { Value::create_int(1), Value::create_int(2) },
+        false, "(2) <! (1, 2)"));
+
+    TRY(expect_equal(Db::Core::Tuple { Value::create_int(2) }
+            < Db::Core::Tuple { Value::create_int(2), Value::create_int(2) },
+        true, "(2) < (2, 2)"));
+
+    return {};
+}
+
 std::map<std::string, TestFunc*> get_tests() {
     return {
         { "select_simple_with_addition", select_simple_with_addition },
@@ -70,5 +120,6 @@ std::map<std::string, TestFunc*> get_tests() {
         { "select_simple_with_multiplication", select_simple_with_multiplication },
         { "select_simple_with_division", select_simple_with_division },
         { "select_simple_with_string_addition", select_simple_with_string_addition },
+        { "tuple_less_than", tuple_less_than }
     };
 }

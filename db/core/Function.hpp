@@ -13,6 +13,15 @@ public:
     virtual DbErrorOr<Value> evaluate(EvaluationContext&, Tuple const&) const override;
     virtual std::string to_string() const override { return m_name + "(TODO)"; }
 
+    virtual std::vector<std::string> referenced_columns() const override {
+        std::vector<std::string> columns;
+        for (auto const& arg : m_args) {
+            auto arg_columns = arg->referenced_columns();
+            columns.insert(columns.end(), arg_columns.begin(), arg_columns.end());
+        }
+        return columns;
+    }
+
 private:
     std::string m_name;
     std::vector<std::unique_ptr<Expression>> m_args;
@@ -23,7 +32,8 @@ public:
     enum class Function {
         Count,
         Sum,
-        Min, Max,
+        Min,
+        Max,
         Avg,
         Invalid
     };
@@ -37,6 +47,8 @@ public:
     virtual std::string to_string() const override { return "AggregateFunction?(TODO)"; }
 
     DbErrorOr<Value> aggregate(EvaluationContext&, std::vector<Tuple> const&) const;
+
+    virtual std::vector<std::string> referenced_columns() const override { return { m_column }; }
 
 private:
     Function m_function {};

@@ -1,13 +1,14 @@
 #pragma once
 
-#include "Tuple.hpp"
 #include "SelectResult.hpp"
 #include "Table.hpp"
+#include "Tuple.hpp"
 #include "Value.hpp"
 #include "db/core/Column.hpp"
 #include "db/core/DbError.hpp"
 
 #include <iostream>
+#include <map>
 #include <memory>
 #include <optional>
 #include <pthread.h>
@@ -16,7 +17,6 @@
 #include <string>
 #include <sys/types.h>
 #include <vector>
-#include <map>
 
 namespace Db::Core {
 class Database;
@@ -26,6 +26,7 @@ namespace Db::Core::AST {
 
 struct EvaluationContext {
     Table const& table;
+    std::vector<Tuple> const* row_group = nullptr;
 };
 
 class ASTNode {
@@ -47,6 +48,7 @@ public:
     virtual ~Expression() = default;
     virtual DbErrorOr<Value> evaluate(EvaluationContext&, Tuple const&) const = 0;
     virtual std::string to_string() const = 0;
+    virtual std::vector<std::string> referenced_columns() const { return {}; }
 };
 
 class Literal : public Expression {
@@ -70,6 +72,7 @@ public:
 
     virtual DbErrorOr<Value> evaluate(EvaluationContext&, Tuple const&) const override;
     virtual std::string to_string() const override { return m_id; }
+    virtual std::vector<std::string> referenced_columns() const override { return { m_id }; }
 
 private:
     std::string m_id;
@@ -103,6 +106,13 @@ public:
     }
     virtual std::string to_string() const override { return "BinaryOperator(" + m_lhs->to_string() + "," + m_rhs->to_string() + ")"; }
 
+    virtual std::vector<std::string> referenced_columns() const override {
+        auto lhs_columns = m_lhs->referenced_columns();
+        auto rhs_columns = m_rhs->referenced_columns();
+        lhs_columns.insert(lhs_columns.begin(), rhs_columns.begin(), rhs_columns.end());
+        return lhs_columns;
+    }
+
 private:
     DbErrorOr<bool> is_true(EvaluationContext&, Tuple const&) const;
 
@@ -132,6 +142,13 @@ public:
 
     virtual std::string to_string() const override { return "BinaryOperator(" + m_lhs->to_string() + "," + m_rhs->to_string() + ")"; }
 
+    virtual std::vector<std::string> referenced_columns() const override {
+        auto lhs_columns = m_lhs->referenced_columns();
+        auto rhs_columns = m_rhs->referenced_columns();
+        lhs_columns.insert(lhs_columns.end(), rhs_columns.begin(), rhs_columns.end());
+        return lhs_columns;
+    }
+
 private:
     DbErrorOr<bool> is_true(EvaluationContext&, Tuple const&) const;
 
@@ -157,6 +174,15 @@ public:
         return "BetweenExpression(" + m_lhs->to_string() + "," + m_min->to_string() + "," + m_max->to_string() + ")";
     }
 
+    virtual std::vector<std::string> referenced_columns() const override {
+        auto lhs_columns = m_lhs->referenced_columns();
+        auto min_columns = m_min->referenced_columns();
+        auto max_columns = m_max->referenced_columns();
+        lhs_columns.insert(lhs_columns.end(), min_columns.begin(), min_columns.end());
+        lhs_columns.insert(lhs_columns.end(), max_columns.begin(), max_columns.end());
+        return lhs_columns;
+    }
+
 private:
     std::unique_ptr<Expression> m_lhs;
     std::unique_ptr<Expression> m_min;
@@ -175,9 +201,9 @@ public:
     virtual DbErrorOr<Value> evaluate(EvaluationContext& context, Tuple const& row) const override;
     virtual std::string to_string() const override {
         std::string result = "InExpression(";
-        for(auto i = m_args.begin(); i < m_args.end(); i++){
+        for (auto i = m_args.begin(); i < m_args.end(); i++) {
             result += (*i)->to_string();
-            if(i != m_args.end() - 1)
+            if (i != m_args.end() - 1)
                 result += ", ";
         }
 
@@ -186,14 +212,23 @@ public:
         return result;
     }
 
+    virtual std::vector<std::string> referenced_columns() const override {
+        auto lhs_columns = m_lhs->referenced_columns();
+        for (auto const& arg : m_args) {
+            auto arg_columns = arg->referenced_columns();
+            lhs_columns.insert(lhs_columns.end(), arg_columns.begin(), arg_columns.end());
+        }
+        return lhs_columns;
+    }
+
 private:
     std::unique_ptr<Expression> m_lhs;
     std::vector<std::unique_ptr<Core::AST::Expression>> m_args;
 };
 
-class CaseExpression : public Expression{
+class CaseExpression : public Expression {
 public:
-    struct CasePair{
+    struct CasePair {
         std::unique_ptr<Expression> expr;
         std::unique_ptr<Expression> value;
     };
@@ -201,19 +236,30 @@ public:
     CaseExpression(std::vector<CasePair> cases, std::unique_ptr<Core::AST::Expression> else_value = {})
         : Expression(cases.front().expr->start())
         , m_cases(std::move(cases))
-        , m_else_value(std::move(else_value)){}
+        , m_else_value(std::move(else_value)) { }
 
     virtual DbErrorOr<Value> evaluate(EvaluationContext& context, Tuple const& row) const override;
     virtual std::string to_string() const override {
         std::string result = "CaseExpression: \n";
-        for(const auto& c : m_cases){
+        for (const auto& c : m_cases) {
             result += "if expression then " + c.value->to_string() + "\n";
         }
 
-        if(m_else_value)
+        if (m_else_value)
             result += "else " + m_else_value->to_string();
 
         return result;
+    }
+
+    virtual std::vector<std::string> referenced_columns() const override {
+        auto else_columns = m_else_value->referenced_columns();
+        for (auto const& case_ : m_cases) {
+            auto value_columns = case_.value->referenced_columns();
+            else_columns.insert(else_columns.end(), value_columns.begin(), value_columns.end());
+            auto expr_columns = case_.expr->referenced_columns();
+            else_columns.insert(else_columns.end(), expr_columns.begin(), expr_columns.end());
+        }
+        return else_columns;
     }
 
 private:
@@ -257,12 +303,12 @@ struct OrderBy {
     std::vector<OrderBySet> columns;
 };
 
-struct GroupBy{
+struct GroupBy {
     std::vector<std::string> columns;
 
-    bool is_valid(std::string const& rhs)const{
+    bool is_valid(std::string const& rhs) const {
         bool result = 0;
-        for(const auto& lhs : columns){
+        for (const auto& lhs : columns) {
             result |= (lhs == rhs);
         }
 
@@ -305,6 +351,8 @@ public:
     virtual DbErrorOr<Value> execute(Database&) const override;
 
 private:
+    DbErrorOr<std::vector<Tuple>> collect_rows(Table const& table, SelectColumns const& columns, std::vector<Tuple> const& input_rows) const;
+
     SelectColumns m_columns;
     std::string m_from;
     std::unique_ptr<Expression> m_where;
@@ -312,7 +360,7 @@ private:
     std::optional<Top> m_top;
     std::optional<GroupBy> m_group_by;
     std::unique_ptr<Expression> m_having;
-    bool m_distinct;
+    bool m_distinct {};
     std::optional<std::string> m_select_into;
 };
 
@@ -322,7 +370,7 @@ public:
         : Statement(lhs->start())
         , m_lhs(std::move(lhs))
         , m_rhs(std::move(rhs))
-        , m_distinct(distinct) {}
+        , m_distinct(distinct) { }
 
     virtual DbErrorOr<Value> execute(Database&) const override;
 
@@ -346,17 +394,17 @@ private:
     std::unique_ptr<Expression> m_where;
 };
 
-class Update : public Statement{
+class Update : public Statement {
 public:
-    struct UpdatePair{
+    struct UpdatePair {
         std::string column;
         std::unique_ptr<Expression> expr;
     };
 
     Update(ssize_t start, std::string table, std::vector<UpdatePair> to_update)
-    : Statement(start)
-    , m_table(table)
-    , m_to_update(std::move(to_update)) { }
+        : Statement(start)
+        , m_table(table)
+        , m_to_update(std::move(to_update)) { }
 
     virtual DbErrorOr<Value> execute(Database&) const override;
 
@@ -383,7 +431,7 @@ class DropTable : public Statement {
 public:
     DropTable(ssize_t start, std::string name)
         : Statement(start)
-        , m_name(std::move(name)){ }
+        , m_name(std::move(name)) { }
 
     virtual DbErrorOr<Value> execute(Database&) const override;
 
@@ -395,7 +443,7 @@ class TruncateTable : public Statement {
 public:
     TruncateTable(ssize_t start, std::string name)
         : Statement(start)
-        , m_name(std::move(name)){ }
+        , m_name(std::move(name)) { }
 
     virtual DbErrorOr<Value> execute(Database&) const override;
 
@@ -410,7 +458,7 @@ public:
         , m_name(std::move(name))
         , m_to_add(std::move(to_add))
         , m_to_alter(std::move(to_alter))
-        , m_to_drop(std::move(to_drop)){}
+        , m_to_drop(std::move(to_drop)) { }
 
     virtual DbErrorOr<Value> execute(Database&) const override;
 
@@ -430,10 +478,10 @@ public:
         , m_values(std::move(values)) { }
 
     InsertInto(ssize_t start, std::string name, std::vector<std::string> columns, Core::DbErrorOr<std::unique_ptr<Core::AST::Select>> select)
-    : Statement(start)
-    , m_name(std::move(name))
-    , m_columns(std::move(columns))
-    , m_select(std::move(select)) {}
+        : Statement(start)
+        , m_name(std::move(name))
+        , m_columns(std::move(columns))
+        , m_select(std::move(select)) { }
 
     virtual DbErrorOr<Value> execute(Database&) const override;
 
