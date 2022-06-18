@@ -395,6 +395,24 @@ label:;
     return Value::null();
 }
 
+DbErrorOr<Value> Update::execute(Database& db) const{
+    auto table = TRY(db.table(m_table));
+
+    EvaluationContext context { .table = *table };
+
+    for(const auto& update_pair : m_to_update){
+        auto column = table->get_column(update_pair.column);
+        size_t i = 0;
+
+        for(auto& row : table->rows()){
+            TRY(table->update_cell(i, column->second, TRY(update_pair.expr->evaluate(context, row))));
+            i++;
+        }
+    }
+
+    return Value::null();
+}
+
 DbErrorOr<Value> CreateTable::execute(Database& db) const {
     auto& table = db.create_table(m_name);
     for (auto const& column : m_columns) {

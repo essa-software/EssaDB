@@ -67,6 +67,8 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Statement>> Parser::parse_statement()
         if (into_token.type == Token::Type::KeywordInto)
             return TRY(parse_insert_into());
         return Core::DbError { "Expected keyword 'INTO', got '" + into_token.value + "'", m_offset + 1 };
+    }else if (keyword.type == Token::Type::KeywordUpdate) {
+        return TRY(parse_update());
     }
     return Core::DbError { "Expected statement, got '" + keyword.value + '"', m_offset };
 }
@@ -218,6 +220,45 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Select>> Parser::parse_select() {
         std::move(group),
         std::move(having),
         distinct);
+}
+
+Core::DbErrorOr<std::unique_ptr<Core::AST::Update>> Parser::parse_update() {
+    auto start = m_offset;
+    m_offset++;
+
+    auto table_name = m_tokens[m_offset++];
+    if (table_name.type != Token::Type::Identifier)
+        return Core::DbError { "Expected table name after 'UPDATE'", m_offset - 1 };
+    
+    std::vector<Core::AST::Update::UpdatePair> to_update;
+
+    while(true){
+        auto set_identifier = m_tokens[m_offset++];
+
+        if(set_identifier.type != Token::Type::KeywordSet)
+            return Core::DbError { "Expected 'SET', got " + set_identifier.value, m_offset - 1 };
+        
+        auto column = m_tokens[m_offset++];
+
+        if(column.type != Token::Type::Identifier)
+            return Core::DbError { "Expected column name after 'SET'", m_offset - 1 };
+        
+        auto equal = m_tokens[m_offset++];
+
+        if(equal.type != Token::Type::OpEqual)
+            return Core::DbError { "Expected '=', got " + equal.value, m_offset - 1 };
+        
+        auto expr = TRY(parse_expression());
+        
+        to_update.push_back(Core::AST::Update::UpdatePair{.column = std::move(column.value), .expr = std::move(expr)});
+
+        auto comma = m_tokens[m_offset];
+        if (comma.type != Token::Type::Comma)
+            break;
+        m_offset++;
+    }
+
+    return std::make_unique<Core::AST::Update>(start, table_name.value, std::move(to_update));
 }
 
 Core::DbErrorOr<std::unique_ptr<Core::AST::DeleteFrom>> Parser::parse_delete_from() {

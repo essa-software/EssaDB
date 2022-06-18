@@ -14,6 +14,7 @@
 #include <set>
 #include <sstream>
 #include <string>
+#include <sys/types.h>
 #include <vector>
 #include <map>
 
@@ -128,7 +129,7 @@ public:
         , m_rhs(std::move(rhs)) { }
 
     virtual DbErrorOr<Value> evaluate(EvaluationContext& context, Tuple const& row) const override;
-    
+
     virtual std::string to_string() const override { return "BinaryOperator(" + m_lhs->to_string() + "," + m_rhs->to_string() + ")"; }
 
 private:
@@ -325,6 +326,25 @@ public:
 private:
     std::string m_from;
     std::unique_ptr<Expression> m_where;
+};
+
+class Update : public Statement{
+public:
+    struct UpdatePair{
+        std::string column;
+        std::unique_ptr<Expression> expr;
+    };
+
+    Update(ssize_t start, std::string table, std::vector<UpdatePair> to_update)
+    : Statement(start)
+    , m_table(table)
+    , m_to_update(std::move(to_update)) { }
+
+    virtual DbErrorOr<Value> execute(Database&) const override;
+
+private:
+    std::string m_table;
+    std::vector<UpdatePair> m_to_update;
 };
 
 class CreateTable : public Statement {

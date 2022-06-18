@@ -36,6 +36,8 @@ struct Token {
         KeywordEnd,
         KeywordElse,
         KeywordIs,
+        KeywordUpdate,
+        KeywordSet,
 
         OrderByParam,
         Identifier,

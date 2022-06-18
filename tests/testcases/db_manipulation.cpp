@@ -88,6 +88,24 @@ DbErrorOr<void> delete_with_where() {
     return {};
 }
 
+DbErrorOr<void> update_assignment() {
+    auto db = TRY(setup_db());
+    auto update_result = TRY(Db::Sql::run_query(db, "UPDATE test SET id = 5"));
+    auto result = TRY(TRY(Db::Sql::run_query(db, "SELECT * FROM test;")).to_select_result());
+
+    TRY(expect_equal<size_t>(TRY(result.rows()[0].value(0).to_int()), 5, "Table updated successfully!"));
+    return {};
+}
+
+DbErrorOr<void> update_addition() {
+    auto db = TRY(setup_db());
+    auto update_result = TRY(Db::Sql::run_query(db, "UPDATE test SET id = id + 5"));
+    auto result = TRY(TRY(Db::Sql::run_query(db, "SELECT * FROM test;")).to_select_result());
+
+    TRY(expect_equal<size_t>(TRY(result.rows()[5].value(0).to_int()), 10, "Table updated successfully!"));
+    return {};
+}
+
 DbErrorOr<void> autoincrement() {
     Database db;
     TRY(Db::Sql::run_query(db, "CREATE TABLE test (id INT AUTO_INCREMENT, value INT)"));
@@ -112,6 +130,8 @@ std::map<std::string, TestFunc*> get_tests() {
         { "alter_table_drop_column", alter_table_drop_column },
         { "alter_table_alter_column", alter_table_alter_column },
         { "delete_with_where", delete_with_where },
+        { "update_assignment", update_assignment },
+        { "update_addition", update_addition },
         { "autoincrement", autoincrement }
     };
 }

@@ -109,6 +109,9 @@ std::vector<Token> Lexer::lex() {
             else if (Db::Sql::Parser::compare_case_insensitive(id, "ADD")) {
                 tokens.push_back(Token { .type = Token::Type::KeywordAdd, .value = "ADD", .start = start });
             }
+            else if (Db::Sql::Parser::compare_case_insensitive(id, "SET")) {
+                tokens.push_back(Token { .type = Token::Type::KeywordSet, .value = "SET", .start = start });
+            }
             else if (Db::Sql::Parser::compare_case_insensitive(id, "COLUMN")) {
                 tokens.push_back(Token { .type = Token::Type::KeywordColumn, .value = "COLUMN", .start = start });
             }
@@ -117,6 +120,9 @@ std::vector<Token> Lexer::lex() {
             }
             else if (Db::Sql::Parser::compare_case_insensitive(id, "DELETE")) {
                 tokens.push_back(Token { .type = Token::Type::KeywordDelete, .value = "DELETE", .start = start });
+            }
+            else if (Db::Sql::Parser::compare_case_insensitive(id, "UPDATE")) {
+                tokens.push_back(Token { .type = Token::Type::KeywordUpdate, .value = "UPDATE", .start = start });
             }
             else if (Db::Sql::Parser::compare_case_insensitive(id, "CASE")) {
                 tokens.push_back(Token { .type = Token::Type::KeywordCase, .value = "CASE", .start = start });

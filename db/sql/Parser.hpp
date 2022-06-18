@@ -25,6 +25,7 @@ private:
     Core::DbErrorOr<std::unique_ptr<Core::AST::AlterTable>> parse_alter_table();
     Core::DbErrorOr<std::unique_ptr<Core::AST::InsertInto>> parse_insert_into();
     Core::DbErrorOr<std::unique_ptr<Core::AST::DeleteFrom>> parse_delete_from();
+    Core::DbErrorOr<std::unique_ptr<Core::AST::Update>> parse_update();
     Core::DbErrorOr<std::unique_ptr<Core::AST::Expression>> parse_expression(int min_precedence = 0);
     struct BetweenRange : public Core::AST::Expression {
         std::unique_ptr<Core::AST::Expression> min;

@@ -3,6 +3,7 @@
 #include "Column.hpp"
 #include "DbError.hpp"
 #include "RowWithColumnNames.hpp"
+#include "AST.hpp"
 #include "db/core/SelectResult.hpp"
 
 #include <db/util/NonCopyable.hpp>
@@ -26,6 +27,7 @@ public:
     DbErrorOr<void> import_from_csv(const std::string& path);
 
     DbErrorOr<void> add_column(Column);
+    DbErrorOr<void> update_cell(size_t row, size_t column, Value value);
     DbErrorOr<void> alter_column(Column);
     DbErrorOr<void> drop_column(Column);
     DbErrorOr<void> insert(RowWithColumnNames::MapType);

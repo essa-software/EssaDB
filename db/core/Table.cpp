@@ -79,6 +79,12 @@ DbErrorOr<void> Table::drop_column(Column column) {
     return {};
 }
 
+DbErrorOr<void> Table::update_cell(size_t row, size_t column, Value value){
+    m_rows[row].set_value(column, value);
+
+    return {};
+}
+
 void Table::delete_row(size_t index) {
     std::vector<Tuple> vec;
     for (size_t i = 0; i < m_rows.size(); i++) {
