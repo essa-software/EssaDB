@@ -11,32 +11,35 @@ namespace Db::Core {
 
 class Tuple {
 public:
+    Tuple(std::initializer_list<Value> values)
+        : m_values(values.size()) {
+        std::copy(values.begin(), values.end(), m_values.begin());
+    }
+
     Tuple(std::span<Value> values)
-        : control_number(counter++), m_values(values.size()) {
+        : m_values(values.size()) {
         std::copy(values.begin(), values.end(), m_values.begin());
     }
 
     size_t value_count() const { return m_values.size(); }
     Value value(size_t index) const { return m_values[index]; }
-    void set_value(size_t index, Value value) {m_values[index] = std::move(value); }
-    void remove(size_t index){
+    void set_value(size_t index, Value value) { m_values[index] = std::move(value); }
+    void remove(size_t index) {
         std::vector<Value> vec;
-        for(size_t i = 0; i < m_values.size(); i++){
-            if(i != index)
+        for (size_t i = 0; i < m_values.size(); i++) {
+            if (i != index)
                 vec.push_back(std::move(m_values[i]));
         }
 
         m_values = std::move(vec);
     }
 
-    void extend(){m_values.push_back(Value::null());}
+    void extend() { m_values.push_back(Value::null()); }
 
     auto begin() const { return m_values.begin(); }
     auto end() const { return m_values.end(); }
 
-    void clear_row(){m_values.clear();}
-    static size_t counter;
-    size_t control_number;
+    void clear_row() { m_values.clear(); }
 
 private:
     std::vector<Value> m_values;
