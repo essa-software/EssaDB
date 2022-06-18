@@ -477,7 +477,7 @@ public:
         , m_columns(std::move(columns))
         , m_values(std::move(values)) { }
 
-    InsertInto(ssize_t start, std::string name, std::vector<std::string> columns, Core::DbErrorOr<std::unique_ptr<Core::AST::Select>> select)
+    InsertInto(ssize_t start, std::string name, std::vector<std::string> columns, std::unique_ptr<Core::AST::Select> select)
         : Statement(start)
         , m_name(std::move(name))
         , m_columns(std::move(columns))
@@ -489,7 +489,9 @@ private:
     std::string m_name;
     std::vector<std::string> m_columns;
     std::vector<std::unique_ptr<Core::AST::Expression>> m_values;
-    std::optional<Core::DbErrorOr<std::unique_ptr<Core::AST::Select>>> m_select;
+    std::optional<std::unique_ptr<Core::AST::Select>> m_select;
 };
+
+
 
 }
