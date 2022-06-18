@@ -36,7 +36,7 @@ DbErrorOr<void> multuiple_tables() {
     return {};
 }
 
-std::map<std::string, TestFunc*> get_tests() {
+std::map<std::string, TestFunc> get_tests() {
     return {
         { "multuiple_tables", multuiple_tables },
     };

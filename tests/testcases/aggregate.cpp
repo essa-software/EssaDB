@@ -78,7 +78,7 @@ DbErrorOr<void> aggregate_error_not_all_columns_aggregate() {
     return {};
 }
 
-std::map<std::string, TestFunc*> get_tests() {
+std::map<std::string, TestFunc> get_tests() {
     return {
         { "aggregate_simple", aggregate_simple },
         { "aggregate_error_not_all_columns_aggregate", aggregate_error_not_all_columns_aggregate },

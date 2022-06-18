@@ -57,7 +57,7 @@ DbErrorOr<void> csv_export_import_with_aliases() {
     return {};
 }
 
-std::map<std::string, TestFunc*> get_tests() {
+std::map<std::string, TestFunc> get_tests() {
     return {
         { "csv_export_import", csv_export_import },
         { "csv_export_import_with_aliases", csv_export_import_with_aliases },

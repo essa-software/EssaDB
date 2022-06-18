@@ -131,7 +131,7 @@ DbErrorOr<void> autoincrement() {
     return {};
 }
 
-std::map<std::string, TestFunc*> get_tests() {
+std::map<std::string, TestFunc> get_tests() {
     return {
         { "drop_table", drop_table },
         { "truncate_table", truncate_table },

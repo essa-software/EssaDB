@@ -3,6 +3,7 @@
 #include "db/core/DbError.hpp"
 #include <db/core/Database.hpp>
 
+#include <functional>
 #include <sstream>
 
 Db::Core::DbErrorOr<void> expect(bool, std::string const&);
@@ -21,4 +22,4 @@ Db::Core::DbErrorOr<void> expect_error(T const& lhs, std::string const& error) {
     return expect_equal(lhs.error().message(), error, "Invalid error");
 }
 
-using TestFunc = Db::Core::DbErrorOr<void>();
+using TestFunc = std::function<Db::Core::DbErrorOr<void>()>;

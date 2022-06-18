@@ -157,7 +157,7 @@ DbErrorOr<void> select_where_is_not_null() {
     return {};
 }
 
-std::map<std::string, TestFunc*> get_tests() {
+std::map<std::string, TestFunc> get_tests() {
     return {
         { "select_where", select_where },
         { "select_where_multiple_rules_and", select_where_multiple_rules_and },

@@ -113,7 +113,7 @@ DbErrorOr<void> tuple_less_than() {
     return {};
 }
 
-std::map<std::string, TestFunc*> get_tests() {
+std::map<std::string, TestFunc> get_tests() {
     return {
         { "select_simple_with_addition", select_simple_with_addition },
         { "select_simple_with_subtraction", select_simple_with_subtraction },

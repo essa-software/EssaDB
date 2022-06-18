@@ -170,7 +170,7 @@ DbErrorOr<void> select_function_tan() {
     return {};
 }
 
-std::map<std::string, TestFunc*> get_tests() {
+std::map<std::string, TestFunc> get_tests() {
     return {
         { "select_function_abs", select_function_abs },
         { "select_function_acos", select_function_acos },

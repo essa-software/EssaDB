@@ -15,10 +15,10 @@ Db::Core::DbErrorOr<void> expect(bool b, std::string const& message) {
     return {};
 }
 
-extern std::map<std::string, TestFunc*> get_tests();
+extern std::map<std::string, TestFunc> get_tests();
 
 int main() {
-    std::map<std::string, TestFunc*> funcs = get_tests();
+    std::map<std::string, TestFunc> funcs = get_tests();
 
     for (auto const& func : funcs) {
         auto f = func.second();

@@ -116,7 +116,7 @@ DbErrorOr<void> select_case() {
     return {};
 }
 
-std::map<std::string, TestFunc*> get_tests() {
+std::map<std::string, TestFunc> get_tests() {
     return {
         { "select_simple", select_simple },
         { "select_columns", select_columns },

@@ -129,7 +129,7 @@ DbErrorOr<void> select_function_translate() {
     return {};
 }
 
-std::map<std::string, TestFunc*> get_tests() {
+std::map<std::string, TestFunc> get_tests() {
     return {
         { "select_function_len", select_function_len },
         { "select_function_charindex", select_function_charindex },
