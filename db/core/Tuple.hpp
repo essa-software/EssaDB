@@ -45,16 +45,16 @@ private:
     std::vector<Value> m_values;
 };
 
-inline bool operator==(Tuple const& lhs, Tuple const& rhs){
-    for(auto it1 = lhs.begin(), it2 = rhs.begin(); it1 != lhs.end(); it1++, it2++){
-        if(it1->to_string().value() != it2->to_string().value())
+inline DbErrorOr<bool> operator==(Tuple const& lhs, Tuple const& rhs) {
+    if (lhs.value_count() != rhs.value_count())
+        return false;
+    for (auto it1 = lhs.begin(), it2 = rhs.begin(); it1 != lhs.end(); it1++, it2++) {
+        if (!TRY(*it1 == *it2))
             return false;
     }
     return true;
 }
 
-inline bool operator<(Tuple const& lhs, Tuple const& rhs){
-    return lhs.control_number < rhs.control_number;
-}
+bool operator<(Tuple const& lhs, Tuple const& rhs);
 
 }
