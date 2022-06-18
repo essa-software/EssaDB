@@ -395,6 +395,14 @@ static void setup_sql_functions() {
         
         return Value::create_float(std::tan(a));
     });
+    register_sql_function("IFNULL", [](ArgumentList args) -> DbErrorOr<Value>{
+        auto val = TRY(args.get_required(0, "value"));
+        auto alternative = TRY(args.get_required(1, "alternative value"));
+        
+        if(val.type() == Value::Type::Null)
+            return alternative;
+        return val;
+    });
 }
 
 DbErrorOr<Value> Function::evaluate(EvaluationContext& context, Tuple const& row) const {

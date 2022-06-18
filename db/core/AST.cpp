@@ -59,8 +59,8 @@ static DbErrorOr<bool> wildcard_parser(std::string const& lhs, std::string const
                 }
                 right_it++;
 
-                if(allowed_chars.size() == 3 + negate && allowed_chars[1 + negate] == '-'){
-                    bool in_range = (allowed_chars[0 + negate] <= *left_it && *left_it <= allowed_chars[2 + negate]);
+                if(allowed_chars.size() == 3 && allowed_chars[1] == '-'){
+                    bool in_range = (allowed_chars[0] <= *left_it && *left_it <= allowed_chars[2]);
                     if(negate ? in_range : !in_range)
                         return false;
                 }else {
