@@ -92,6 +92,9 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Statement>> Parser::parse_statement()
     else if (keyword.type == Token::Type::KeywordUpdate) {
         return TRY(parse_update());
     }
+    else if (keyword.type == Token::Type::KeywordImport) {
+        return TRY(parse_import());
+    }
     return Core::DbError { "Expected statement, got '" + keyword.value + '"', m_offset };
 }
 
@@ -154,13 +157,13 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Select>> Parser::parse_select() {
     // INTO
     std::optional<std::string> select_into;
     auto into = m_tokens[m_offset];
-    if (into.type == Token::Type::KeywordInto){
+    if (into.type == Token::Type::KeywordInto) {
         m_offset++;
         auto table = m_tokens[m_offset++];
 
-        if(table.type != Token::Type::Identifier)
+        if (table.type != Token::Type::Identifier)
             return Core::DbError { "Expected table name after 'INTO'", m_offset - 1 };
-        
+
         select_into = table.value;
     }
 
@@ -295,6 +298,39 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Update>> Parser::parse_update() {
     }
 
     return std::make_unique<Core::AST::Update>(start, table_name.value, std::move(to_update));
+}
+
+Core::DbErrorOr<std::unique_ptr<Core::AST::Import>> Parser::parse_import() {
+    // auto start = m_offset;
+    m_offset++; // IMPORT
+
+    auto mode_token = m_tokens[m_offset++];
+    if (mode_token.type != Token::Type::Identifier) {
+        return Core::DbError { "Expected mode identifier, got '" + mode_token.value + "'", m_offset - 1 };
+    }
+
+    Core::AST::Import::Mode mode = TRY([&]() -> Core::DbErrorOr<Core::AST::Import::Mode> {
+        if (compare_case_insensitive(mode_token.value, "CSV"))
+            return Core::AST::Import::Mode::Csv;
+        return Core::DbError { "Invalid import mode", m_offset - 1 };
+    }());
+
+    auto file_name = m_tokens[m_offset++];
+    if (file_name.type != Token::Type::String) {
+        return Core::DbError { "Expected file name (string), got '" + file_name.value + "'", m_offset - 1 };
+    }
+
+    auto into_token = m_tokens[m_offset++];
+    if (into_token.type != Token::Type::KeywordInto) {
+        return Core::DbError { "Expected 'INTO', got '" + into_token.value + "'", m_offset - 1 };
+    }
+
+    auto table_name = m_tokens[m_offset++];
+    if (table_name.type != Token::Type::Identifier) {
+        return Core::DbError { "Expected file name, got '" + table_name.value + "'", m_offset - 1 };
+    }
+
+    return std::make_unique<Core::AST::Import>(m_offset, mode, file_name.value, table_name.value);
 }
 
 Core::DbErrorOr<std::unique_ptr<Core::AST::DeleteFrom>> Parser::parse_delete_from() {

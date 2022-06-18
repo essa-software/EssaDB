@@ -26,7 +26,9 @@ private:
     Core::DbErrorOr<std::unique_ptr<Core::AST::InsertInto>> parse_insert_into();
     Core::DbErrorOr<std::unique_ptr<Core::AST::DeleteFrom>> parse_delete_from();
     Core::DbErrorOr<std::unique_ptr<Core::AST::Update>> parse_update();
+    Core::DbErrorOr<std::unique_ptr<Core::AST::Import>> parse_import();
     Core::DbErrorOr<std::unique_ptr<Core::AST::Expression>> parse_expression(int min_precedence = 0);
+
     struct BetweenRange : public Core::AST::Expression {
         std::unique_ptr<Core::AST::Expression> min;
         std::unique_ptr<Core::AST::Expression> max;
@@ -39,6 +41,7 @@ private:
         virtual Core::DbErrorOr<Core::Value> evaluate(Core::AST::EvaluationContext&, Core::Tuple const&) const override { return Core::Value(); }
         virtual std::string to_string() const override { return "BetweenRange(min,max)"; }
     };
+
     struct InArgs : public Core::AST::Expression {
         std::vector<std::unique_ptr<Core::AST::Expression>> args;
 
@@ -49,6 +52,7 @@ private:
         virtual Core::DbErrorOr<Core::Value> evaluate(Core::AST::EvaluationContext&, Core::Tuple const&) const override { return Core::Value(); }
         virtual std::string to_string() const override { return "InArgs(args)"; }
     };
+
     Core::DbErrorOr<std::unique_ptr<Parser::BetweenRange>> parse_between_range();                                                              // (BETWEEN) x AND y
     Core::DbErrorOr<std::unique_ptr<Core::AST::Expression>> parse_operand(std::unique_ptr<Core::AST::Expression> lhs, int min_precedence = 0); // parses operator + rhs
     Core::DbErrorOr<std::unique_ptr<Core::AST::Expression>> parse_function(std::string name);

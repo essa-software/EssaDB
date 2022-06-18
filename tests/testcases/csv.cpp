@@ -57,9 +57,30 @@ DbErrorOr<void> csv_export_import_with_aliases() {
     return {};
 }
 
+DbErrorOr<void> csv_import_statement() {
+    auto db = TRY(setup_db());
+
+    auto result = TRY(TRY(Db::Sql::run_query(db, "SELECT id AS [ID], number AS [NUM], string AS [STR], integer AS [INT] FROM test;")).to_select_result());
+    result.dump(std::cout);
+    auto& table = db.create_table_from_query(result, "test_from_query");
+    table.export_to_csv("test.csv");
+
+    auto& new_table = db.create_table("new_test");
+    TRY(Db::Sql::run_query(db, "IMPORT CSV 'test.csv' INTO new_test"));
+    
+    result = TRY(TRY(Db::Sql::run_query(db, "SELECT * FROM [new_test];")).to_select_result());
+    result.dump(std::cout);
+
+    TRY(expect_equal(table.size(), new_table.size(), "original and imported tables have equal sizes"));
+    TRY(expect(result.column_names() == std::vector<std::string> { "ID", "NUM", "STR", "INT" }, "columns have proper names"));
+
+    return {};
+}
+
 std::map<std::string, TestFunc> get_tests() {
     return {
         { "csv_export_import", csv_export_import },
         { "csv_export_import_with_aliases", csv_export_import_with_aliases },
+        { "csv_import_statement", csv_import_statement }
     };
 }

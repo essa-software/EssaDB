@@ -572,4 +572,14 @@ DbErrorOr<Value> InsertInto::execute(Database& db) const {
     return { Value::null() };
 }
 
+DbErrorOr<Value> Import::execute(Database& db) const {
+    auto& new_table = db.create_table(m_table);
+    switch (m_mode) {
+    case Mode::Csv:
+        TRY(new_table.import_from_csv("test.csv"));
+        break;
+    }
+    return Value::null();
+}
+
 }

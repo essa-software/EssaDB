@@ -413,6 +413,26 @@ private:
     std::vector<UpdatePair> m_to_update;
 };
 
+class Import : public Statement {
+public:
+    enum class Mode {
+        Csv
+    };
+
+    Import(ssize_t start, Mode mode, std::string filename, std::string table)
+        : Statement(start)
+        , m_mode(mode)
+        , m_filename(std::move(filename))
+        , m_table(std::move(table)) { }
+
+    virtual DbErrorOr<Value> execute(Database&) const override;
+
+private:
+    Mode m_mode;
+    std::string m_filename;
+    std::string m_table;
+};
+
 class CreateTable : public Statement {
 public:
     CreateTable(ssize_t start, std::string name, std::vector<Column> columns)
@@ -491,7 +511,5 @@ private:
     std::vector<std::unique_ptr<Core::AST::Expression>> m_values;
     std::optional<std::unique_ptr<Core::AST::Select>> m_select;
 };
-
-
 
 }

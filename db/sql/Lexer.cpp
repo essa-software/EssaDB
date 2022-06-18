@@ -88,6 +88,9 @@ std::vector<Token> Lexer::lex() {
             else if (Db::Sql::Parser::compare_case_insensitive(id, "IN")) {
                 tokens.push_back(Token { .type = Token::Type::KeywordIn, .value = "IN", .start = start });
             }
+            else if (Db::Sql::Parser::compare_case_insensitive(id, "IMPORT")) {
+                tokens.push_back(Token { .type = Token::Type::KeywordImport, .value = "IMPORT", .start = start });
+            }
             else if (Db::Sql::Parser::compare_case_insensitive(id, "INSERT")) {
                 tokens.push_back(Token { .type = Token::Type::KeywordInsert, .value = "INSERT", .start = start });
             }
