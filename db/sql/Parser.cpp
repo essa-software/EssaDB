@@ -35,25 +35,25 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Statement>> Parser::parse_statement()
     if (keyword.type == Token::Type::KeywordSelect) {
         auto lhs = TRY(parse_select());
 
-        if(m_tokens[m_offset].type == Token::Type::KeywordUnion){
+        if (m_tokens[m_offset].type == Token::Type::KeywordUnion) {
             m_offset++;
 
             bool distinct = true;
 
-            if(m_tokens[m_offset].type == Token::Type::KeywordAll){
+            if (m_tokens[m_offset].type == Token::Type::KeywordAll) {
                 m_offset++;
                 distinct = false;
             }
 
-            if(m_tokens[m_offset].type != Token::Type::KeywordSelect)
+            if (m_tokens[m_offset].type != Token::Type::KeywordSelect)
                 return Core::DbError { "Expected 'SELECT' after 'UNION' statement, got '" + m_tokens[m_offset].value + "'", m_offset + 1 };
-            
+
             auto rhs = TRY(parse_select());
 
             return std::make_unique<Core::AST::Union>(std::move(lhs), std::move(rhs), distinct);
-
-        }else {
-            return std::move(lhs);
+        }
+        else {
+            return lhs;
         }
     }
     else if (keyword.type == Token::Type::KeywordCreate) {
@@ -88,7 +88,8 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Statement>> Parser::parse_statement()
         if (into_token.type == Token::Type::KeywordInto)
             return TRY(parse_insert_into());
         return Core::DbError { "Expected keyword 'INTO', got '" + into_token.value + "'", m_offset + 1 };
-    }else if (keyword.type == Token::Type::KeywordUpdate) {
+    }
+    else if (keyword.type == Token::Type::KeywordUpdate) {
         return TRY(parse_update());
     }
     return Core::DbError { "Expected statement, got '" + keyword.value + '"', m_offset };
@@ -264,28 +265,28 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Update>> Parser::parse_update() {
     auto table_name = m_tokens[m_offset++];
     if (table_name.type != Token::Type::Identifier)
         return Core::DbError { "Expected table name after 'UPDATE'", m_offset - 1 };
-    
+
     std::vector<Core::AST::Update::UpdatePair> to_update;
 
-    while(true){
+    while (true) {
         auto set_identifier = m_tokens[m_offset++];
 
-        if(set_identifier.type != Token::Type::KeywordSet)
+        if (set_identifier.type != Token::Type::KeywordSet)
             return Core::DbError { "Expected 'SET', got " + set_identifier.value, m_offset - 1 };
-        
+
         auto column = m_tokens[m_offset++];
 
-        if(column.type != Token::Type::Identifier)
+        if (column.type != Token::Type::Identifier)
             return Core::DbError { "Expected column name after 'SET'", m_offset - 1 };
-        
+
         auto equal = m_tokens[m_offset++];
 
-        if(equal.type != Token::Type::OpEqual)
+        if (equal.type != Token::Type::OpEqual)
             return Core::DbError { "Expected '=', got " + equal.value, m_offset - 1 };
-        
+
         auto expr = TRY(parse_expression());
-        
-        to_update.push_back(Core::AST::Update::UpdatePair{.column = std::move(column.value), .expr = std::move(expr)});
+
+        to_update.push_back(Core::AST::Update::UpdatePair { .column = std::move(column.value), .expr = std::move(expr) });
 
         auto comma = m_tokens[m_offset];
         if (comma.type != Token::Type::Comma)
@@ -523,17 +524,17 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::InsertInto>> Parser::parse_insert_int
     return Core::DbError { "Expected 'VALUES' or 'INSERT', got " + value_token.value, m_offset - 1 };
 }
 
-static bool is_literal(Token::Type token){
+static bool is_literal(Token::Type token) {
     switch (token) {
-        case Token::Type::Int:
-        case Token::Type::Float:
-        case Token::Type::String:
-        case Token::Type::Bool:
-        case Token::Type::Date:
-        case Token::Type::Null:
-            return true;
-        default:
-            return false;
+    case Token::Type::Int:
+    case Token::Type::Float:
+    case Token::Type::String:
+    case Token::Type::Bool:
+    case Token::Type::Date:
+    case Token::Type::Null:
+        return true;
+    default:
+        return false;
     }
 }
 
@@ -552,47 +553,51 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Expression>> Parser::parse_expression
         else {
             lhs = TRY(parse_identifier());
         }
-    }else if(token.type == Token::Type::KeywordCase){
+    }
+    else if (token.type == Token::Type::KeywordCase) {
         m_offset++;
         std::vector<Core::AST::CaseExpression::CasePair> cases;
         std::unique_ptr<Core::AST::Expression> else_value;
-        while(true){
+        while (true) {
             auto postfix = m_tokens[m_offset];
 
-            if(postfix.type == Token::Type::KeywordWhen){
+            if (postfix.type == Token::Type::KeywordWhen) {
                 m_offset++;
 
-                if(else_value)
+                if (else_value)
                     return Core::DbError { "Expected 'END' after 'ELSE', got '" + token.value + "'", start };
 
                 std::unique_ptr<Core::AST::Expression> expr = TRY(parse_expression());
 
                 auto then_expression = m_tokens[m_offset++];
 
-                if(then_expression.type != Token::Type::KeywordThen)
+                if (then_expression.type != Token::Type::KeywordThen)
                     return Core::DbError { "Expected 'THEN', got '" + token.value + "'", start };
 
                 std::unique_ptr<Core::AST::Expression> val = TRY(parse_expression());
 
-                cases.push_back(Core::AST::CaseExpression::CasePair {.expr = std::move(expr), .value = std::move(val)});
-            }else if(postfix.value == "ELSE"){
+                cases.push_back(Core::AST::CaseExpression::CasePair { .expr = std::move(expr), .value = std::move(val) });
+            }
+            else if (postfix.value == "ELSE") {
                 m_offset++;
 
-                if(else_value)
+                if (else_value)
                     return Core::DbError { "Expected 'END' after 'ELSE', got '" + token.value + "'", start };
-                
+
                 else_value = TRY(parse_expression());
-            }else if(postfix.type == Token::Type::KeywordEnd){
+            }
+            else if (postfix.type == Token::Type::KeywordEnd) {
                 m_offset++;
 
                 lhs = std::make_unique<Core::AST::CaseExpression>(std::move(cases), std::move(else_value));
                 break;
-            }else{
+            }
+            else {
                 return Core::DbError { "Expected 'WHEN', 'ELSE' or 'END', got '" + token.value + "'", start };
             }
         }
     }
-    else if(is_literal(token.type)){
+    else if (is_literal(token.type)) {
         lhs = TRY(parse_literal());
     }
     else {
@@ -604,7 +609,7 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Expression>> Parser::parse_expression
     return maybe_operator;
 }
 
-Core::DbErrorOr<std::unique_ptr<Core::AST::Literal>> Parser::parse_literal(){
+Core::DbErrorOr<std::unique_ptr<Core::AST::Literal>> Parser::parse_literal() {
     auto token = m_tokens[m_offset];
     auto start = m_offset;
 
@@ -632,7 +637,7 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Literal>> Parser::parse_literal(){
         m_offset++;
         return std::make_unique<Core::AST::Literal>(start, Core::Value::null());
     }
-    
+
     return Core::DbError { "Expected literal, got '" + m_tokens[m_offset].value + "'", m_offset - 1 };
 }
 
@@ -779,9 +784,9 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Expression>> Parser::parse_operand(st
         auto current_precedence = operator_precedence(current_operator);
         std::unique_ptr<Core::AST::Expression> rhs;
 
-        if(current_operator == Token::Type::KeywordBetween)
+        if (current_operator == Token::Type::KeywordBetween)
             rhs = TRY(parse_between_range());
-        else if(current_operator == Token::Type::KeywordIn)
+        else if (current_operator == Token::Type::KeywordIn)
             rhs = TRY(parse_in());
         else
             rhs = TRY(parse_expression(current_precedence));
@@ -800,9 +805,10 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Expression>> Parser::parse_operand(st
                 auto& rhs_in_args = static_cast<InArgs&>(*rhs);
                 lhs = std::make_unique<Core::AST::InExpression>(std::move(lhs), std::move(rhs_in_args.args));
             }
-            else if(is_binary_operator(current_operator)){
+            else if (is_binary_operator(current_operator)) {
                 lhs = std::make_unique<Core::AST::BinaryOperator>(std::move(lhs), token_type_to_binary_operation(current_operator), std::move(rhs));
-            }else if(is_arithmetic_operator(current_operator)){
+            }
+            else if (is_arithmetic_operator(current_operator)) {
                 lhs = std::make_unique<Core::AST::ArithmeticOperator>(std::move(lhs), token_type_to_arithmetic_operation(current_operator), std::move(rhs));
             }
         }
@@ -815,9 +821,10 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Expression>> Parser::parse_operand(st
                 auto& rhs_in_args = static_cast<InArgs&>(*rhs);
                 lhs = std::make_unique<Core::AST::InExpression>(std::move(lhs), std::move(rhs_in_args.args));
             }
-            else if(is_binary_operator(current_operator)){
+            else if (is_binary_operator(current_operator)) {
                 lhs = std::make_unique<Core::AST::BinaryOperator>(std::move(lhs), token_type_to_binary_operation(current_operator), TRY(parse_operand(std::move(rhs))));
-            }else if(is_arithmetic_operator(current_operator)){
+            }
+            else if (is_arithmetic_operator(current_operator)) {
                 lhs = std::make_unique<Core::AST::ArithmeticOperator>(std::move(lhs), token_type_to_arithmetic_operation(current_operator), TRY(parse_operand(std::move(rhs))));
             }
         }
@@ -874,11 +881,11 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Expression>> Parser::parse_function(s
     return std::make_unique<Core::AST::Function>(start, std::move(name), std::move(args));
 }
 
-Core::DbErrorOr<std::unique_ptr<Parser::InArgs>> Parser::parse_in(){
+Core::DbErrorOr<std::unique_ptr<Parser::InArgs>> Parser::parse_in() {
     std::vector<std::unique_ptr<Core::AST::Expression>> args;
     auto paren_open = m_tokens[m_offset++];
 
-    if(paren_open.type != Token::Type::ParenOpen)
+    if (paren_open.type != Token::Type::ParenOpen)
         return Core::DbError { "Expected '('", m_offset };
 
     while (true) {
