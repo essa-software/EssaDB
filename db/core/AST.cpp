@@ -576,7 +576,7 @@ DbErrorOr<Value> Import::execute(Database& db) const {
     auto& new_table = db.create_table(m_table);
     switch (m_mode) {
     case Mode::Csv:
-        TRY(new_table.import_from_csv("test.csv"));
+        TRY(new_table.import_from_csv(m_filename));
         break;
     }
     return Value::null();
