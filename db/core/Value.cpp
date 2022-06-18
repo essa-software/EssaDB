@@ -7,9 +7,9 @@
 
 #include <bits/chrono.h>
 #include <cctype>
+#include <chrono>
 #include <ostream>
 #include <sstream>
-#include <chrono>
 
 namespace Db::Core {
 
@@ -146,7 +146,7 @@ DbErrorOr<float> Value::to_float() const {
     case Type::Bool:
         return std::get<bool>(*this) ? 1.f : 0.f;
     case Type::Time:
-            return DbError { "Time is not convertible to float", 0 };
+        return DbError { "Time is not convertible to float", 0 };
     case Type::SelectResult: {
         auto select_result = std::get<SelectResult>(*this);
         if (select_result.rows().size() != 1)
@@ -239,186 +239,196 @@ std::ostream& operator<<(std::ostream& out, Value const& value) {
     return out << error.release_value();
 }
 
-DbErrorOr<Value> operator+(Value const& lhs, Value const& rhs){
+DbErrorOr<Value> operator+(Value const& lhs, Value const& rhs) {
     switch (lhs.type()) {
-        case Value::Type::Bool:
-            return Value::create_bool(TRY(lhs.to_bool()) + TRY(rhs.to_bool()));
-        case Value::Type::Int:
-            return Value::create_int(TRY(lhs.to_int()) + TRY(rhs.to_int()));
-        case Value::Type::Float:
-            return Value::create_float(TRY(lhs.to_float()) + TRY(rhs.to_float()));
-        case Value::Type::Null:
-            return Value::null();
-        case Value::Type::Varchar:
-            return Value::create_varchar(TRY(lhs.to_string()) + TRY(rhs.to_string()));
-        case Value::Type::Time:{
-            time_t time = TRY(lhs.to_int()) + TRY(rhs.to_int());
-            Util::Clock::duration dur(time);
-            return Value::create_time(Util::Clock::time_point(dur));
-        }
-        case Value::Type::SelectResult:
-            return DbError {"No matching operator '+' for 'SelectResult' type.", 0};
+    case Value::Type::Bool:
+        return Value::create_bool(TRY(lhs.to_bool()) + TRY(rhs.to_bool()));
+    case Value::Type::Int:
+        return Value::create_int(TRY(lhs.to_int()) + TRY(rhs.to_int()));
+    case Value::Type::Float:
+        return Value::create_float(TRY(lhs.to_float()) + TRY(rhs.to_float()));
+    case Value::Type::Null:
+        return Value::null();
+    case Value::Type::Varchar:
+        return Value::create_varchar(TRY(lhs.to_string()) + TRY(rhs.to_string()));
+    case Value::Type::Time: {
+        time_t time = TRY(lhs.to_int()) + TRY(rhs.to_int());
+        Util::Clock::duration dur(time);
+        return Value::create_time(Util::Clock::time_point(dur));
     }
+    case Value::Type::SelectResult:
+        return DbError { "No matching operator '+' for 'SelectResult' type.", 0 };
+    }
+    __builtin_unreachable();
 }
 
-DbErrorOr<Value> operator-(Value const& lhs, Value const& rhs){
+DbErrorOr<Value> operator-(Value const& lhs, Value const& rhs) {
     switch (lhs.type()) {
-        case Value::Type::Bool:
-            return Value::create_bool(TRY(lhs.to_bool()) - TRY(rhs.to_bool()));
-        case Value::Type::Int:
-            return Value::create_int(TRY(lhs.to_int()) - TRY(rhs.to_int()));
-        case Value::Type::Float:
-            return Value::create_float(TRY(lhs.to_float()) - TRY(rhs.to_float()));
-        case Value::Type::Null:
-            return Value::null();
-        case Value::Type::Varchar:
-            return DbError {"No matching operator '-' for 'VARCHAR' type.", 0};
-        case Value::Type::Time:{
-            time_t time = TRY(lhs.to_int()) - TRY(rhs.to_int());
-            Util::Clock::duration dur(time);
-            return Value::create_time(Util::Clock::time_point(dur));
-        }
-        case Value::Type::SelectResult:
-            return DbError {"No matching operator '-' for 'SelectResult' type.", 0};
+    case Value::Type::Bool:
+        return Value::create_bool(TRY(lhs.to_bool()) - TRY(rhs.to_bool()));
+    case Value::Type::Int:
+        return Value::create_int(TRY(lhs.to_int()) - TRY(rhs.to_int()));
+    case Value::Type::Float:
+        return Value::create_float(TRY(lhs.to_float()) - TRY(rhs.to_float()));
+    case Value::Type::Null:
+        return Value::null();
+    case Value::Type::Varchar:
+        return DbError { "No matching operator '-' for 'VARCHAR' type.", 0 };
+    case Value::Type::Time: {
+        time_t time = TRY(lhs.to_int()) - TRY(rhs.to_int());
+        Util::Clock::duration dur(time);
+        return Value::create_time(Util::Clock::time_point(dur));
     }
+    case Value::Type::SelectResult:
+        return DbError { "No matching operator '-' for 'SelectResult' type.", 0 };
+    }
+    __builtin_unreachable();
 }
 
-DbErrorOr<Value> operator*(Value const& lhs, Value const& rhs){
+DbErrorOr<Value> operator*(Value const& lhs, Value const& rhs) {
     switch (lhs.type()) {
-        case Value::Type::Bool:
-            return Value::create_bool(TRY(lhs.to_bool()) * TRY(rhs.to_bool()));
-        case Value::Type::Int:
-            return Value::create_int(TRY(lhs.to_int()) * TRY(rhs.to_int()));
-        case Value::Type::Float:
-            return Value::create_float(TRY(lhs.to_float()) * TRY(rhs.to_float()));
-        case Value::Type::Null:
-            return Value::null();
-        case Value::Type::Varchar:
-            return DbError {"No matching operator '*' for 'VARCHAR' type.", 0};
-        case Value::Type::Time:
-            return DbError {"No matching operator '*' for 'TIME' type.", 0};
-        case Value::Type::SelectResult:
-            return DbError {"No matching operator '*' for 'SelectResult' type.", 0};
+    case Value::Type::Bool:
+        // FIXME: Is this legal?
+        return Value::create_bool(TRY(lhs.to_bool()) && TRY(rhs.to_bool()));
+    case Value::Type::Int:
+        return Value::create_int(TRY(lhs.to_int()) * TRY(rhs.to_int()));
+    case Value::Type::Float:
+        return Value::create_float(TRY(lhs.to_float()) * TRY(rhs.to_float()));
+    case Value::Type::Null:
+        return Value::null();
+    case Value::Type::Varchar:
+        return DbError { "No matching operator '*' for 'VARCHAR' type.", 0 };
+    case Value::Type::Time:
+        return DbError { "No matching operator '*' for 'TIME' type.", 0 };
+    case Value::Type::SelectResult:
+        return DbError { "No matching operator '*' for 'SelectResult' type.", 0 };
     }
+    __builtin_unreachable();
 }
 
-DbErrorOr<Value> operator/(Value const& lhs, Value const& rhs){
+DbErrorOr<Value> operator/(Value const& lhs, Value const& rhs) {
     switch (lhs.type()) {
-        case Value::Type::Bool:
-            return Value::create_bool(TRY(lhs.to_bool()) / TRY(rhs.to_bool()));
-        case Value::Type::Int:
-            return Value::create_int(TRY(lhs.to_int()) / TRY(rhs.to_int()));
-        case Value::Type::Float:
-            return Value::create_float(TRY(lhs.to_float()) / TRY(rhs.to_float()));
-        case Value::Type::Null:
-            return Value::null();
-        case Value::Type::Varchar:
-            return DbError {"No matching operator '/' for 'VARCHAR' type.", 0};
-        case Value::Type::Time:
-            return DbError {"No matching operator '/' for 'TIME' type.", 0};
-        case Value::Type::SelectResult:
-            return DbError {"No matching operator '/' for 'SelectResult' type.", 0};
+    case Value::Type::Bool:
+        return Value::create_bool(TRY(lhs.to_bool()) / TRY(rhs.to_bool()));
+    case Value::Type::Int:
+        return Value::create_int(TRY(lhs.to_int()) / TRY(rhs.to_int()));
+    case Value::Type::Float:
+        return Value::create_float(TRY(lhs.to_float()) / TRY(rhs.to_float()));
+    case Value::Type::Null:
+        return Value::null();
+    case Value::Type::Varchar:
+        return DbError { "No matching operator '/' for 'VARCHAR' type.", 0 };
+    case Value::Type::Time:
+        return DbError { "No matching operator '/' for 'TIME' type.", 0 };
+    case Value::Type::SelectResult:
+        return DbError { "No matching operator '/' for 'SelectResult' type.", 0 };
     }
+    __builtin_unreachable();
 }
 
-DbErrorOr<bool> operator<(Value const& lhs, Value const& rhs){
+DbErrorOr<bool> operator<(Value const& lhs, Value const& rhs) {
     switch (lhs.type()) {
-        case Value::Type::Bool:
-            return TRY(lhs.to_bool()) < TRY(rhs.to_bool());
-        case Value::Type::Int:
-            return TRY(lhs.to_int()) < TRY(rhs.to_int());
-        case Value::Type::Float:
-            return TRY(lhs.to_float()) < TRY(rhs.to_float());
-        case Value::Type::Null:
-            return TRY(lhs.to_int()) < TRY(rhs.to_int());
-        case Value::Type::Varchar:
-            return TRY(lhs.to_string()) < TRY(rhs.to_string());
-        case Value::Type::Time:{
-            return TRY(lhs.to_int()) < TRY(rhs.to_int());
-        }
-        case Value::Type::SelectResult:
-            return DbError {"No matching operator '<' for 'SelectResult' type.", 0};
+    case Value::Type::Bool:
+        return TRY(lhs.to_bool()) < TRY(rhs.to_bool());
+    case Value::Type::Int:
+        return TRY(lhs.to_int()) < TRY(rhs.to_int());
+    case Value::Type::Float:
+        return TRY(lhs.to_float()) < TRY(rhs.to_float());
+    case Value::Type::Null:
+        return TRY(lhs.to_int()) < TRY(rhs.to_int());
+    case Value::Type::Varchar:
+        return TRY(lhs.to_string()) < TRY(rhs.to_string());
+    case Value::Type::Time: {
+        return TRY(lhs.to_int()) < TRY(rhs.to_int());
     }
+    case Value::Type::SelectResult:
+        return DbError { "No matching operator '<' for 'SelectResult' type.", 0 };
+    }
+    __builtin_unreachable();
 }
 
-DbErrorOr<bool> operator<=(Value const& lhs, Value const& rhs){
+DbErrorOr<bool> operator<=(Value const& lhs, Value const& rhs) {
     switch (lhs.type()) {
-        case Value::Type::Bool:
-            return TRY(lhs.to_bool()) <= TRY(rhs.to_bool());
-        case Value::Type::Int:
-            return TRY(lhs.to_int()) <= TRY(rhs.to_int());
-        case Value::Type::Float:
-            return TRY(lhs.to_float()) <= TRY(rhs.to_float());
-        case Value::Type::Null:
-            return TRY(lhs.to_int()) <= TRY(rhs.to_int());
-        case Value::Type::Varchar:
-            return TRY(lhs.to_string()) <= TRY(rhs.to_string());
-        case Value::Type::Time:{
-            return TRY(lhs.to_int()) <= TRY(rhs.to_int());
-        }
-        case Value::Type::SelectResult:
-            return DbError {"No matching operator '<=' for 'SelectResult' type.", 0};
+    case Value::Type::Bool:
+        return TRY(lhs.to_bool()) <= TRY(rhs.to_bool());
+    case Value::Type::Int:
+        return TRY(lhs.to_int()) <= TRY(rhs.to_int());
+    case Value::Type::Float:
+        return TRY(lhs.to_float()) <= TRY(rhs.to_float());
+    case Value::Type::Null:
+        return TRY(lhs.to_int()) <= TRY(rhs.to_int());
+    case Value::Type::Varchar:
+        return TRY(lhs.to_string()) <= TRY(rhs.to_string());
+    case Value::Type::Time: {
+        return TRY(lhs.to_int()) <= TRY(rhs.to_int());
     }
+    case Value::Type::SelectResult:
+        return DbError { "No matching operator '<=' for 'SelectResult' type.", 0 };
+    }
+    __builtin_unreachable();
 }
 
-DbErrorOr<bool> operator==(Value const& lhs, Value const& rhs){
+DbErrorOr<bool> operator==(Value const& lhs, Value const& rhs) {
     switch (lhs.type()) {
-        case Value::Type::Bool:
-            return TRY(lhs.to_bool()) == TRY(rhs.to_bool());
-        case Value::Type::Int:
-            return TRY(lhs.to_int()) == TRY(rhs.to_int());
-        case Value::Type::Float:
-            return TRY(lhs.to_float()) == TRY(rhs.to_float());
-        case Value::Type::Null:
-            return TRY(lhs.to_int()) == TRY(rhs.to_int());
-        case Value::Type::Varchar:
-            return TRY(lhs.to_string()) == TRY(rhs.to_string());
-        case Value::Type::Time:{
-            return TRY(lhs.to_int()) == TRY(rhs.to_int());
-        }
-        case Value::Type::SelectResult:
-            return DbError {"No matching operator '==' for 'SelectResult' type.", 0};
+    case Value::Type::Bool:
+        return TRY(lhs.to_bool()) == TRY(rhs.to_bool());
+    case Value::Type::Int:
+        return TRY(lhs.to_int()) == TRY(rhs.to_int());
+    case Value::Type::Float:
+        return TRY(lhs.to_float()) == TRY(rhs.to_float());
+    case Value::Type::Null:
+        return TRY(lhs.to_int()) == TRY(rhs.to_int());
+    case Value::Type::Varchar:
+        return TRY(lhs.to_string()) == TRY(rhs.to_string());
+    case Value::Type::Time: {
+        return TRY(lhs.to_int()) == TRY(rhs.to_int());
     }
+    case Value::Type::SelectResult:
+        return DbError { "No matching operator '==' for 'SelectResult' type.", 0 };
+    }
+    __builtin_unreachable();
 }
 
-DbErrorOr<bool> operator>=(Value const& lhs, Value const& rhs){
+DbErrorOr<bool> operator>=(Value const& lhs, Value const& rhs) {
     switch (lhs.type()) {
-        case Value::Type::Bool:
-            return TRY(lhs.to_bool()) >= TRY(rhs.to_bool());
-        case Value::Type::Int:
-            return TRY(lhs.to_int()) >= TRY(rhs.to_int());
-        case Value::Type::Float:
-            return TRY(lhs.to_float()) >= TRY(rhs.to_float());
-        case Value::Type::Null:
-            return TRY(lhs.to_int()) >= TRY(rhs.to_int());
-        case Value::Type::Varchar:
-            return TRY(lhs.to_string()) >= TRY(rhs.to_string());
-        case Value::Type::Time:{
-            return TRY(lhs.to_int()) >= TRY(rhs.to_int());
-        }
-        case Value::Type::SelectResult:
-            return DbError {"No matching operator '>=' for 'SelectResult' type.", 0};
+    case Value::Type::Bool:
+        return TRY(lhs.to_bool()) >= TRY(rhs.to_bool());
+    case Value::Type::Int:
+        return TRY(lhs.to_int()) >= TRY(rhs.to_int());
+    case Value::Type::Float:
+        return TRY(lhs.to_float()) >= TRY(rhs.to_float());
+    case Value::Type::Null:
+        return TRY(lhs.to_int()) >= TRY(rhs.to_int());
+    case Value::Type::Varchar:
+        return TRY(lhs.to_string()) >= TRY(rhs.to_string());
+    case Value::Type::Time: {
+        return TRY(lhs.to_int()) >= TRY(rhs.to_int());
     }
+    case Value::Type::SelectResult:
+        return DbError { "No matching operator '>=' for 'SelectResult' type.", 0 };
+    }
+    __builtin_unreachable();
 }
 
-DbErrorOr<bool> operator>(Value const& lhs, Value const& rhs){
+DbErrorOr<bool> operator>(Value const& lhs, Value const& rhs) {
     switch (lhs.type()) {
-        case Value::Type::Bool:
-            return TRY(lhs.to_bool()) > TRY(rhs.to_bool());
-        case Value::Type::Int:
-            return TRY(lhs.to_int()) > TRY(rhs.to_int());
-        case Value::Type::Float:
-            return TRY(lhs.to_float()) > TRY(rhs.to_float());
-        case Value::Type::Null:
-            return TRY(lhs.to_int()) > TRY(rhs.to_int());
-        case Value::Type::Varchar:
-            return TRY(lhs.to_string()) > TRY(rhs.to_string());
-        case Value::Type::Time:{
-            return TRY(lhs.to_int()) > TRY(rhs.to_int());
-        }
-        case Value::Type::SelectResult:
-            return DbError {"No matching operator '>' for 'SelectResult' type.", 0};
+    case Value::Type::Bool:
+        return TRY(lhs.to_bool()) > TRY(rhs.to_bool());
+    case Value::Type::Int:
+        return TRY(lhs.to_int()) > TRY(rhs.to_int());
+    case Value::Type::Float:
+        return TRY(lhs.to_float()) > TRY(rhs.to_float());
+    case Value::Type::Null:
+        return TRY(lhs.to_int()) > TRY(rhs.to_int());
+    case Value::Type::Varchar:
+        return TRY(lhs.to_string()) > TRY(rhs.to_string());
+    case Value::Type::Time: {
+        return TRY(lhs.to_int()) > TRY(rhs.to_int());
     }
+    case Value::Type::SelectResult:
+        return DbError { "No matching operator '>' for 'SelectResult' type.", 0 };
+    }
+    __builtin_unreachable();
 }
 
 DbErrorOr<bool> operator!=(Value const& lhs, Value const& rhs){
