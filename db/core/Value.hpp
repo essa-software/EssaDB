@@ -80,6 +80,7 @@ DbErrorOr<bool> operator<=(Value const& lhs, Value const& rhs);
 DbErrorOr<bool> operator==(Value const& lhs, Value const& rhs);
 DbErrorOr<bool> operator>=(Value const& lhs, Value const& rhs);
 DbErrorOr<bool> operator>(Value const& lhs, Value const& rhs);
+DbErrorOr<bool> operator!=(Value const& lhs, Value const& rhs);
 
 Value::Type find_type(const std::string& str);
 

@@ -7,6 +7,7 @@
 #include "Value.hpp"
 #include "db/core/RowWithColumnNames.hpp"
 
+#include <cctype>
 #include <db/util/Is.hpp>
 #include <iostream>
 #include <memory>
@@ -25,85 +26,111 @@ DbErrorOr<Value> Identifier::evaluate(EvaluationContext& context, Tuple const& r
     return row.value(column->second);
 }
 
+static DbErrorOr<bool> wildcard_parser(std::string const& lhs, std::string const& rhs){
+    auto is_string_valid = [](std::string const& lhs, std::string const& rhs){
+        size_t len = 0;
+
+        for(auto left_it = lhs.begin(), right_it = rhs.begin(); left_it < lhs.end() || right_it < rhs.end(); left_it++, right_it++){
+            len++;
+            if(*right_it == '?'){
+                if(lhs.size() < len)
+                    return false;
+                continue;
+            }else if(*right_it == '#'){
+                if(!isdigit(*left_it) || lhs.size() < len)
+                    return false;
+            }else if(*right_it == '['){
+                right_it++;
+                std::vector<char> allowed_chars;
+
+                for(auto it = right_it; *it != ']'; it++){
+                    allowed_chars.push_back(*it);
+                    right_it++;
+                }
+                right_it++;
+
+                if(allowed_chars.size() == 3 && allowed_chars[1] == '-'){
+                    if(!(allowed_chars[0] >= *left_it && *left_it <= allowed_chars[2]))
+                        return false;
+                }else {
+                    bool exists = 0;
+                    for(const auto& c : allowed_chars){
+                        exists |= (c == *left_it);
+                    }
+
+                    if(!exists)
+                        return false;
+                }
+            }else if(*right_it != *left_it){
+                return false;
+            }
+        }
+
+        return true;
+    };
+
+    bool result = 0;
+    auto left_it = lhs.begin(), right_it = rhs.begin();
+
+    for(left_it = lhs.begin(), right_it = rhs.begin(); left_it < lhs.end(); left_it++){
+        size_t dist_to_next_asterisk = 0, substr_len = 0;
+        bool brackets = false;
+        if(*right_it == '*')
+            right_it++;
+        
+        for(auto it = right_it; it < rhs.end() && *it != '*'; it++){
+            dist_to_next_asterisk++;
+
+            if(brackets && *it != ']')
+                continue;
+            
+            substr_len++;
+            
+            if(*it == '[')
+                brackets = true;
+        }
+
+        size_t lstart = static_cast<size_t>(left_it - lhs.begin());
+        size_t rstart = static_cast<size_t>(right_it - rhs.begin());
+        try{
+            if(is_string_valid(lhs.substr(lstart, substr_len), rhs.substr(rstart, dist_to_next_asterisk))){
+                left_it += substr_len;
+                right_it += dist_to_next_asterisk;
+
+                result = 1;
+            }
+        }catch(...){
+            return false;
+        }
+    }
+    if(right_it != rhs.end() && rhs.back() != '*')
+        return false;
+    return result;
+}
+
 DbErrorOr<bool> BinaryOperator::is_true(EvaluationContext& context, Tuple const& row) const {
     // TODO: Implement proper comparison
     switch (m_operation) {
     case Operation::Equal:
-        return TRY(TRY(m_lhs->evaluate(context, row)).to_string()) == TRY(TRY(m_rhs->evaluate(context, row)).to_string());
+        return TRY(m_lhs->evaluate(context, row)) == TRY(m_rhs->evaluate(context, row));
     case Operation::NotEqual:
-        return TRY(TRY(m_lhs->evaluate(context, row)).to_string()) != TRY(TRY(m_rhs->evaluate(context, row)).to_string());
+        return TRY(m_lhs->evaluate(context, row)) != TRY(m_rhs->evaluate(context, row));
     case Operation::Greater:
-        return TRY(TRY(m_lhs->evaluate(context, row)).to_string()) > TRY(TRY(m_rhs->evaluate(context, row)).to_string());
+        return TRY(m_lhs->evaluate(context, row)) > TRY(m_rhs->evaluate(context, row));
     case Operation::GreaterEqual:
-        return TRY(TRY(m_lhs->evaluate(context, row)).to_string()) >= TRY(TRY(m_rhs->evaluate(context, row)).to_string());
+        return TRY(m_lhs->evaluate(context, row)) >= TRY(m_rhs->evaluate(context, row));
     case Operation::Less:
-        return TRY(TRY(m_lhs->evaluate(context, row)).to_string()) < TRY(TRY(m_rhs->evaluate(context, row)).to_string());
+        return TRY(m_lhs->evaluate(context, row)) < TRY(m_rhs->evaluate(context, row));
     case Operation::LessEqual:
-        return TRY(TRY(m_lhs->evaluate(context, row)).to_string()) <= TRY(TRY(m_rhs->evaluate(context, row)).to_string());
+        return TRY(m_lhs->evaluate(context, row)) <= TRY(m_rhs->evaluate(context, row));
     case Operation::And:
         return TRY(TRY(m_lhs->evaluate(context, row)).to_bool()) && TRY(TRY(m_rhs->evaluate(context, row)).to_bool());
     case Operation::Or:
         return TRY(TRY(m_lhs->evaluate(context, row)).to_bool()) || TRY(TRY(m_rhs->evaluate(context, row)).to_bool());
     case Operation::Not:
-        return !TRY(TRY(m_lhs->evaluate(context, row)).to_bool());
+        return TRY(TRY(m_lhs->evaluate(context, row)).to_bool());
     case Operation::Like: {
-        std::string str = TRY(TRY(m_lhs->evaluate(context, row)).to_string());
-        std::string to_compare = TRY(TRY(m_rhs->evaluate(context, row)).to_string());
-
-        if (to_compare.front() == '*' && to_compare.back() == '*') {
-            std::string comparison_substr = to_compare.substr(1, to_compare.size() - 2);
-
-            if (str.size() - 1 < to_compare.size())
-                return false;
-
-            return str.find(comparison_substr) != std::string::npos;
-        }
-        else if (to_compare.front() == '*') {
-            auto it1 = str.end(), it2 = to_compare.end();
-
-            if (str.size() < to_compare.size())
-                return false;
-
-            while (it1 != str.begin()) {
-                if (*it2 == '*')
-                    break;
-
-                if (*it1 != *it2 && *it2 != '?')
-                    return false;
-                it1--;
-                it2--;
-            }
-        }
-        else if (to_compare.back() == '*') {
-            auto it1 = str.begin(), it2 = to_compare.begin();
-
-            if (str.size() < to_compare.size())
-                return false;
-
-            while (it1 != str.end()) {
-                if (*it2 == '*')
-                    break;
-
-                if (*it1 != *it2 && *it2 != '?')
-                    return false;
-                it1++;
-                it2++;
-            }
-        }
-        else {
-            auto it1 = str.begin(), it2 = to_compare.begin();
-            if (str.size() != to_compare.size())
-                return false;
-
-            while (it1 != str.end()) {
-                if (*it1 != *it2 && *it2 != '?')
-                    return false;
-                it1++;
-                it2++;
-            }
-        }
-
-        return true;
+        return wildcard_parser(TRY(TRY(m_lhs->evaluate(context, row)).to_string()), TRY(TRY(m_rhs->evaluate(context, row)).to_string()));
     }
     case Operation::Invalid:
         break;
