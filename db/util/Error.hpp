@@ -23,9 +23,9 @@ namespace Util {
 template<typename T, typename ErrorType>
 class [[nodiscard]] ErrorOr;
 
-#define TRY(expression)                                \
+#define TRY(...)                                       \
     ({                                                 \
-        auto _temporary_result = (expression);         \
+        auto _temporary_result = (__VA_ARGS__);        \
         if (_temporary_result.is_error()) [[unlikely]] \
             return _temporary_result.release_error();  \
         _temporary_result.release_value();             \
