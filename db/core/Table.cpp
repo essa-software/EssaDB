@@ -79,7 +79,7 @@ DbErrorOr<void> Table::drop_column(Column column) {
     return {};
 }
 
-DbErrorOr<void> Table::update_cell(size_t row, size_t column, Value value){
+DbErrorOr<void> Table::update_cell(size_t row, size_t column, Value value) {
     m_rows[row].set_value(column, value);
 
     return {};
@@ -177,8 +177,11 @@ DbErrorOr<void> Table::import_from_csv(const std::string& path) {
 
         for (auto it = table.begin() + 1; it < table.end() - 1; it++) {
 
-            if (type == Value::Type::Null)
-                type = find_type((*it)[i]);
+            if (type == Value::Type::Null) {
+                auto new_type = find_type((*it)[i]);
+                if (new_type != Value::Type::Null)
+                    type = new_type;
+            }
             else if (type == Value::Type::Int && find_type((*it)[i]) == Value::Type::Varchar)
                 type = Value::Type::Varchar;
         }
@@ -191,23 +194,25 @@ DbErrorOr<void> Table::import_from_csv(const std::string& path) {
         unsigned i = 0;
 
         for (const auto& col : m_columns) {
-            if ((*it)[i] == "null")
+            auto value = (*it)[i];
+            i++;
+
+            if (value == "null")
                 continue;
 
             switch (col.type()) {
             case Value::Type::Int:
-                map.insert({ col.name(), Value::create_int(std::stoi((*it)[i])) });
+                map.insert({ col.name(), Value::create_int(std::stoi(value)) });
                 break;
             case Value::Type::Varchar:
-                map.insert({ col.name(), Value::create_varchar((*it)[i]) });
+                map.insert({ col.name(), Value::create_varchar(value) });
                 break;
             case Value::Type::Bool:
-                map.insert({ col.name(), Value::create_bool((*it)[i] == "true" ? true : false) });
+                map.insert({ col.name(), Value::create_bool(value == "true" ? true : false) });
                 break;
             default:
                 break;
             }
-            i++;
         }
 
         TRY(insert(map));
