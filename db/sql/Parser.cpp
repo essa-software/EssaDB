@@ -614,6 +614,7 @@ static bool is_operator(Token::Type op) {
 static Core::AST::BinaryOperator::Operation token_type_to_binary_operation(Token::Type op) {
     switch (op) {
     case Token::Type::OpEqual:
+    case Token::Type::KeywordIs:
         return Core::AST::BinaryOperator::Operation::Equal;
         break;
     case Token::Type::OpLess:

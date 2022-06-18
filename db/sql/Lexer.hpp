@@ -35,6 +35,7 @@ struct Token {
         KeywordThen,
         KeywordEnd,
         KeywordElse,
+        KeywordIs,
 
         OrderByParam,
         Identifier,

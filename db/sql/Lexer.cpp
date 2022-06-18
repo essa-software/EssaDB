@@ -121,6 +121,9 @@ std::vector<Token> Lexer::lex() {
             else if (Db::Sql::Parser::compare_case_insensitive(id, "CASE")) {
                 tokens.push_back(Token { .type = Token::Type::KeywordCase, .value = "CASE", .start = start });
             }
+            else if (Db::Sql::Parser::compare_case_insensitive(id, "ELSE")) {
+                tokens.push_back(Token { .type = Token::Type::KeywordElse, .value = "ELSE", .start = start });
+            }
             else if (Db::Sql::Parser::compare_case_insensitive(id, "WHEN")) {
                 tokens.push_back(Token { .type = Token::Type::KeywordWhen, .value = "WHEN", .start = start });
             }
@@ -137,13 +140,19 @@ std::vector<Token> Lexer::lex() {
                 tokens.push_back(Token { .type = Token::Type::OpOr, .value = "OR", .start = start });
             }
             else if (Db::Sql::Parser::compare_case_insensitive(id, "NOT")) {
-                tokens.push_back(Token { .type = Token::Type::OpNot, .value = "NOT", .start = start });
+                if(tokens.back().type == Token::Type::KeywordIs)
+                    tokens.back() = Token { .type = Token::Type::OpNotEqual, .value = "IS NOT", .start = start };
+                else
+                    tokens.push_back(Token { .type = Token::Type::OpNot, .value = "NOT", .start = start });
             }
             else if (Db::Sql::Parser::compare_case_insensitive(id, "LIKE")) {
                 tokens.push_back(Token { .type = Token::Type::OpLike, .value = "LIKE", .start = start });
             }
             else if (Db::Sql::Parser::compare_case_insensitive(id, "ASC") || Db::Sql::Parser::compare_case_insensitive(id, "DESC")) {
                 tokens.push_back(Token { .type = Token::Type::OrderByParam, .value = id, .start = start });
+            }
+            else if (Db::Sql::Parser::compare_case_insensitive(id, "IS")) {
+                tokens.push_back(Token { .type = Token::Type::KeywordIs, .value = "IS", .start = start });
             }
             else if (Db::Sql::Parser::compare_case_insensitive(id, "NULL")) {
                 tokens.push_back(Token { .type = Token::Type::Null, .value = "null", .start = start });
