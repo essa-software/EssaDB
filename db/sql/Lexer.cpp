@@ -172,6 +172,10 @@ std::vector<Token> Lexer::lex() {
 
             if(number == "."){
                 tokens.push_back(Token { .type = Token::Type::Period, .value = ".", .start = start });
+                continue;
+            }else if(number == "-"){
+                tokens.push_back(Token { .type = Token::Type::OpSub, .value = "-", .start = start });
+                continue;
             }
 
             Token::Type type = Token::Type::Int;
@@ -215,6 +219,22 @@ std::vector<Token> Lexer::lex() {
         else if (next == ';') {
             m_in.get();
             tokens.push_back(Token { .type = Token::Type::Semicolon, .value = ";", .start = start });
+        }
+        else if (next == '+') {
+            m_in.get();
+            tokens.push_back(Token { .type = Token::Type::OpAdd, .value = "+", .start = start });
+        }
+        else if (next == '-') {
+            m_in.get();
+            tokens.push_back(Token { .type = Token::Type::OpSub, .value = "-", .start = start });
+        }
+        else if (next == '*') {
+            m_in.get();
+            tokens.push_back(Token { .type = Token::Type::OpMul, .value = "*", .start = start });
+        }
+        else if (next == '/') {
+            m_in.get();
+            tokens.push_back(Token { .type = Token::Type::OpDiv, .value = "/", .start = start });
         }
         else if (next == '=') {
             m_in.get();

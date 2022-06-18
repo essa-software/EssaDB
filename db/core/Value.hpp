@@ -70,6 +70,11 @@ private:
     Type m_type { Type::Null };
 };
 
+DbErrorOr<Value> operator+(Value const& lhs, Value const& rhs);
+DbErrorOr<Value> operator-(Value const& lhs, Value const& rhs);
+DbErrorOr<Value> operator*(Value const& lhs, Value const& rhs);
+DbErrorOr<Value> operator/(Value const& lhs, Value const& rhs);
+
 Value::Type find_type(const std::string& str);
 
 }

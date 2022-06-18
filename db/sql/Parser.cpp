@@ -570,13 +570,19 @@ static int operator_precedence(Token::Type op) {
     case Token::Type::OpGreater:
     case Token::Type::OpLess:
     case Token::Type::OpLike:
-        return 50;
+        return 500;
     case Token::Type::KeywordBetween:
     case Token::Type::KeywordIn:
-        return 20;
+        return 200;
     case Token::Type::OpAnd:
-        return 15;
+        return 150;
     case Token::Type::OpOr:
+        return 100;
+    case Token::Type::OpMul:
+    case Token::Type::OpDiv:
+        return 15;
+    case Token::Type::OpAdd:
+    case Token::Type::OpSub:
         return 10;
     default:
         return 100000;
@@ -594,7 +600,7 @@ Core::DbErrorOr<std::unique_ptr<Parser::BetweenRange>> Parser::parse_between_ran
     return std::make_unique<BetweenRange>(std::move(min), std::move(max));
 }
 
-static bool is_operator(Token::Type op) {
+static bool is_binary_operator(Token::Type op) {
     switch (op) {
     case Token::Type::OpEqual:
     case Token::Type::OpNotEqual:
@@ -605,6 +611,19 @@ static bool is_operator(Token::Type op) {
     case Token::Type::KeywordIn:
     case Token::Type::OpAnd:
     case Token::Type::OpOr:
+        return true;
+    default:
+        return false;
+    }
+}
+
+static bool is_arithmetic_operator(Token::Type op) {
+    switch (op) {
+    case Token::Type::OpAdd:
+    case Token::Type::OpSub:
+    case Token::Type::Asterisk:
+    case Token::Type::OpMul:
+    case Token::Type::OpDiv:
         return true;
     default:
         return false;
@@ -642,19 +661,39 @@ static Core::AST::BinaryOperator::Operation token_type_to_binary_operation(Token
     }
 }
 
+static Core::AST::ArithmeticOperator::Operation token_type_to_arithmetic_operation(Token::Type op) {
+    switch (op) {
+    case Token::Type::OpAdd:
+        return Core::AST::ArithmeticOperator::Operation::Add;
+        break;
+    case Token::Type::OpSub:
+        return Core::AST::ArithmeticOperator::Operation::Sub;
+        break;
+    case Token::Type::OpMul:
+    case Token::Type::Asterisk:
+        return Core::AST::ArithmeticOperator::Operation::Mul;
+        break;
+    case Token::Type::OpDiv:
+        return Core::AST::ArithmeticOperator::Operation::Div;
+        break;
+    default:
+        return Core::AST::ArithmeticOperator::Operation::Invalid;
+    }
+}
+
 Core::DbErrorOr<std::unique_ptr<Core::AST::Expression>> Parser::parse_operand(std::unique_ptr<Core::AST::Expression> lhs, int min_precedence) {
     auto peek_operator = [this]() {
         return m_tokens[m_offset].type;
     };
 
     auto current_operator = peek_operator();
-    if (!is_operator(current_operator))
+    if (!is_binary_operator(current_operator) && !is_arithmetic_operator(current_operator))
         return lhs;
 
     while (true) {
         // std::cout << "1. " << m_offset << ": " << m_tokens[m_offset].value << std::endl;
         auto current_operator = peek_operator();
-        if (!is_operator(current_operator))
+        if (!is_binary_operator(current_operator) && !is_arithmetic_operator(current_operator))
             return lhs;
         if (operator_precedence(current_operator) < min_precedence)
             return lhs;
@@ -688,8 +727,10 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Expression>> Parser::parse_operand(st
                 auto& rhs_in_args = static_cast<InArgs&>(*rhs);
                 lhs = std::make_unique<Core::AST::InExpression>(std::move(lhs), std::move(rhs_in_args.args));
             }
-            else {
+            else if(is_binary_operator(current_operator)){
                 lhs = std::make_unique<Core::AST::BinaryOperator>(std::move(lhs), token_type_to_binary_operation(current_operator), std::move(rhs));
+            }else if(is_arithmetic_operator(current_operator)){
+                lhs = std::make_unique<Core::AST::ArithmeticOperator>(std::move(lhs), token_type_to_arithmetic_operation(current_operator), std::move(rhs));
             }
         }
         else {
@@ -701,8 +742,10 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Expression>> Parser::parse_operand(st
                 auto& rhs_in_args = static_cast<InArgs&>(*rhs);
                 lhs = std::make_unique<Core::AST::InExpression>(std::move(lhs), std::move(rhs_in_args.args));
             }
-            else {
+            else if(is_binary_operator(current_operator)){
                 lhs = std::make_unique<Core::AST::BinaryOperator>(std::move(lhs), token_type_to_binary_operation(current_operator), TRY(parse_operand(std::move(rhs))));
+            }else if(is_arithmetic_operator(current_operator)){
+                lhs = std::make_unique<Core::AST::ArithmeticOperator>(std::move(lhs), token_type_to_arithmetic_operation(current_operator), TRY(parse_operand(std::move(rhs))));
             }
         }
     }

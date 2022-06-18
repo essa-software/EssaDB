@@ -58,6 +58,11 @@ struct Token {
         OpLess,     // <
         OpGreater,  // >
 
+        OpAdd,      // +
+        OpSub,      // -
+        OpMul,      // *
+        OpDiv,      // /
+
         OpAnd,
         OpOr,
         OpNot,

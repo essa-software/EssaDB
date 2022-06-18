@@ -2,10 +2,14 @@
 
 #include "SelectResult.hpp"
 #include "Tuple.hpp"
+#include "db/core/DbError.hpp"
+#include "db/util/Clock.hpp"
 
+#include <bits/chrono.h>
 #include <cctype>
 #include <ostream>
 #include <sstream>
+#include <chrono>
 
 namespace Db::Core {
 
@@ -234,4 +238,87 @@ std::ostream& operator<<(std::ostream& out, Value const& value) {
         return out << "<invalid>";
     return out << error.release_value();
 }
+
+DbErrorOr<Value> operator+(Value const& lhs, Value const& rhs){
+    switch (lhs.type()) {
+        case Value::Type::Bool:
+            return Value::create_bool(TRY(lhs.to_bool()) + TRY(rhs.to_bool()));
+        case Value::Type::Int:
+            return Value::create_int(TRY(lhs.to_int()) + TRY(rhs.to_int()));
+        case Value::Type::Float:
+            return Value::create_float(TRY(lhs.to_float()) + TRY(rhs.to_float()));
+        case Value::Type::Null:
+            return Value::null();
+        case Value::Type::Varchar:
+            return Value::create_varchar(TRY(lhs.to_string()) + TRY(rhs.to_string()));
+        case Value::Type::Time:{
+            time_t time = TRY(lhs.to_int()) + TRY(rhs.to_int());
+            Util::Clock::duration dur(time);
+            return Value::create_time(Util::Clock::time_point(dur));
+        }
+        case Value::Type::SelectResult:
+            return DbError {"No matching operator '+' for 'SelectResult' type.", 0};
+    }
+}
+
+DbErrorOr<Value> operator-(Value const& lhs, Value const& rhs){
+    switch (lhs.type()) {
+        case Value::Type::Bool:
+            return Value::create_bool(TRY(lhs.to_bool()) - TRY(rhs.to_bool()));
+        case Value::Type::Int:
+            return Value::create_int(TRY(lhs.to_int()) - TRY(rhs.to_int()));
+        case Value::Type::Float:
+            return Value::create_float(TRY(lhs.to_float()) - TRY(rhs.to_float()));
+        case Value::Type::Null:
+            return Value::null();
+        case Value::Type::Varchar:
+            return DbError {"No matching operator '-' for 'VARCHAR' type.", 0};
+        case Value::Type::Time:{
+            time_t time = TRY(lhs.to_int()) - TRY(rhs.to_int());
+            Util::Clock::duration dur(time);
+            return Value::create_time(Util::Clock::time_point(dur));
+        }
+        case Value::Type::SelectResult:
+            return DbError {"No matching operator '-' for 'SelectResult' type.", 0};
+    }
+}
+
+DbErrorOr<Value> operator*(Value const& lhs, Value const& rhs){
+    switch (lhs.type()) {
+        case Value::Type::Bool:
+            return Value::create_bool(TRY(lhs.to_bool()) * TRY(rhs.to_bool()));
+        case Value::Type::Int:
+            return Value::create_int(TRY(lhs.to_int()) * TRY(rhs.to_int()));
+        case Value::Type::Float:
+            return Value::create_float(TRY(lhs.to_float()) * TRY(rhs.to_float()));
+        case Value::Type::Null:
+            return Value::null();
+        case Value::Type::Varchar:
+            return DbError {"No matching operator '*' for 'VARCHAR' type.", 0};
+        case Value::Type::Time:
+            return DbError {"No matching operator '*' for 'TIME' type.", 0};
+        case Value::Type::SelectResult:
+            return DbError {"No matching operator '*' for 'SelectResult' type.", 0};
+    }
+}
+
+DbErrorOr<Value> operator/(Value const& lhs, Value const& rhs){
+    switch (lhs.type()) {
+        case Value::Type::Bool:
+            return Value::create_bool(TRY(lhs.to_bool()) / TRY(rhs.to_bool()));
+        case Value::Type::Int:
+            return Value::create_int(TRY(lhs.to_int()) / TRY(rhs.to_int()));
+        case Value::Type::Float:
+            return Value::create_float(TRY(lhs.to_float()) / TRY(rhs.to_float()));
+        case Value::Type::Null:
+            return Value::null();
+        case Value::Type::Varchar:
+            return DbError {"No matching operator '/' for 'VARCHAR' type.", 0};
+        case Value::Type::Time:
+            return DbError {"No matching operator '/' for 'TIME' type.", 0};
+        case Value::Type::SelectResult:
+            return DbError {"No matching operator '/' for 'SelectResult' type.", 0};
+    }
+}
+
 }

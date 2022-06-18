@@ -111,6 +111,27 @@ DbErrorOr<bool> BinaryOperator::is_true(EvaluationContext& context, Tuple const&
     __builtin_unreachable();
 }
 
+
+
+DbErrorOr<Value> ArithmeticOperator::evaluate(EvaluationContext& context, Tuple const& row) const {
+    auto lhs = TRY(m_lhs->evaluate(context, row));
+    auto rhs = TRY(m_rhs->evaluate(context, row));
+
+    switch (m_operation) {
+        case Operation::Add:
+            return lhs + rhs;
+        case Operation::Sub:
+            return lhs - rhs;
+        case Operation::Mul:
+            return lhs * rhs;
+        case Operation::Div:
+            return lhs / rhs;
+        case Operation::Invalid:
+            break;
+    }
+    __builtin_unreachable();
+}
+
 DbErrorOr<Value> BetweenExpression::evaluate(EvaluationContext& context, Tuple const& row) const {
     // TODO: Implement this for strings etc
     auto value = TRY(TRY(m_lhs->evaluate(context, row)).to_int());

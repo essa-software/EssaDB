@@ -110,6 +110,35 @@ private:
     std::unique_ptr<Expression> m_rhs;
 };
 
+class ArithmeticOperator : public Expression {
+public:
+    enum class Operation {
+        Add,
+        Sub,
+        Mul,
+        Div,
+
+        Invalid
+    };
+
+    ArithmeticOperator(std::unique_ptr<Expression> lhs, Operation op, std::unique_ptr<Expression> rhs = nullptr)
+        : Expression(lhs->start())
+        , m_lhs(std::move(lhs))
+        , m_operation(op)
+        , m_rhs(std::move(rhs)) { }
+
+    virtual DbErrorOr<Value> evaluate(EvaluationContext& context, Tuple const& row) const override;
+    
+    virtual std::string to_string() const override { return "BinaryOperator(" + m_lhs->to_string() + "," + m_rhs->to_string() + ")"; }
+
+private:
+    DbErrorOr<bool> is_true(EvaluationContext&, Tuple const&) const;
+
+    std::unique_ptr<Expression> m_lhs;
+    Operation m_operation {};
+    std::unique_ptr<Expression> m_rhs;
+};
+
 class BetweenExpression : public Expression {
 public:
     BetweenExpression(std::unique_ptr<Expression> lhs, std::unique_ptr<Expression> min, std::unique_ptr<Expression> max)
