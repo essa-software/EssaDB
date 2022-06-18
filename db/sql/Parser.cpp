@@ -33,7 +33,28 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Statement>> Parser::parse_statement()
     auto keyword = m_tokens[m_offset];
     // std::cout << keyword.value << "\n";
     if (keyword.type == Token::Type::KeywordSelect) {
-        return TRY(parse_select());
+        auto lhs = TRY(parse_select());
+
+        if(m_tokens[m_offset].type == Token::Type::KeywordUnion){
+            m_offset++;
+
+            bool distinct = true;
+
+            if(m_tokens[m_offset].type == Token::Type::KeywordAll){
+                m_offset++;
+                distinct = false;
+            }
+
+            if(m_tokens[m_offset].type != Token::Type::KeywordSelect)
+                return Core::DbError { "Expected 'SELECT' after 'UNION' statement, got '" + m_tokens[m_offset].value + "'", m_offset + 1 };
+            
+            auto rhs = TRY(parse_select());
+
+            return std::make_unique<Core::AST::Union>(std::move(lhs), std::move(rhs), distinct);
+
+        }else {
+            return std::move(lhs);
+        }
     }
     else if (keyword.type == Token::Type::KeywordCreate) {
         auto what_to_create = m_tokens[m_offset + 1];

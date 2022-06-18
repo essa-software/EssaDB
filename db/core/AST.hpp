@@ -314,6 +314,22 @@ private:
     bool m_distinct;
 };
 
+class Union : public Statement {
+public:
+    Union(std::unique_ptr<Select> lhs, std::unique_ptr<Select> rhs, bool distinct)
+        : Statement(lhs->start())
+        , m_lhs(std::move(lhs))
+        , m_rhs(std::move(rhs))
+        , m_distinct(distinct) {}
+
+    virtual DbErrorOr<Value> execute(Database&) const override;
+
+private:
+    std::unique_ptr<Select> m_lhs;
+    std::unique_ptr<Select> m_rhs;
+    bool m_distinct;
+};
+
 class DeleteFrom : public Statement {
 public:
     DeleteFrom(ssize_t start, std::string from, std::unique_ptr<Expression> where = {})

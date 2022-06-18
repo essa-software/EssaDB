@@ -76,11 +76,27 @@ DbErrorOr<void> select_distinct() {
     return {};
 }
 
+DbErrorOr<void> select_with_union() {
+    auto db = TRY(setup_db());
+    auto result = TRY(TRY(Db::Sql::run_query(db, "SELECT id AS ID, number AS NUM, string AS STR FROM test ORDER BY number ASC UNION SELECT id AS ID, number AS NUM, string AS STR FROM test ORDER BY number DESC")).to_select_result());
+    TRY(expect(result.column_names() == std::vector<std::string> { "ID", "NUM", "STR" }, "columns have alias names"));
+    TRY(expect_equal<size_t>(result.rows().size(), 7, "all rows were returned"));
+    return {};
+}
+
+DbErrorOr<void> select_with_union_all() {
+    auto db = TRY(setup_db());
+    auto result = TRY(TRY(Db::Sql::run_query(db, "SELECT id AS ID, number AS NUM, string AS STR FROM test ORDER BY number ASC UNION ALL SELECT id AS ID, number AS NUM, string AS STR FROM test ORDER BY number DESC")).to_select_result());
+    TRY(expect(result.column_names() == std::vector<std::string> { "ID", "NUM", "STR" }, "columns have alias names"));
+    TRY(expect_equal<size_t>(result.rows().size(), 14, "all rows were returned"));
+    return {};
+}
+
 DbErrorOr<void> select_with_aliases() {
     auto db = TRY(setup_db());
     auto result = TRY(TRY(Db::Sql::run_query(db, "SELECT id AS ID, number AS NUM, string AS STR FROM test;")).to_select_result());
     TRY(expect(result.column_names() == std::vector<std::string> { "ID", "NUM", "STR" }, "columns have alias names"));
-    TRY(expect(result.rows().size() == 7, "all rows were returned"));
+    TRY(expect_equal<size_t>(result.rows().size(), 7, "all rows were returned"));
     return {};
 }
 
@@ -112,5 +128,7 @@ std::map<std::string, TestFunc*> get_tests() {
         { "select_with_aliases", select_with_aliases },
         { "select_aliases_with_square_brackets", select_aliases_with_square_brackets },
         { "select_case", select_case },
+        { "select_with_union", select_with_union },
+        { "select_with_union_all", select_with_union_all },
     };
 }

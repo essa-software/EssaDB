@@ -372,6 +372,44 @@ DbErrorOr<Value> Select::execute(Database& db) const {
     return Value::create_select_result({ column_names, std::move(rows) });
 }
 
+DbErrorOr<Value> Union::execute(Database& db) const{
+    auto lhs = TRY(TRY(m_lhs->execute(db)).to_select_result());
+    auto rhs = TRY(TRY(m_rhs->execute(db)).to_select_result());
+
+    if(lhs.column_names().size() != rhs.column_names().size())
+        return DbError{"Querries with different column count", 0};
+    
+    for(size_t i = 0; i < lhs.column_names().size(); i++){
+        if(lhs.column_names()[i] != rhs.column_names()[i])
+            return DbError{"Querries with different column set", 0};
+    }
+
+    std::vector<Tuple> rows;
+
+    for(const auto& row : lhs.rows()){
+        rows.push_back(row);
+    }
+
+    for(const auto& row : rhs.rows()){
+        if (m_distinct) {
+            bool distinct = true;
+            for (const auto& to_compare : lhs.rows()) {
+                if (row == to_compare) {
+                    distinct = false;
+                    break;
+                }
+            }
+
+            if (distinct)
+                rows.push_back(row);
+        }else {
+            rows.push_back(row);
+        }
+    }
+
+    return Value::create_select_result({ lhs.column_names(), std::move(rows) });
+}
+
 DbErrorOr<Value> DeleteFrom::execute(Database& db) const {
     auto table = TRY(db.table(m_from));
 

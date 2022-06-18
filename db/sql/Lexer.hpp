@@ -38,6 +38,8 @@ struct Token {
         KeywordIs,
         KeywordUpdate,
         KeywordSet,
+        KeywordUnion,
+        KeywordAll,
 
         OrderByParam,
         Identifier,
