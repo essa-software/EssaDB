@@ -118,6 +118,18 @@ std::vector<Token> Lexer::lex() {
             else if (Db::Sql::Parser::compare_case_insensitive(id, "DELETE")) {
                 tokens.push_back(Token { .type = Token::Type::KeywordDelete, .value = "DELETE", .start = start });
             }
+            else if (Db::Sql::Parser::compare_case_insensitive(id, "CASE")) {
+                tokens.push_back(Token { .type = Token::Type::KeywordCase, .value = "CASE", .start = start });
+            }
+            else if (Db::Sql::Parser::compare_case_insensitive(id, "WHEN")) {
+                tokens.push_back(Token { .type = Token::Type::KeywordWhen, .value = "WHEN", .start = start });
+            }
+            else if (Db::Sql::Parser::compare_case_insensitive(id, "THEN")) {
+                tokens.push_back(Token { .type = Token::Type::KeywordThen, .value = "THEN", .start = start });
+            }
+            else if (Db::Sql::Parser::compare_case_insensitive(id, "END")) {
+                tokens.push_back(Token { .type = Token::Type::KeywordEnd, .value = "END", .start = start });
+            }
             else if (Db::Sql::Parser::compare_case_insensitive(id, "AND")) {
                 tokens.push_back(Token { .type = Token::Type::OpAnd, .value = "AND", .start = start });
             }
@@ -148,6 +160,11 @@ std::vector<Token> Lexer::lex() {
         }
         else if (std::isdigit(next) || next == '.' || next == '-') {
             auto number = consume_number();
+
+            if(number == "."){
+                tokens.push_back(Token { .type = Token::Type::Period, .value = ".", .start = start });
+            }
+
             Token::Type type = Token::Type::Int;
 
             if(number.find(".") != std::string::npos){

@@ -30,6 +30,11 @@ struct Token {
         KeywordIn,
         KeywordGroup,
         KeywordHaving,
+        KeywordCase,
+        KeywordWhen,
+        KeywordThen,
+        KeywordEnd,
+        KeywordElse,
 
         OrderByParam,
         Identifier,
@@ -45,6 +50,7 @@ struct Token {
         ParenClose,
         Semicolon,
         Exclamation,
+        Period,
 
         OpEqual,    // =
         OpNotEqual, // !=

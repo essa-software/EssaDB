@@ -126,9 +126,20 @@ DbErrorOr<Value> InExpression::evaluate(EvaluationContext& context, Tuple const&
         auto to_compare = TRY(TRY(arg->evaluate(context, row)).to_string());
 
         if(value == to_compare)
-            return Value::create_bool(true);;
+            return Value::create_bool(true);
     }
     return Value::create_bool(false);
+}
+
+DbErrorOr<Value> CaseExpression::evaluate(EvaluationContext& context, Tuple const& row) const {
+    for(const auto& case_expression : m_cases){
+        if(TRY(TRY(case_expression.expr->evaluate(context, row)).to_bool()))
+            return TRY(case_expression.value->evaluate(context, row));
+    }
+
+    if(m_else_value)
+        return TRY(m_else_value->evaluate(context, row));
+    return Value::null();
 }
 
 DbErrorOr<Value> Select::execute(Database& db) const {

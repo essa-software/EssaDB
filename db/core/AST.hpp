@@ -161,6 +161,37 @@ private:
     std::vector<std::unique_ptr<Core::AST::Expression>> m_args;
 };
 
+class CaseExpression : public Expression{
+public:
+    struct CasePair{
+        std::unique_ptr<Expression> expr;
+        std::unique_ptr<Expression> value;
+    };
+
+    CaseExpression(std::vector<CasePair> cases, std::unique_ptr<Core::AST::Expression> else_value = {})
+        : Expression(cases.front().expr->start())
+        , m_cases(std::move(cases))
+        , m_else_value(std::move(else_value)){}
+
+    virtual DbErrorOr<Value> evaluate(EvaluationContext& context, Tuple const& row) const override;
+    virtual std::string to_string() const override {
+        std::string result = "CaseExpression: \n";
+        for(const auto& c : m_cases){
+            result += "if expression then " + c.value->to_string() + "\n";
+        }
+
+        if(m_else_value)
+            result += "else " + m_else_value->to_string();
+
+        return result;
+    }
+
+private:
+    std::vector<CasePair> m_cases;
+
+    std::unique_ptr<Core::AST::Expression> m_else_value;
+};
+
 class SelectColumns {
 public:
     SelectColumns() = default;
@@ -172,21 +203,6 @@ public:
 
     explicit SelectColumns(std::vector<Column> columns)
         : m_columns(std::move(columns)) { }
-
-    // FIXME: This is temporary until we can represent all handled
-    //        expressions in SQL.
-
-    struct IdentifierColumn {
-        std::string column;
-        std::optional<std::string> alias = {};
-    };
-
-    SelectColumns(std::vector<IdentifierColumn> columns) {
-        for (auto const& column : columns) {
-            m_columns.push_back(Column { .column = std::make_unique<Identifier>(0, column.column), .alias = column.alias });
-            m_aliases.push_back(std::move(column.alias));
-        }
-    }
 
     bool select_all() const { return m_columns.empty(); }
     std::vector<Column> const& columns() const { return m_columns; }

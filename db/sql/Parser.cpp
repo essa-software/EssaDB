@@ -8,6 +8,7 @@
 
 #include <iostream>
 #include <memory>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -104,8 +105,8 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Select>> Parser::parse_select() {
     if (maybe_asterisk.type != Token::Type::Asterisk) {
         while (true) {
             // std::cout << "PARSE EXPRESSION AT " << m_offset << std::endl;
-
             auto expression = TRY(parse_expression());
+
             std::optional<std::string> alias;
 
             if (m_tokens[m_offset].type == Token::Type::KeywordAlias) {
@@ -446,6 +447,20 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::InsertInto>> Parser::parse_insert_int
     return Core::DbError { "Expected 'VALUES' or 'INSERT', got " + value_token.value, m_offset - 1 };
 }
 
+static bool is_literal(Token::Type token){
+    switch (token) {
+        case Token::Type::Int:
+        case Token::Type::Float:
+        case Token::Type::String:
+        case Token::Type::Bool:
+        case Token::Type::Date:
+        case Token::Type::Null:
+            return true;
+        default:
+            return false;
+    }
+}
+
 Core::DbErrorOr<std::unique_ptr<Core::AST::Expression>> Parser::parse_expression(int min_precedence) {
     std::unique_ptr<Core::AST::Expression> lhs;
 
@@ -461,30 +476,51 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Expression>> Parser::parse_expression
         else {
             lhs = TRY(parse_identifier());
         }
-    }
-    else if (token.type == Token::Type::Int) {
+    }else if(token.type == Token::Type::KeywordCase){
         m_offset++;
-        lhs = std::make_unique<Core::AST::Literal>(start, Core::Value::create_int(std::stoi(token.value)));
+        std::vector<Core::AST::CaseExpression::CasePair> cases;
+        std::unique_ptr<Core::AST::Expression> else_value;
+        while(true){
+            auto postfix = m_tokens[m_offset];
+
+            if(postfix.type == Token::Type::KeywordWhen){
+                m_offset++;
+
+                if(else_value)
+                    return Core::DbError { "Expected 'END' after 'ELSE', got '" + token.value + "'", start };
+
+                std::unique_ptr<Core::AST::Expression> expr = TRY(parse_expression());
+
+                auto then_expression = m_tokens[m_offset++];
+
+                if(then_expression.type != Token::Type::KeywordThen)
+                    return Core::DbError { "Expected 'THEN', got '" + token.value + "'", start };
+
+                std::unique_ptr<Core::AST::Expression> val = TRY(parse_expression());
+
+                cases.push_back(Core::AST::CaseExpression::CasePair {.expr = std::move(expr), .value = std::move(val)});
+            }else if(postfix.value == "ELSE"){
+                m_offset++;
+
+                std::cout << m_tokens[m_offset].value << "\n";
+
+                if(else_value)
+                    return Core::DbError { "Expected 'END' after 'ELSE', got '" + token.value + "'", start };
+                
+                else_value = TRY(parse_expression());
+            }else if(postfix.type == Token::Type::KeywordEnd){
+                m_offset++;
+
+                lhs = std::make_unique<Core::AST::CaseExpression>(std::move(cases), std::move(else_value));
+                break;
+            }else{
+                return Core::DbError { "Expected 'WHEN', 'ELSE' or 'END', got '" + token.value + "'", start };
+            }
+            std::cout << postfix.value << " " << m_tokens[m_offset].value << " " << cases.size() << "\n";
+        }
     }
-    else if (token.type == Token::Type::Float) {
-        m_offset++;
-        lhs = std::make_unique<Core::AST::Literal>(start, Core::Value::create_float(std::stof(token.value)));
-    }
-    else if (token.type == Token::Type::String) {
-        m_offset++;
-        lhs = std::make_unique<Core::AST::Literal>(start, Core::Value::create_varchar(token.value));
-    }
-    else if (token.type == Token::Type::Bool) {
-        m_offset++;
-        lhs = std::make_unique<Core::AST::Literal>(start, Core::Value::create_bool((token.value == "true") ? 1 : 0));
-    }
-    else if (token.type == Token::Type::Date) {
-        m_offset++;
-        lhs = std::make_unique<Core::AST::Literal>(start, Core::Value::create_time(token.value, Util::Clock::Format::NO_CLOCK_AMERICAN));
-    }
-    else if (token.type == Token::Type::Null) {
-        m_offset++;
-        lhs = std::make_unique<Core::AST::Literal>(start, Core::Value::null());
+    else if(is_literal(token.type)){
+        lhs = TRY(parse_literal());
     }
     else {
         return Core::DbError { "Expected expression, got '" + token.value + "'", start };
@@ -493,6 +529,38 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Expression>> Parser::parse_expression
     auto maybe_operator = TRY(parse_operand(std::move(lhs), min_precedence));
     assert(maybe_operator);
     return maybe_operator;
+}
+
+Core::DbErrorOr<std::unique_ptr<Core::AST::Literal>> Parser::parse_literal(){
+    auto token = m_tokens[m_offset];
+    auto start = m_offset;
+
+    if (token.type == Token::Type::Int) {
+        m_offset++;
+        return std::make_unique<Core::AST::Literal>(start, Core::Value::create_int(std::stoi(token.value)));
+    }
+    else if (token.type == Token::Type::Float) {
+        m_offset++;
+        return std::make_unique<Core::AST::Literal>(start, Core::Value::create_float(std::stof(token.value)));
+    }
+    else if (token.type == Token::Type::String) {
+        m_offset++;
+        return std::make_unique<Core::AST::Literal>(start, Core::Value::create_varchar(token.value));
+    }
+    else if (token.type == Token::Type::Bool) {
+        m_offset++;
+        return std::make_unique<Core::AST::Literal>(start, Core::Value::create_bool((token.value == "true") ? 1 : 0));
+    }
+    else if (token.type == Token::Type::Date) {
+        m_offset++;
+        return std::make_unique<Core::AST::Literal>(start, Core::Value::create_time(token.value, Util::Clock::Format::NO_CLOCK_AMERICAN));
+    }
+    else if (token.type == Token::Type::Null) {
+        m_offset++;
+        return std::make_unique<Core::AST::Literal>(start, Core::Value::null());
+    }
+    
+    return Core::DbError { "Expected literal, got '" + m_tokens[m_offset].value + "'", m_offset - 1 };
 }
 
 static int operator_precedence(Token::Type op) {

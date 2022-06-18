@@ -96,6 +96,14 @@ DbErrorOr<void> select_aliases_with_square_brackets() {
     return {};
 }
 
+DbErrorOr<void> select_case() {
+    auto db = TRY(setup_db());
+    auto result = TRY(TRY(Db::Sql::run_query(db, "SELECT id AS [ID], CASE WHEN id < 2 THEN 'less than 2' WHEN id < 4 THEN 'less than 4' ELSE 'other cases' END AS [CASE RESULT] FROM test;")).to_select_result());
+    result.dump(std::cout);
+    // TRY(expect(result.column_names()[0] == "id", "square brackets are parsed properly"));
+    return {};
+}
+
 std::map<std::string, TestFunc*> get_tests() {
     return {
         { "select_simple", select_simple },
@@ -107,5 +115,6 @@ std::map<std::string, TestFunc*> get_tests() {
         { "select_distinct", select_distinct },
         { "select_with_aliases", select_with_aliases },
         { "select_aliases_with_square_brackets", select_aliases_with_square_brackets },
+        { "select_case", select_case },
     };
 }

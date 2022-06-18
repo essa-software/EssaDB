@@ -53,6 +53,7 @@ private:
     Core::DbErrorOr<std::unique_ptr<Core::AST::Expression>> parse_function(std::string name);
     Core::DbErrorOr<std::unique_ptr<Parser::InArgs>> parse_in();
     Core::DbErrorOr<std::unique_ptr<Core::AST::Identifier>> parse_identifier();
+    Core::DbErrorOr<std::unique_ptr<Core::AST::Literal>> parse_literal();
 
     std::vector<Token> const& m_tokens;
 
