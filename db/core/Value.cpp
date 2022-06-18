@@ -13,8 +13,6 @@
 
 namespace Db::Core {
 
-size_t Tuple::counter = 0;
-
 Value::Type find_type(const std::string& str) {
     if (str == "null")
         return Value::Type::Null;
@@ -327,6 +325,11 @@ DbErrorOr<Value> operator/(Value const& lhs, Value const& rhs) {
 }
 
 DbErrorOr<bool> operator<(Value const& lhs, Value const& rhs) {
+    if (lhs.type() == Value::Type::Null)
+        return true;
+    if (rhs.type() == Value::Type::Null)
+        return false;
+
     switch (lhs.type()) {
     case Value::Type::Bool:
         return TRY(lhs.to_bool()) < TRY(rhs.to_bool());
@@ -348,24 +351,7 @@ DbErrorOr<bool> operator<(Value const& lhs, Value const& rhs) {
 }
 
 DbErrorOr<bool> operator<=(Value const& lhs, Value const& rhs) {
-    switch (lhs.type()) {
-    case Value::Type::Bool:
-        return TRY(lhs.to_bool()) <= TRY(rhs.to_bool());
-    case Value::Type::Int:
-        return TRY(lhs.to_int()) <= TRY(rhs.to_int());
-    case Value::Type::Float:
-        return TRY(lhs.to_float()) <= TRY(rhs.to_float());
-    case Value::Type::Null:
-        return TRY(lhs.to_int()) <= TRY(rhs.to_int());
-    case Value::Type::Varchar:
-        return TRY(lhs.to_string()) <= TRY(rhs.to_string());
-    case Value::Type::Time: {
-        return TRY(lhs.to_int()) <= TRY(rhs.to_int());
-    }
-    case Value::Type::SelectResult:
-        return DbError { "No matching operator '<=' for 'SelectResult' type.", 0 };
-    }
-    __builtin_unreachable();
+    return TRY(lhs < rhs) || TRY(lhs == rhs);
 }
 
 DbErrorOr<bool> operator==(Value const& lhs, Value const& rhs) {
@@ -377,7 +363,7 @@ DbErrorOr<bool> operator==(Value const& lhs, Value const& rhs) {
     case Value::Type::Float:
         return TRY(lhs.to_float()) == TRY(rhs.to_float());
     case Value::Type::Null:
-        return TRY(lhs.to_int()) == TRY(rhs.to_int());
+        return rhs.type() == Value::Type::Null;
     case Value::Type::Varchar:
         return TRY(lhs.to_string()) == TRY(rhs.to_string());
     case Value::Type::Time: {
@@ -390,45 +376,11 @@ DbErrorOr<bool> operator==(Value const& lhs, Value const& rhs) {
 }
 
 DbErrorOr<bool> operator>=(Value const& lhs, Value const& rhs) {
-    switch (lhs.type()) {
-    case Value::Type::Bool:
-        return TRY(lhs.to_bool()) >= TRY(rhs.to_bool());
-    case Value::Type::Int:
-        return TRY(lhs.to_int()) >= TRY(rhs.to_int());
-    case Value::Type::Float:
-        return TRY(lhs.to_float()) >= TRY(rhs.to_float());
-    case Value::Type::Null:
-        return TRY(lhs.to_int()) >= TRY(rhs.to_int());
-    case Value::Type::Varchar:
-        return TRY(lhs.to_string()) >= TRY(rhs.to_string());
-    case Value::Type::Time: {
-        return TRY(lhs.to_int()) >= TRY(rhs.to_int());
-    }
-    case Value::Type::SelectResult:
-        return DbError { "No matching operator '>=' for 'SelectResult' type.", 0 };
-    }
-    __builtin_unreachable();
+    return !TRY(lhs < rhs);
 }
 
 DbErrorOr<bool> operator>(Value const& lhs, Value const& rhs) {
-    switch (lhs.type()) {
-    case Value::Type::Bool:
-        return TRY(lhs.to_bool()) > TRY(rhs.to_bool());
-    case Value::Type::Int:
-        return TRY(lhs.to_int()) > TRY(rhs.to_int());
-    case Value::Type::Float:
-        return TRY(lhs.to_float()) > TRY(rhs.to_float());
-    case Value::Type::Null:
-        return TRY(lhs.to_int()) > TRY(rhs.to_int());
-    case Value::Type::Varchar:
-        return TRY(lhs.to_string()) > TRY(rhs.to_string());
-    case Value::Type::Time: {
-        return TRY(lhs.to_int()) > TRY(rhs.to_int());
-    }
-    case Value::Type::SelectResult:
-        return DbError { "No matching operator '>' for 'SelectResult' type.", 0 };
-    }
-    __builtin_unreachable();
+    return !TRY(lhs < rhs) && !TRY(lhs == rhs);
 }
 
 DbErrorOr<bool> operator!=(Value const& lhs, Value const& rhs){
