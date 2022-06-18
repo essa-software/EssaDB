@@ -290,7 +290,7 @@ public:
 
 class Select : public Statement {
 public:
-    Select(ssize_t start, SelectColumns columns, std::string from, std::unique_ptr<Expression> where = {}, std::optional<OrderBy> order_by = {}, std::optional<Top> top = {}, std::optional<GroupBy> group_by = {}, std::unique_ptr<Expression> having = {}, bool distinct = false)
+    Select(ssize_t start, SelectColumns columns, std::string from, std::unique_ptr<Expression> where = {}, std::optional<OrderBy> order_by = {}, std::optional<Top> top = {}, std::optional<GroupBy> group_by = {}, std::unique_ptr<Expression> having = {}, bool distinct = false, std::optional<std::string> select_into = {})
         : Statement(start)
         , m_columns(std::move(columns))
         , m_from(std::move(from))
@@ -299,7 +299,8 @@ public:
         , m_top(std::move(top))
         , m_group_by(std::move(group_by))
         , m_having(std::move(having))
-        , m_distinct(distinct) { }
+        , m_distinct(distinct)
+        , m_select_into(std::move(select_into)) { }
 
     virtual DbErrorOr<Value> execute(Database&) const override;
 
@@ -312,6 +313,7 @@ private:
     std::optional<GroupBy> m_group_by;
     std::unique_ptr<Expression> m_having;
     bool m_distinct;
+    std::optional<std::string> m_select_into;
 };
 
 class Union : public Statement {

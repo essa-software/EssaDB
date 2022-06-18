@@ -407,7 +407,15 @@ DbErrorOr<Value> Select::execute(Database& db) const {
         }
     }
 
-    return Value::create_select_result({ column_names, std::move(rows) });
+    auto result = Value::create_select_result({ column_names, std::move(rows) });
+
+    if(m_select_into){
+        if(db.exists(*m_select_into))
+            TRY(db.drop_table(*m_select_into));
+        db.create_table_from_query(TRY(result.to_select_result()), *m_select_into);
+    }
+
+    return std::move(result);
 }
 
 DbErrorOr<Value> Union::execute(Database& db) const{

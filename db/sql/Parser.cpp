@@ -150,6 +150,19 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Select>> Parser::parse_select() {
         m_offset++;
     }
 
+    // INTO
+    std::optional<std::string> select_into;
+    auto into = m_tokens[m_offset];
+    if (into.type == Token::Type::KeywordInto){
+        m_offset++;
+        auto table = m_tokens[m_offset++];
+
+        if(table.type != Token::Type::Identifier)
+            return Core::DbError { "Expected table name after 'INTO'", m_offset - 1 };
+        
+        select_into = table.value;
+    }
+
     // FROM
     auto from = m_tokens[m_offset++];
     if (from.type != Token::Type::KeywordFrom)
@@ -240,7 +253,8 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Select>> Parser::parse_select() {
         std::move(top),
         std::move(group),
         std::move(having),
-        distinct);
+        distinct,
+        std::move(select_into));
 }
 
 Core::DbErrorOr<std::unique_ptr<Core::AST::Update>> Parser::parse_update() {

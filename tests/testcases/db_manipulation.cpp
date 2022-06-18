@@ -106,6 +106,16 @@ DbErrorOr<void> update_addition() {
     return {};
 }
 
+DbErrorOr<void> select_into() {
+    auto db = TRY(setup_db());
+    auto update_result = TRY(Db::Sql::run_query(db, "SELECT * INTO backup FROM test"));
+    auto result = TRY(TRY(Db::Sql::run_query(db, "SELECT * FROM backup;")).to_select_result());
+    result.dump(std::cout);
+
+    // TRY(expect_equal<size_t>(TRY(result.rows()[5].value(0).to_int()), 10, "Table updated successfully!"));
+    return {};
+}
+
 DbErrorOr<void> autoincrement() {
     Database db;
     TRY(Db::Sql::run_query(db, "CREATE TABLE test (id INT AUTO_INCREMENT, value INT)"));
@@ -132,6 +142,7 @@ std::map<std::string, TestFunc*> get_tests() {
         { "delete_with_where", delete_with_where },
         { "update_assignment", update_assignment },
         { "update_addition", update_addition },
+        { "select_into", select_into },
         { "autoincrement", autoincrement }
     };
 }
