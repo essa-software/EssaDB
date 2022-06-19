@@ -41,6 +41,7 @@ public:
     }
 
     Value() = default;
+    static DbErrorOr<Value> from_string(Type, std::string const&);
     static Value null();
     static Value create_int(int i);
     static Value create_float(float f);

@@ -24,6 +24,38 @@ Value::Type find_type(const std::string& str) {
     return Value::Type::Int;
 }
 
+DbErrorOr<Value> Value::from_string(Type type, std::string const& string) {
+    switch (type) {
+    case Type::Null:
+        return DbError { "Internal error: trying to parse string into null type", 0 };
+    case Type::Int:
+        try {
+            return Value::create_int(std::stoi(string));
+        } catch (...) {
+            return DbError { "Cannot convert '" + string + "' to int", 0 };
+        }
+    case Type::Float:
+        try {
+            return Value::create_float(std::stof(string));
+        } catch (...) {
+            return DbError { "Cannot convert '" + string + "' to float", 0 };
+        }
+    case Type::Varchar:
+        return Value::create_varchar(string);
+    case Type::Bool:
+        if (string == "true")
+            return Value::create_bool(true);
+        else if (string == "false")
+            return Value::create_bool(false);
+        return DbError { "Bool value must be either 'true' or 'false', got '" + string + "'", 0 };
+    case Type::Time:
+        return Value::create_time(string, Util::Clock::Format::NO_CLOCK_AMERICAN);
+    case Type::SelectResult:
+        return DbError { "Internal error: TODO: Parse string into SelectResult", 0 };
+    }
+    __builtin_unreachable();
+}
+
 Value Value::null() {
     return Value { std::monostate {}, Type::Null };
 }
@@ -43,6 +75,7 @@ Value Value::create_varchar(std::string s) {
 Value Value::create_bool(bool b) {
     return Value { b, Type::Bool };
 }
+
 Value Value::create_time(Util::Clock::time_point t) {
     return Value { t, Type::Time };
 }
