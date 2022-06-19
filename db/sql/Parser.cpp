@@ -46,7 +46,7 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Statement>> Parser::parse_statement()
             }
 
             if (m_tokens[m_offset].type != Token::Type::KeywordSelect)
-                return Core::DbError { "Expected 'SELECT' after 'UNION' statement, got '" + m_tokens[m_offset].value + "'", m_offset + 1 };
+                return expected("'SELECT' after 'UNION' statement", m_tokens[m_offset], m_offset);
 
             auto rhs = TRY(parse_select());
 
@@ -60,25 +60,25 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Statement>> Parser::parse_statement()
         auto what_to_create = m_tokens[m_offset + 1];
         if (what_to_create.type == Token::Type::KeywordTable)
             return TRY(parse_create_table());
-        return Core::DbError { "Expected thing to create, got '" + what_to_create.value + "'", m_offset + 1 };
+        return expected("thing to create", what_to_create, m_offset + 1);
     }
     else if (keyword.type == Token::Type::KeywordDrop) {
         auto what_to_drop = m_tokens[m_offset + 1];
         if (what_to_drop.type == Token::Type::KeywordTable)
             return TRY(parse_drop_table());
-        return Core::DbError { "Expected thing to drop, got '" + what_to_drop.value + "'", m_offset + 1 };
+        return expected("thing to drop", what_to_drop, m_offset + 1);
     }
     else if (keyword.type == Token::Type::KeywordTruncate) {
         auto what_to_truncate = m_tokens[m_offset + 1];
         if (what_to_truncate.type == Token::Type::KeywordTable)
             return TRY(parse_truncate_table());
-        return Core::DbError { "Expected thing to truncate, got '" + what_to_truncate.value + "'", m_offset + 1 };
+        return expected("thing to truncate", what_to_truncate, m_offset + 1);
     }
     else if (keyword.type == Token::Type::KeywordAlter) {
         auto what_to_alter = m_tokens[m_offset + 1];
         if (what_to_alter.type == Token::Type::KeywordTable)
             return TRY(parse_alter_table());
-        return Core::DbError { "Expected thing to alter, got '" + what_to_alter.value + "'", m_offset + 1 };
+        return expected("thing to alter", what_to_alter, m_offset + 1);
     }
     else if (keyword.type == Token::Type::KeywordDelete) {
         return TRY(parse_delete_from());
@@ -87,7 +87,7 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Statement>> Parser::parse_statement()
         auto into_token = m_tokens[m_offset + 1];
         if (into_token.type == Token::Type::KeywordInto)
             return TRY(parse_insert_into());
-        return Core::DbError { "Expected keyword 'INTO', got '" + into_token.value + "'", m_offset + 1 };
+        return expected("'INTO' after 'INSERT'", into_token, m_offset + 1);
     }
     else if (keyword.type == Token::Type::KeywordUpdate) {
         return TRY(parse_update());
@@ -95,7 +95,7 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Statement>> Parser::parse_statement()
     else if (keyword.type == Token::Type::KeywordImport) {
         return TRY(parse_import());
     }
-    return Core::DbError { "Expected statement, got '" + keyword.value + '"', m_offset };
+    return expected("statement", keyword, m_offset);
 }
 
 Core::DbErrorOr<std::unique_ptr<Core::AST::Select>> Parser::parse_select() {
@@ -162,7 +162,7 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Select>> Parser::parse_select() {
         auto table = m_tokens[m_offset++];
 
         if (table.type != Token::Type::Identifier)
-            return Core::DbError { "Expected table name after 'INTO'", m_offset - 1 };
+            return expected("table name after 'INTO'", table, m_offset - 1);
 
         select_into = table.value;
     }
@@ -173,7 +173,7 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Select>> Parser::parse_select() {
     if (from.type == Token::Type::KeywordFrom) {
         auto from_token = m_tokens[m_offset++];
         if (from_token.type != Token::Type::Identifier)
-            return Core::DbError { "Expected table name after 'FROM'", m_offset - 1 };
+            return expected("table name after 'FROM'", from_token, m_offset - 1);
         from_table = from_token.value;
     }
 
@@ -191,7 +191,7 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Select>> Parser::parse_select() {
     if (m_tokens[m_offset].type == Token::Type::KeywordGroup) {
         m_offset++;
         if (m_tokens[m_offset++].type != Token::Type::KeywordBy)
-            return Core::DbError { "Expected 'BY' after 'GROUP'", m_offset - 1 };
+            return expected("'BY' after 'GROUP", m_tokens[m_offset], m_offset - 1);
 
         Core::AST::GroupBy group_by;
 
@@ -223,7 +223,7 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Select>> Parser::parse_select() {
     if (m_tokens[m_offset].type == Token::Type::KeywordOrder) {
         m_offset++;
         if (m_tokens[m_offset++].type != Token::Type::KeywordBy)
-            return Core::DbError { "Expected 'BY' after 'ORDER'", m_offset - 1 };
+            return expected("'BY' after 'ORDER", m_tokens[m_offset], m_offset - 1);
 
         Core::AST::OrderBy order_by;
 
@@ -270,7 +270,7 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Update>> Parser::parse_update() {
 
     auto table_name = m_tokens[m_offset++];
     if (table_name.type != Token::Type::Identifier)
-        return Core::DbError { "Expected table name after 'UPDATE'", m_offset - 1 };
+        return expected("table name after 'UPDATE'", table_name, m_offset - 1);
 
     std::vector<Core::AST::Update::UpdatePair> to_update;
 
@@ -278,17 +278,17 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Update>> Parser::parse_update() {
         auto set_identifier = m_tokens[m_offset++];
 
         if (set_identifier.type != Token::Type::KeywordSet)
-            return Core::DbError { "Expected 'SET', got " + set_identifier.value, m_offset - 1 };
+            return expected("'SET'", set_identifier, m_offset - 1);
 
         auto column = m_tokens[m_offset++];
 
         if (column.type != Token::Type::Identifier)
-            return Core::DbError { "Expected column name after 'SET'", m_offset - 1 };
+            return expected("column name", set_identifier, m_offset - 1);
 
         auto equal = m_tokens[m_offset++];
 
         if (equal.type != Token::Type::OpEqual)
-            return Core::DbError { "Expected '=', got " + equal.value, m_offset - 1 };
+            return expected("'='", set_identifier, m_offset - 1);
 
         auto expr = TRY(parse_expression());
 
@@ -304,12 +304,11 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Update>> Parser::parse_update() {
 }
 
 Core::DbErrorOr<std::unique_ptr<Core::AST::Import>> Parser::parse_import() {
-    // auto start = m_offset;
     m_offset++; // IMPORT
 
     auto mode_token = m_tokens[m_offset++];
     if (mode_token.type != Token::Type::Identifier) {
-        return Core::DbError { "Expected mode identifier, got '" + mode_token.value + "'", m_offset - 1 };
+        return expected("mode ('CSV')", mode_token, m_offset - 1);
     }
 
     Core::AST::Import::Mode mode = TRY([&]() -> Core::DbErrorOr<Core::AST::Import::Mode> {
@@ -320,17 +319,17 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Import>> Parser::parse_import() {
 
     auto file_name = m_tokens[m_offset++];
     if (file_name.type != Token::Type::String) {
-        return Core::DbError { "Expected file name (string), got '" + file_name.value + "'", m_offset - 1 };
+        return expected("file name (string)", file_name, m_offset - 1);
     }
 
     auto into_token = m_tokens[m_offset++];
     if (into_token.type != Token::Type::KeywordInto) {
-        return Core::DbError { "Expected 'INTO', got '" + into_token.value + "'", m_offset - 1 };
+        return expected("'INTO'", into_token, m_offset - 1);
     }
 
     auto table_name = m_tokens[m_offset++];
     if (table_name.type != Token::Type::Identifier) {
-        return Core::DbError { "Expected file name, got '" + table_name.value + "'", m_offset - 1 };
+        return expected("table name", table_name, m_offset - 1);
     }
 
     return std::make_unique<Core::AST::Import>(m_offset, mode, file_name.value, table_name.value);
@@ -343,11 +342,11 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::DeleteFrom>> Parser::parse_delete_fro
     // FROM
     auto from = m_tokens[m_offset++];
     if (from.type != Token::Type::KeywordFrom)
-        return Core::DbError { "Expected 'FROM', got " + from.value, m_offset - 1 };
+        return expected("'FROM'", from, m_offset - 1);
 
     auto from_token = m_tokens[m_offset++];
     if (from_token.type != Token::Type::Identifier)
-        return Core::DbError { "Expected table name after 'FROM'", m_offset - 1 };
+        return expected("table name after 'FROM'", from, m_offset - 1);
 
     // WHERE
     std::unique_ptr<Core::AST::Expression> where;
@@ -369,7 +368,7 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::CreateTable>> Parser::parse_create_ta
 
     auto table_name = m_tokens[m_offset++];
     if (table_name.type != Token::Type::Identifier)
-        return Core::DbError { "Expected table name", m_offset - 1 };
+        return expected("table name", table_name, m_offset - 1);
 
     auto paren_open = m_tokens[m_offset];
     if (paren_open.type != Token::Type::ParenOpen)
@@ -380,11 +379,11 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::CreateTable>> Parser::parse_create_ta
     while (true) {
         auto name = m_tokens[m_offset++];
         if (name.type != Token::Type::Identifier)
-            return Core::DbError { "Expected column name", m_offset - 1 };
+            return expected("column name", name, m_offset - 1);
 
         auto type_token = m_tokens[m_offset++];
         if (type_token.type != Token::Type::Identifier)
-            return Core::DbError { "Expected column type", m_offset - 1 };
+            return expected("column type", type_token, m_offset - 1);
 
         auto type = Core::Value::type_from_string(type_token.value);
         if (!type.has_value())
@@ -413,7 +412,7 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::CreateTable>> Parser::parse_create_ta
 
     auto paren_close = m_tokens[m_offset++];
     if (paren_close.type != Token::Type::ParenClose)
-        return Core::DbError { "Expected ')' to close column list", m_offset - 1 };
+        return expected("')' to close column list", paren_close, m_offset - 1);
 
     return std::make_unique<Core::AST::CreateTable>(start, table_name.value, columns);
 }
@@ -424,7 +423,7 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::DropTable>> Parser::parse_drop_table(
 
     auto table_name = m_tokens[m_offset++];
     if (table_name.type != Token::Type::Identifier)
-        return Core::DbError { "Expected table name", m_offset - 1 };
+        return expected("table name", table_name, m_offset - 1);
 
     return std::make_unique<Core::AST::DropTable>(start, table_name.value);
 }
@@ -435,7 +434,7 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::TruncateTable>> Parser::parse_truncat
 
     auto table_name = m_tokens[m_offset++];
     if (table_name.type != Token::Type::Identifier)
-        return Core::DbError { "Expected table name", m_offset - 1 };
+        return expected("table name", table_name, m_offset - 1);
 
     return std::make_unique<Core::AST::TruncateTable>(start, table_name.value);
 }
@@ -446,7 +445,7 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::AlterTable>> Parser::parse_alter_tabl
 
     auto table_name = m_tokens[m_offset++];
     if (table_name.type != Token::Type::Identifier)
-        return Core::DbError { "Expected table name", m_offset - 1 };
+        return expected("table name", table_name, m_offset - 1);
 
     std::vector<Core::Column> to_add;
     std::vector<Core::Column> to_alter;
@@ -457,11 +456,11 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::AlterTable>> Parser::parse_alter_tabl
             m_offset++;
             auto column_token = m_tokens[m_offset++];
             if (column_token.type != Token::Type::Identifier)
-                return Core::DbError { "Expected column name", m_offset - 1 };
+                return expected("column name", column_token, m_offset - 1);
 
             auto type_token = m_tokens[m_offset++];
             if (type_token.type != Token::Type::Identifier)
-                return Core::DbError { "Expected column data type", m_offset - 1 };
+                return expected("column type", type_token, m_offset - 1);
 
             // TODO: Parse autoincrement
             to_add.push_back(Core::Column(column_token.value, Core::Value::type_from_string(type_token.value).value(), Core::Column::AutoIncrement::Yes));
@@ -470,26 +469,26 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::AlterTable>> Parser::parse_alter_tabl
             m_offset++;
 
             if (m_tokens[m_offset++].type != Token::Type::KeywordColumn)
-                return Core::DbError { "Expected thing to alter!", m_offset - 1 };
+                return expected("thing to alter", m_tokens[m_offset], m_offset - 1);
 
             auto column_token = m_tokens[m_offset++];
             if (column_token.type != Token::Type::Identifier)
-                return Core::DbError { "Expected column name", m_offset - 1 };
+                return expected("column name", column_token, m_offset - 1);
 
             auto type_token = m_tokens[m_offset++];
             if (type_token.type != Token::Type::Identifier)
-                return Core::DbError { "Expected column data type", m_offset - 1 };
+                return expected("column type", type_token, m_offset - 1);
 
             to_alter.push_back(Core::Column(column_token.value, Core::Value::type_from_string(type_token.value).value(), Core::Column::AutoIncrement::Yes));
         }
         else if (m_tokens[m_offset].type == Token::Type::KeywordDrop) {
             m_offset++;
             if (m_tokens[m_offset++].type != Token::Type::KeywordColumn)
-                return Core::DbError { "Expected thing to drop!", m_offset - 1 };
+                return expected("thing to drop", m_tokens[m_offset], m_offset - 1);
 
             auto column_token = m_tokens[m_offset++];
             if (column_token.type != Token::Type::Identifier)
-                return Core::DbError { "Expected column name", m_offset - 1 };
+                return expected("column name", column_token, m_offset - 1);
 
             to_drop.push_back(Core::Column(column_token.value, {}, Core::Column::AutoIncrement::Yes));
         }
@@ -507,7 +506,7 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::InsertInto>> Parser::parse_insert_int
 
     auto table_name = m_tokens[m_offset++];
     if (table_name.type != Token::Type::Identifier)
-        return Core::DbError { "Expected table name", m_offset - 1 };
+        return expected("table name", table_name, m_offset - 1);
 
     auto paren_open = m_tokens[m_offset];
     if (paren_open.type != Token::Type::ParenOpen)
@@ -519,7 +518,7 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::InsertInto>> Parser::parse_insert_int
     while (true) {
         auto name = m_tokens[m_offset++];
         if (name.type != Token::Type::Identifier)
-            return Core::DbError { "Expected column name", m_offset - 1 };
+            return expected("column name", name, m_offset - 1);
 
         columns.push_back(name.value);
 
@@ -531,7 +530,7 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::InsertInto>> Parser::parse_insert_int
 
     auto paren_close = m_tokens[m_offset++];
     if (paren_close.type != Token::Type::ParenClose)
-        return Core::DbError { "Expected ')' to close column list", m_offset - 1 };
+        return expected("')' to close column list", paren_close, m_offset - 1);
 
     auto value_token = m_tokens[m_offset++];
     if (value_token.type == Token::Type::KeywordValues) {
@@ -551,7 +550,7 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::InsertInto>> Parser::parse_insert_int
 
         paren_close = m_tokens[m_offset++];
         if (paren_close.type != Token::Type::ParenClose)
-            return Core::DbError { "Expected ')' to close values list", m_offset - 1 };
+            return expected("')' to close values list", paren_close, m_offset - 1);
         return std::make_unique<Core::AST::InsertInto>(start, table_name.value, std::move(columns), std::move(values));
     }
     else if (value_token.type == Token::Type::KeywordSelect) {
@@ -560,7 +559,7 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::InsertInto>> Parser::parse_insert_int
         return std::make_unique<Core::AST::InsertInto>(start, table_name.value, std::move(columns), std::move(result));
     }
 
-    return Core::DbError { "Expected 'VALUES' or 'INSERT', got " + value_token.value, m_offset - 1 };
+    return expected("'VALUES' or 'SELECT'", value_token, m_offset - 1);
 }
 
 static bool is_literal(Token::Type token) {
@@ -604,14 +603,14 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Expression>> Parser::parse_expression
                 m_offset++;
 
                 if (else_value)
-                    return Core::DbError { "Expected 'END' after 'ELSE', got '" + token.value + "'", start };
+                    return expected("'END' after 'ELSE'", token, start);
 
                 std::unique_ptr<Core::AST::Expression> expr = TRY(parse_expression());
 
                 auto then_expression = m_tokens[m_offset++];
 
                 if (then_expression.type != Token::Type::KeywordThen)
-                    return Core::DbError { "Expected 'THEN', got '" + token.value + "'", start };
+                    return expected("'THEN'", token, start);
 
                 std::unique_ptr<Core::AST::Expression> val = TRY(parse_expression());
 
@@ -621,7 +620,7 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Expression>> Parser::parse_expression
                 m_offset++;
 
                 if (else_value)
-                    return Core::DbError { "Expected 'END' after 'ELSE', got '" + token.value + "'", start };
+                    return expected("'END' after 'ELSE'", token, start);
 
                 else_value = TRY(parse_expression());
             }
@@ -632,7 +631,7 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Expression>> Parser::parse_expression
                 break;
             }
             else {
-                return Core::DbError { "Expected 'WHEN', 'ELSE' or 'END', got '" + token.value + "'", start };
+                return expected("'WHEN', 'ELSE' or 'END'", token, start);
             }
         }
     }
@@ -640,7 +639,7 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Expression>> Parser::parse_expression
         lhs = TRY(parse_literal());
     }
     else {
-        return Core::DbError { "Expected expression, got '" + token.value + "'", start };
+        return expected("expression", token, start);
     }
 
     auto maybe_operator = TRY(parse_operand(std::move(lhs), min_precedence));
@@ -677,7 +676,7 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Literal>> Parser::parse_literal() {
         return std::make_unique<Core::AST::Literal>(start, Core::Value::null());
     }
 
-    return Core::DbError { "Expected literal, got '" + m_tokens[m_offset].value + "'", m_offset - 1 };
+    return expected("literal", m_tokens[m_offset], m_offset - 1);
 }
 
 static int operator_precedence(Token::Type op) {
@@ -710,7 +709,7 @@ Core::DbErrorOr<std::unique_ptr<Parser::BetweenRange>> Parser::parse_between_ran
     auto min = TRY(parse_expression(operator_precedence(Token::Type::KeywordBetween) + 1));
 
     if (m_tokens[m_offset++].type != Token::Type::OpAnd)
-        return Core::DbError { "Expected 'AND' in 'BETWEEN', got '" + m_tokens[m_offset].value + "'", m_offset - 1 };
+        return expected("'AND' in 'BETWEEN'", m_tokens[m_offset], m_offset - 1);
 
     auto max = TRY(parse_expression(operator_precedence(Token::Type::KeywordBetween) + 1));
 
@@ -897,10 +896,10 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Expression>> Parser::parse_function(s
         if (aggregate_function != Core::AST::AggregateFunction::Function::Invalid) {
             auto column = m_tokens[m_offset++];
             if (column.type != Token::Type::Identifier)
-                return Core::DbError { "Expected identifier in aggregate function", m_offset - 1 };
+                return expected("identifier in aggregate function", column, m_offset - 1);
 
             if (m_tokens[m_offset++].type != Token::Type::ParenClose)
-                return Core::DbError { "Expected ')' to close aggregate function", m_offset };
+                return expected("')' to close aggregate function", m_tokens[m_offset], m_offset - 1);
 
             return { std::make_unique<Core::AST::AggregateFunction>(m_offset, aggregate_function, column.value) };
         }
@@ -911,7 +910,7 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Expression>> Parser::parse_function(s
         auto comma_or_paren_close = m_tokens[m_offset];
         if (comma_or_paren_close.type != Token::Type::Comma) {
             if (comma_or_paren_close.type != Token::Type::ParenClose)
-                return Core::DbError { "Expected ')' to close function", m_offset };
+                return expected("')' to close function", comma_or_paren_close, m_offset);
             m_offset++;
             break;
         }
@@ -925,7 +924,7 @@ Core::DbErrorOr<std::unique_ptr<Parser::InArgs>> Parser::parse_in() {
     auto paren_open = m_tokens[m_offset++];
 
     if (paren_open.type != Token::Type::ParenOpen)
-        return Core::DbError { "Expected '('", m_offset };
+        return expected("'('", paren_open, m_offset - 1);
 
     while (true) {
         auto expression = TRY(parse_expression());
@@ -934,7 +933,7 @@ Core::DbErrorOr<std::unique_ptr<Parser::InArgs>> Parser::parse_in() {
         auto comma_or_paren_close = m_tokens[m_offset];
         if (comma_or_paren_close.type != Token::Type::Comma) {
             if (comma_or_paren_close.type != Token::Type::ParenClose)
-                return Core::DbError { "Expected ')' to close In Expression", m_offset };
+                return expected("')' to close IN expression", comma_or_paren_close, m_offset);
             m_offset++;
             break;
         }
@@ -946,8 +945,13 @@ Core::DbErrorOr<std::unique_ptr<Parser::InArgs>> Parser::parse_in() {
 Core::DbErrorOr<std::unique_ptr<Core::AST::Identifier>> Parser::parse_identifier() {
     auto name = m_tokens[m_offset++];
     if (name.type != Token::Type::Identifier)
-        return Core::DbError { "Expected identifier", m_offset - 1 };
+        return expected("identifier", name, m_offset - 1);
 
     return std::make_unique<Core::AST::Identifier>(m_offset - 1, name.value);
 }
+
+Core::DbError Parser::expected(std::string what, Token got, size_t offset) {
+    return Core::DbError { "Expected " + what + ", got '" + got.value + "'", offset };
+}
+
 }

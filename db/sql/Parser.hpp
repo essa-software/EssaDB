@@ -62,6 +62,8 @@ private:
 
     std::vector<Token> const& m_tokens;
 
+    static Core::DbError expected(std::string what, Token got, size_t offset);
+
     size_t m_offset = 0;
 };
 
