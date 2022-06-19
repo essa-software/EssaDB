@@ -1,4 +1,5 @@
 #include "Table.hpp"
+#include "db/core/Column.hpp"
 #include <cstring>
 #include <fstream>
 #include <iostream>
@@ -146,62 +147,83 @@ DbErrorOr<void> Table::import_from_csv(const std::string& path) {
     m_columns.clear();
 
     std::ifstream f_in(path);
+    f_in >> std::ws;
     if (!f_in.good())
         return DbError { "Failed to open CSV file '" + path + "': " + std::string(strerror(errno)), 0 };
 
-    char c = '\0';
-    std::string str = "";
-    std::vector<std::vector<std::string>> table(1);
+    std::vector<std::string> column_names;
+    std::vector<std::vector<std::string>> rows;
 
-    f_in >> std::ws;
+    auto read_line = [&]() -> std::vector<std::string> {
+        std::string line;
+        if (!std::getline(f_in, line))
+            return {};
+
+        std::vector<std::string> values;
+        std::istringstream line_in { line };
+        while (true) {
+            line_in >> std::ws;
+            std::string value;
+
+            char c = line_in.peek();
+            if (c == EOF)
+                break;
+            while (c != ',') {
+                if (c == EOF)
+                    break;
+                value += c;
+                line_in.get();
+                c = line_in.peek();
+            }
+            if (c == ',')
+                line_in.get();
+            values.push_back(std::move(value));
+        }
+        return values;
+    };
+
+    column_names = read_line();
+    if (column_names.empty())
+        return DbError { "CSV file contains no columns", 0 };
 
     while (true) {
-        if (!f_in.read(&c, 1))
+        auto row_line = read_line();
+        if (row_line.empty())
             break;
-
-        if (c == ',') {
-            table.back().push_back(str);
-            f_in >> std::ws;
-            str = "";
+        if (row_line.size() != column_names.size()) {
+            return DbError { "Not enough columns in row, expected " + std::to_string(column_names.size()) + ", got " + std::to_string(row_line.size()), 0 };
         }
-        else if (c == '\n') {
-            table.back().push_back(str);
-            table.push_back({});
-
-            f_in >> std::ws;
-            str = "";
-        }
-        else {
-            str += c;
-        }
+        rows.push_back(std::move(row_line));
     }
-    table.pop_back();
 
     f_in.close();
 
-    for (unsigned i = 0; i < table.begin()->size(); i++) {
+    size_t column_index = 0;
+    for (auto const& column_name : column_names) {
         Value::Type type = Value::Type::Null;
 
-        for (auto it = table.begin() + 1; it < table.end() - 1; it++) {
+        for (auto const& row : rows) {
 
             if (type == Value::Type::Null) {
-                auto new_type = find_type((*it)[i]);
+                auto new_type = find_type(row[column_index]);
                 if (new_type != Value::Type::Null)
                     type = new_type;
             }
-            else if (type == Value::Type::Int && find_type((*it)[i]) == Value::Type::Varchar)
+            else if (type == Value::Type::Int && find_type(row[column_index]) == Value::Type::Varchar)
                 type = Value::Type::Varchar;
         }
 
-        TRY(add_column(Column(table[0][i], type, Column::AutoIncrement::No)));
+        TRY(add_column(Column(column_name, type, Column::AutoIncrement::No)));
+
+        column_index++;
     }
 
-    for (auto it = table.begin() + 1; it < table.end() - 1; it++) {
+    for (auto const& row : rows) {
         RowWithColumnNames::MapType map;
         unsigned i = 0;
 
         for (const auto& col : m_columns) {
-            auto value = (*it)[i];
+            auto value = row[i];
             i++;
 
             if (value == "null")
