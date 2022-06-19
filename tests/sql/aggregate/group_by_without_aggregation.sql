@@ -1,4 +1,4 @@
-IMPORT CSV '../tests/sql/aggregate.csv' INTO test;
+IMPORT CSV 'aggregate.csv' INTO test;
 
 -- output:
 -- |   id | group |

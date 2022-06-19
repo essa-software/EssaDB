@@ -99,11 +99,20 @@ std::map<std::string, TestFunc> get_tests() {
     std::map<std::string, TestFunc> tests;
 
     constexpr auto TestPath = "../tests/sql";
+    const auto tests_dir = std::filesystem::absolute(TestPath).lexically_normal();
 
-    std::filesystem::recursive_directory_iterator directory { TestPath };
+    std::cout << "Running tests in dir: " << tests_dir << std::endl;
+
+    std::filesystem::recursive_directory_iterator directory { tests_dir };
 
     for (auto file_it : directory) {
-        auto test_func = [file_it]() -> Db::Core::DbErrorOr<void> {
+        // std::cout << "file: " << file_it << std::endl;
+
+        auto test_func = [file_it, tests_dir]() -> Db::Core::DbErrorOr<void> {
+            const auto cwd = tests_dir / file_it.path().parent_path();
+            // std::cout << "chdir " << cwd << std::endl;
+            std::filesystem::current_path(cwd);
+
             std::ifstream file { file_it.path() };
 
             std::vector<SQLStatement> statements;
@@ -207,8 +216,9 @@ std::map<std::string, TestFunc> get_tests() {
             return {};
         };
 
-        if (file_it.path().extension().string().ends_with(".sql")) {
-            tests.insert({ file_it.path().lexically_relative(TestPath), test_func });
+        if (file_it.path().extension() == ".sql") {
+            // std::cout << file_it << std::endl;
+            tests.insert({ file_it.path().lexically_relative(tests_dir), test_func });
         }
     }
     return tests;
