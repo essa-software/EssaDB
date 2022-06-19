@@ -1,4 +1,3 @@
-
 CREATE TABLE test (id INT, [group] VARCHAR);
 INSERT INTO test (id, [group]) VALUES(1, 'AA');
 INSERT INTO test (id, [group]) VALUES(2, 'C');
