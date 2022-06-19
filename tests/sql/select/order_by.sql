@@ -37,7 +37,7 @@ SELECT * FROM test ORDER BY number ASC;
 SELECT * FROM test ORDER BY number DESC;
 
 -- Order by nonexistent
--- error: No such column: nonexistent
+-- error: Alias is not defined: 'nonexistent'
 SELECT * FROM test ORDER BY nonexistent;
 
 -- Order by multiple
@@ -63,3 +63,15 @@ SELECT * FROM test ORDER BY number DESC, id ASC;
 -- |  5 |     69 |  test2 |      58 |
 -- |  2 |   null |   null |      89 |
 SELECT * FROM test ORDER BY 2 DESC, 1 ASC;
+
+-- Order by alias
+-- output:
+-- | id | number_alias |
+-- |  1 |         2137 |
+-- |  6 |         1234 |
+-- |  3 |          420 |
+-- |  0 |           69 |
+-- |  4 |           69 |
+-- |  5 |           69 |
+-- |  2 |         null |
+SELECT id, number AS number_alias FROM test ORDER BY number_alias DESC, 1 ASC;

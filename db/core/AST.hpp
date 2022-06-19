@@ -24,10 +24,7 @@ class Database;
 
 namespace Db::Core::AST {
 
-struct EvaluationContext {
-    Table const* table = nullptr;
-    std::vector<Tuple> const* row_group = nullptr;
-};
+struct EvaluationContext;
 
 class ASTNode {
 public:
@@ -273,20 +270,36 @@ public:
     SelectColumns() = default;
 
     struct Column {
-        std::unique_ptr<Expression> column;
         std::optional<std::string> alias = {};
+        std::unique_ptr<Expression> column;
     };
 
-    explicit SelectColumns(std::vector<Column> columns)
-        : m_columns(std::move(columns)) { }
+    explicit SelectColumns(std::vector<Column> columns);
 
     bool select_all() const { return m_columns.empty(); }
     std::vector<Column> const& columns() const { return m_columns; }
-    std::vector<std::optional<std::string>> const& aliases() const { return m_aliases; }
+
+    struct ResolvedAlias {
+        Expression& column;
+        size_t index;
+    };
+
+    DbErrorOr<ResolvedAlias> resolve_alias(std::string const& alias) const;
 
 private:
-    std::vector<Column> m_columns {};
-    std::vector<std::optional<std::string>> m_aliases {};
+    std::vector<Column> m_columns;
+    std::map<std::string, ResolvedAlias> m_aliases;
+};
+
+struct EvaluationContext {
+    SelectColumns const& columns;
+    Table const* table = nullptr;
+    std::vector<Tuple> const* row_group = nullptr;
+    enum class RowType {
+        FromTable,
+        FromResultSet
+    };
+    RowType row_type;
 };
 
 class ExpressionOrIndex : public std::variant<size_t, std::unique_ptr<Expression>> {
@@ -305,7 +318,7 @@ public:
     bool is_expression() const { return std::holds_alternative<std::unique_ptr<Expression>>(*this); }
     Expression& expression() const { return *std::get<std::unique_ptr<Expression>>(*this); }
 
-    DbErrorOr<Value> evaluate(EvaluationContext& context, SelectColumns const& columns, Tuple const& input) const;
+    DbErrorOr<Value> evaluate(EvaluationContext& context, Tuple const& input) const;
 };
 
 struct OrderBy {
@@ -374,7 +387,7 @@ public:
     virtual DbErrorOr<Value> execute(Database&) const override;
 
 private:
-    DbErrorOr<std::vector<Tuple>> collect_rows(Table const& table, SelectColumns const& columns, std::vector<Tuple> const& input_rows) const;
+    DbErrorOr<std::vector<Tuple>> collect_rows(EvaluationContext& context, Table const& table, std::vector<Tuple> const& input_rows) const;
 
     SelectOptions m_options;
 };

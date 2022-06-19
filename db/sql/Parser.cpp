@@ -142,7 +142,7 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Select>> Parser::parse_select() {
             }
 
             assert(expression);
-            columns.push_back(Core::AST::SelectColumns::Column { .column = std::move(expression), .alias = std::move(alias) });
+            columns.push_back(Core::AST::SelectColumns::Column { .alias = std::move(alias), .column = std::move(expression) });
 
             auto comma = m_tokens[m_offset];
             if (comma.type != Token::Type::Comma)
