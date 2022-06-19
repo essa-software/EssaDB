@@ -67,6 +67,7 @@ bool display_error_if_error(Db::Core::DbErrorOr<Db::Core::Value>&& query_result,
                 std::cout << "Expecting error: \e[31m" << *statement.expected_error << "\e[m" << std::endl;
             if (error.message() != *statement.expected_error) {
                 std::cout << " [FAIL] Incorrect error returned: '" << error.message() << "'" << std::endl;
+                return false;
             }
         }
         else {
