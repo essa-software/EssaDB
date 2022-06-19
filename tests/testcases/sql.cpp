@@ -59,7 +59,7 @@ Db::Core::DbErrorOr<Value> run_query(Db::Core::Database& db, SQLStatement const&
     return result.release_value();
 }
 
-Db::Core::DbErrorOr<void> display_error_if_error(Db::Core::DbErrorOr<Db::Core::Value>&& query_result, SQLStatement const& statement) {
+bool display_error_if_error(Db::Core::DbErrorOr<Db::Core::Value>&& query_result, SQLStatement const& statement) {
     if (query_result.is_error()) {
         auto error = query_result.error();
         if (statement.expected_error) {
@@ -71,14 +71,14 @@ Db::Core::DbErrorOr<void> display_error_if_error(Db::Core::DbErrorOr<Db::Core::V
         }
         else {
             std::cout << " [FAIL] Expected result, but got error: " << error.message() << std::endl;
-            return expect(false, statement.statement);
+            return false;
         }
     }
     else {
         if (statement.expected_error) {
             std::cout << " [FAIL] Expected error, but got result:" << std::endl;
             query_result.release_value().repl_dump(std::cout);
-            return expect(false, statement.statement);
+            return false;
         }
         if (statement.expected_output) {
             std::ostringstream output;
@@ -87,12 +87,12 @@ Db::Core::DbErrorOr<void> display_error_if_error(Db::Core::DbErrorOr<Db::Core::V
                 std::cout << " [FAIL] Expected result: " << std::endl;
                 std::cout << *statement.expected_output << std::endl;
                 std::cout << " [FAIL] but got result: " << std::endl;
-                std::cout << output.str();
-                return expect(false, statement.statement);
+                std::cout << output.str() << std::endl;
+                return false;
             }
         }
     }
-    return {};
+    return true;
 }
 
 std::map<std::string, TestFunc> get_tests() {
@@ -194,14 +194,16 @@ std::map<std::string, TestFunc> get_tests() {
 
             Db::Core::Database db;
 
+            bool success = true;
             for (auto const& statement : statements) {
                 if (statement.skip) {
                     std::cout << " [*] Skipped: " << statement.statement << std::endl;
                     continue;
                 }
-                TRY(display_error_if_error(run_query(db, statement), statement));
+                success &= display_error_if_error(run_query(db, statement), statement);
             }
-
+            if (!success)
+                return Db::Core::DbError { "SQL failed", 0 };
             return {};
         };
 
