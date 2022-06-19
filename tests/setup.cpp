@@ -17,21 +17,39 @@ Db::Core::DbErrorOr<void> expect(bool b, std::string const& message) {
 
 extern std::map<std::string, TestFunc> get_tests();
 
-int main() {
+bool run_test(std::pair<std::string, TestFunc> const& test) {
+    auto f = test.second();
+    if (f.is_error()) {
+        std::cout << "\e[31;1mFAIL\e[m " << test.first << " " << f.release_error().message() << std::endl;
+        return false;
+    }
+    std::cout << "\e[32;1mPASS\e[m " << test.first << std::endl;
+    return true;
+}
+
+int main(int argc, char* argv[]) {
     std::map<std::string, TestFunc> funcs = get_tests();
 
-    bool failed = false;
-
-    for (auto const& func : funcs) {
-        auto f = func.second();
-        if (f.is_error()) {
-            std::cout << "\e[31;1mFAIL\e[m " << func.first << " " << f.release_error().message() << std::endl;
-            failed = true;
+    if (argc == 2) {
+        if (std::string_view{argv[1]} == "list") {
+            for (auto const& func: funcs) {
+                std::cout << func.first << std::endl;
+            }
+            return 0;
         }
-        else {
-            std::cout << "\e[32;1mPASS\e[m " << func.first << std::endl;
+        auto test_to_run = funcs.find(argv[1]);
+        if (test_to_run == funcs.end()) {
+            std::cout << "\e[31;1mFAIL\e[m Test not found: " << argv[1] << std::endl;
+            return 1;
         }
+        return run_test(*test_to_run) ? 0 : 1;
     }
 
-    return failed ? 1 : 0;
+    bool success = true;
+
+    for (auto const& func : funcs) {
+        success &= run_test(func);
+    }
+
+    return success ? 0 : 1;
 }
