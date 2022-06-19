@@ -42,6 +42,8 @@ public:
     void clear_row() { m_values.clear(); }
 
 private:
+    friend std::ostream& operator<<(std::ostream&, Tuple const&);
+
     std::vector<Value> m_values;
 };
 

@@ -25,4 +25,16 @@ bool operator<(Tuple const& lhs, Tuple const& rhs) {
     return false;
 }
 
+std::ostream& operator<<(std::ostream& out, Tuple const& tuple) {
+    out << "(";
+    size_t index = 0;
+    for (auto const& value : tuple) {
+        out << value;
+        if (index != tuple.m_values.size() - 1)
+            return out << ", ";
+        index++;
+    }
+    return out << ")";
+}
+
 }
