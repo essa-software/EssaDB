@@ -406,7 +406,7 @@ static void setup_sql_functions() {
     });
 }
 
-DbErrorOr<Value> Function::evaluate(EvaluationContext& context, Tuple const& row) const {
+DbErrorOr<Value> Function::evaluate(EvaluationContext& context, TupleWithSource const& row) const {
     static bool sql_functions_setup = false;
     if (!sql_functions_setup) {
         setup_sql_functions();
@@ -428,7 +428,7 @@ DbErrorOr<Value> Function::evaluate(EvaluationContext& context, Tuple const& row
     return DbError { "Undefined function: '" + m_name + "'", start() };
 }
 
-DbErrorOr<Value> AggregateFunction::evaluate(EvaluationContext& context, Tuple const&) const {
+DbErrorOr<Value> AggregateFunction::evaluate(EvaluationContext& context, TupleWithSource const&) const {
     if (!context.row_group) {
         // TODO: Store more information about where user can't use aggregate function.
         return DbError { "Cannot use aggregate function here", start() };

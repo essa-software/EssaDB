@@ -37,7 +37,7 @@ SELECT * FROM test ORDER BY number ASC;
 SELECT * FROM test ORDER BY number DESC;
 
 -- Order by nonexistent
--- error: Alias is not defined: 'nonexistent'
+-- error: Identifier 'nonexistent' not defined in table nor as an alias
 SELECT * FROM test ORDER BY nonexistent;
 
 -- Order by multiple
@@ -87,3 +87,15 @@ SELECT id, number AS number_alias FROM test ORDER BY number_alias DESC, 1 ASC;
 -- |           69 |
 -- |         null |
 SELECT number AS number_alias FROM test ORDER BY number DESC;
+
+-- Order by column name that is not included in SELECT clause
+-- output:
+-- | id |
+-- |  1 |
+-- |  6 |
+-- |  3 |
+-- |  0 |
+-- |  4 |
+-- |  5 |
+-- |  2 |
+SELECT id FROM test ORDER BY number DESC;

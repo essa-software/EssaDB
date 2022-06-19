@@ -39,7 +39,7 @@ private:
             , min(std::move(min))
             , max(std::move(max)) { }
 
-        virtual Core::DbErrorOr<Core::Value> evaluate(Core::AST::EvaluationContext&, Core::Tuple const&) const override { return Core::Value(); }
+        virtual Core::DbErrorOr<Core::Value> evaluate(Core::AST::EvaluationContext&, Core::AST::TupleWithSource const&) const override { return Core::Value(); }
         virtual std::string to_string() const override { return "BetweenRange(min,max)"; }
     };
 
@@ -50,7 +50,7 @@ private:
             : Expression(arg_list.front()->start())
             , args(std::move(arg_list)) { }
 
-        virtual Core::DbErrorOr<Core::Value> evaluate(Core::AST::EvaluationContext&, Core::Tuple const&) const override { return Core::Value(); }
+        virtual Core::DbErrorOr<Core::Value> evaluate(Core::AST::EvaluationContext&, Core::AST::TupleWithSource const&) const override { return Core::Value(); }
         virtual std::string to_string() const override { return "InArgs(args)"; }
     };
 

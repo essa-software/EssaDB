@@ -37,13 +37,22 @@ private:
     size_t m_start;
 };
 
+struct TupleWithSource {
+    Tuple tuple;
+    std::optional<Tuple> source;
+
+    DbErrorOr<bool> operator==(TupleWithSource const& other) const {
+        return TRY(tuple == other.tuple) && source.has_value() == other.source.has_value() && TRY(source.value() == other.source.value());
+    }
+};
+
 class Expression : public ASTNode {
 public:
     explicit Expression(ssize_t start)
         : ASTNode(start) { }
 
     virtual ~Expression() = default;
-    virtual DbErrorOr<Value> evaluate(EvaluationContext&, Tuple const&) const = 0;
+    virtual DbErrorOr<Value> evaluate(EvaluationContext&, TupleWithSource const&) const = 0;
     virtual std::string to_string() const = 0;
     virtual std::vector<std::string> referenced_columns() const { return {}; }
 };
@@ -54,7 +63,7 @@ public:
         : Expression(start)
         , m_value(std::move(val)) { }
 
-    virtual DbErrorOr<Value> evaluate(EvaluationContext&, Tuple const&) const override { return m_value; }
+    virtual DbErrorOr<Value> evaluate(EvaluationContext&, TupleWithSource const&) const override { return m_value; }
     virtual std::string to_string() const override { return m_value.to_string().release_value_but_fixme_should_propagate_errors(); }
 
 private:
@@ -67,7 +76,7 @@ public:
         : Expression(start)
         , m_id(std::move(id)) { }
 
-    virtual DbErrorOr<Value> evaluate(EvaluationContext&, Tuple const&) const override;
+    virtual DbErrorOr<Value> evaluate(EvaluationContext&, TupleWithSource const&) const override;
     virtual std::string to_string() const override { return m_id; }
     virtual std::vector<std::string> referenced_columns() const override { return { m_id }; }
 
@@ -98,7 +107,7 @@ public:
         , m_operation(op)
         , m_rhs(std::move(rhs)) { }
 
-    virtual DbErrorOr<Value> evaluate(EvaluationContext& context, Tuple const& row) const override {
+    virtual DbErrorOr<Value> evaluate(EvaluationContext& context, TupleWithSource const& row) const override {
         return Value::create_bool(TRY(is_true(context, row)));
     }
     virtual std::string to_string() const override { return "BinaryOperator(" + m_lhs->to_string() + "," + m_rhs->to_string() + ")"; }
@@ -111,7 +120,7 @@ public:
     }
 
 private:
-    DbErrorOr<bool> is_true(EvaluationContext&, Tuple const&) const;
+    DbErrorOr<bool> is_true(EvaluationContext&, TupleWithSource const&) const;
 
     std::unique_ptr<Expression> m_lhs;
     Operation m_operation {};
@@ -135,7 +144,7 @@ public:
         , m_operation(op)
         , m_rhs(std::move(rhs)) { }
 
-    virtual DbErrorOr<Value> evaluate(EvaluationContext& context, Tuple const& row) const override;
+    virtual DbErrorOr<Value> evaluate(EvaluationContext& context, TupleWithSource const& row) const override;
 
     virtual std::string to_string() const override { return "BinaryOperator(" + m_lhs->to_string() + "," + m_rhs->to_string() + ")"; }
 
@@ -166,7 +175,7 @@ public:
         assert(m_max);
     }
 
-    virtual DbErrorOr<Value> evaluate(EvaluationContext& context, Tuple const& row) const override;
+    virtual DbErrorOr<Value> evaluate(EvaluationContext& context, TupleWithSource const& row) const override;
     virtual std::string to_string() const override {
         return "BetweenExpression(" + m_lhs->to_string() + "," + m_min->to_string() + "," + m_max->to_string() + ")";
     }
@@ -195,7 +204,7 @@ public:
         assert(m_lhs);
     }
 
-    virtual DbErrorOr<Value> evaluate(EvaluationContext& context, Tuple const& row) const override;
+    virtual DbErrorOr<Value> evaluate(EvaluationContext& context, TupleWithSource const& row) const override;
     virtual std::string to_string() const override {
         std::string result = "InExpression(";
         for (auto i = m_args.begin(); i < m_args.end(); i++) {
@@ -235,7 +244,7 @@ public:
         , m_cases(std::move(cases))
         , m_else_value(std::move(else_value)) { }
 
-    virtual DbErrorOr<Value> evaluate(EvaluationContext& context, Tuple const& row) const override;
+    virtual DbErrorOr<Value> evaluate(EvaluationContext& context, TupleWithSource const& row) const override;
     virtual std::string to_string() const override {
         std::string result = "CaseExpression: \n";
         for (const auto& c : m_cases) {
@@ -265,6 +274,19 @@ private:
     std::unique_ptr<Core::AST::Expression> m_else_value;
 };
 
+class SelectColumns;
+
+struct EvaluationContext {
+    SelectColumns const& columns;
+    Table const* table = nullptr;
+    std::vector<Tuple> const* row_group = nullptr;
+    enum class RowType {
+        FromTable,
+        FromResultSet
+    };
+    RowType row_type;
+};
+
 class SelectColumns {
 public:
     SelectColumns() = default;
@@ -284,22 +306,12 @@ public:
         size_t index;
     };
 
-    DbErrorOr<ResolvedAlias> resolve_alias(std::string const& alias) const;
+    ResolvedAlias const* resolve_alias(std::string const& alias) const;
+    DbErrorOr<Value> resolve_value(EvaluationContext&, TupleWithSource const&, std::string const& alias) const;
 
 private:
     std::vector<Column> m_columns;
     std::map<std::string, ResolvedAlias> m_aliases;
-};
-
-struct EvaluationContext {
-    SelectColumns const& columns;
-    Table const* table = nullptr;
-    std::vector<Tuple> const* row_group = nullptr;
-    enum class RowType {
-        FromTable,
-        FromResultSet
-    };
-    RowType row_type;
 };
 
 class ExpressionOrIndex : public std::variant<size_t, std::unique_ptr<Expression>> {
@@ -307,10 +319,10 @@ public:
     using Variant = std::variant<size_t, std::unique_ptr<Expression>>;
 
     explicit ExpressionOrIndex(size_t index)
-    : Variant{index} {}
+        : Variant { index } { }
 
     explicit ExpressionOrIndex(std::unique_ptr<Expression> expr)
-    : Variant(std::move(expr)) {}
+        : Variant(std::move(expr)) { }
 
     bool is_index() const { return std::holds_alternative<size_t>(*this); }
     size_t index() const { return std::get<size_t>(*this); }
@@ -318,7 +330,7 @@ public:
     bool is_expression() const { return std::holds_alternative<std::unique_ptr<Expression>>(*this); }
     Expression& expression() const { return *std::get<std::unique_ptr<Expression>>(*this); }
 
-    DbErrorOr<Value> evaluate(EvaluationContext& context, Tuple const& input) const;
+    DbErrorOr<Value> evaluate(EvaluationContext& context, TupleWithSource const& input) const;
 };
 
 struct OrderBy {
@@ -387,7 +399,7 @@ public:
     virtual DbErrorOr<Value> execute(Database&) const override;
 
 private:
-    DbErrorOr<std::vector<Tuple>> collect_rows(EvaluationContext& context, Table const& table, std::vector<Tuple> const& input_rows) const;
+    DbErrorOr<std::vector<TupleWithSource>> collect_rows(EvaluationContext& context, Table const& table, std::vector<Tuple> const& input_rows) const;
 
     SelectOptions m_options;
 };

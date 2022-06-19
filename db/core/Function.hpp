@@ -10,7 +10,7 @@ public:
         , m_name(std::move(name))
         , m_args(std::move(args)) { }
 
-    virtual DbErrorOr<Value> evaluate(EvaluationContext&, Tuple const&) const override;
+    virtual DbErrorOr<Value> evaluate(EvaluationContext&, TupleWithSource const&) const override;
     virtual std::string to_string() const override { return m_name + "(TODO)"; }
 
     virtual std::vector<std::string> referenced_columns() const override {
@@ -43,7 +43,7 @@ public:
         , m_function(function)
         , m_column(std::move(column)) { }
 
-    virtual DbErrorOr<Value> evaluate(EvaluationContext&, Tuple const&) const override;
+    virtual DbErrorOr<Value> evaluate(EvaluationContext&, TupleWithSource const&) const override;
     virtual std::string to_string() const override { return "AggregateFunction?(TODO)"; }
 
     DbErrorOr<Value> aggregate(EvaluationContext&, std::vector<Tuple> const&) const;

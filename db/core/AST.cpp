@@ -19,18 +19,17 @@
 
 namespace Db::Core::AST {
 
-DbErrorOr<Value> Identifier::evaluate(EvaluationContext& context, Tuple const& row) const {
+DbErrorOr<Value> Identifier::evaluate(EvaluationContext& context, TupleWithSource const& row) const {
     if (context.row_type == EvaluationContext::RowType::FromTable) {
         if (!context.table)
             return DbError { "You need a table to resolve identifiers", start() };
         auto column = context.table->get_column(m_id);
         if (!column)
             return DbError { "No such column: " + m_id, start() };
-        return row.value(column->second);
+        return row.tuple.value(column->second);
     }
 
-    auto column = TRY(context.columns.resolve_alias(m_id));
-    return row.value(column.index);
+    return TRY(context.columns.resolve_value(context, row, m_id));
 }
 
 // FIXME: char ranges doesn't work in row
@@ -130,7 +129,7 @@ static DbErrorOr<bool> wildcard_parser(std::string const& lhs, std::string const
     return result;
 }
 
-DbErrorOr<bool> BinaryOperator::is_true(EvaluationContext& context, Tuple const& row) const {
+DbErrorOr<bool> BinaryOperator::is_true(EvaluationContext& context, TupleWithSource const& row) const {
     // TODO: Implement proper comparison
     switch (m_operation) {
     case Operation::Equal:
@@ -160,7 +159,7 @@ DbErrorOr<bool> BinaryOperator::is_true(EvaluationContext& context, Tuple const&
     __builtin_unreachable();
 }
 
-DbErrorOr<Value> ArithmeticOperator::evaluate(EvaluationContext& context, Tuple const& row) const {
+DbErrorOr<Value> ArithmeticOperator::evaluate(EvaluationContext& context, TupleWithSource const& row) const {
     auto lhs = TRY(m_lhs->evaluate(context, row));
     auto rhs = TRY(m_rhs->evaluate(context, row));
 
@@ -179,7 +178,7 @@ DbErrorOr<Value> ArithmeticOperator::evaluate(EvaluationContext& context, Tuple 
     __builtin_unreachable();
 }
 
-DbErrorOr<Value> BetweenExpression::evaluate(EvaluationContext& context, Tuple const& row) const {
+DbErrorOr<Value> BetweenExpression::evaluate(EvaluationContext& context, TupleWithSource const& row) const {
     // TODO: Implement this for strings etc
     auto value = TRY(TRY(m_lhs->evaluate(context, row)).to_int());
     auto min = TRY(TRY(m_min->evaluate(context, row)).to_int());
@@ -187,7 +186,7 @@ DbErrorOr<Value> BetweenExpression::evaluate(EvaluationContext& context, Tuple c
     return Value::create_bool(value >= min && value <= max);
 }
 
-DbErrorOr<Value> InExpression::evaluate(EvaluationContext& context, Tuple const& row) const {
+DbErrorOr<Value> InExpression::evaluate(EvaluationContext& context, TupleWithSource const& row) const {
     // TODO: Implement this for strings etc
     auto value = TRY(TRY(m_lhs->evaluate(context, row)).to_string());
     for (const auto& arg : m_args) {
@@ -199,7 +198,7 @@ DbErrorOr<Value> InExpression::evaluate(EvaluationContext& context, Tuple const&
     return Value::create_bool(false);
 }
 
-DbErrorOr<Value> CaseExpression::evaluate(EvaluationContext& context, Tuple const& row) const {
+DbErrorOr<Value> CaseExpression::evaluate(EvaluationContext& context, TupleWithSource const& row) const {
     for (const auto& case_expression : m_cases) {
         if (TRY(TRY(case_expression.expr->evaluate(context, row)).to_bool()))
             return TRY(case_expression.value->evaluate(context, row));
@@ -221,14 +220,31 @@ SelectColumns::SelectColumns(std::vector<Column> columns)
     }
 }
 
-DbErrorOr<SelectColumns::ResolvedAlias> SelectColumns::resolve_alias(std::string const& alias) const {
+SelectColumns::ResolvedAlias const* SelectColumns::resolve_alias(std::string const& alias) const {
     auto it = m_aliases.find(alias);
-    if (it == m_aliases.end())
-        return DbError { "Alias is not defined: '" + alias + "'", 0 };
-    return it->second;
+    if (it == m_aliases.end()) {
+        return nullptr;
+    }
+    return &it->second;
 }
 
-DbErrorOr<Value> ExpressionOrIndex::evaluate(EvaluationContext& context, Tuple const& input) const {
+DbErrorOr<Value> SelectColumns::resolve_value(EvaluationContext& context, TupleWithSource const& tuple, std::string const& alias) const {
+    auto resolved_alias = resolve_alias(alias);
+    if (resolved_alias)
+        return tuple.tuple.value(resolved_alias->index);
+
+    if (!context.table)
+        return DbError { "Identifier '" + alias + "' not defined", 0 };
+
+    auto column = context.table->get_column(alias);
+    if (!column)
+        return DbError { "Identifier '" + alias + "' not defined in table nor as an alias", 0 };
+    if (!tuple.source)
+        return DbError { "Cannot use table columns on aggregated rows", 0 };
+    return tuple.source->value(column->second);
+}
+
+DbErrorOr<Value> ExpressionOrIndex::evaluate(EvaluationContext& context, TupleWithSource const& input) const {
     if (is_expression()) {
         return TRY(expression().evaluate(context, input));
     }
@@ -268,7 +284,7 @@ DbErrorOr<Value> Select::execute(Database& db) const {
 
     EvaluationContext context { .columns = columns, .table = table, .row_type = EvaluationContext::RowType::FromTable };
 
-    auto rows = TRY([&]() -> DbErrorOr<std::vector<Tuple>> {
+    auto rows = TRY([&]() -> DbErrorOr<std::vector<TupleWithSource>> {
         if (m_options.from) {
             // SELECT etc.
             return collect_rows(context, *table, table->rows());
@@ -278,7 +294,7 @@ DbErrorOr<Value> Select::execute(Database& db) const {
             for (auto const& column : m_options.columns.columns()) {
                 values.push_back(TRY(column.column->evaluate(context, {})));
             }
-            return std::vector<Tuple> { Tuple { values } };
+            return std::vector<TupleWithSource> { { .tuple = Tuple { values }, .source = {} } };
         }
     }());
 
@@ -286,7 +302,7 @@ DbErrorOr<Value> Select::execute(Database& db) const {
 
     // DISTINCT
     if (m_options.distinct) {
-        std::vector<Tuple> occurences;
+        std::vector<TupleWithSource> occurences;
 
         // FIXME: O(n^2)
         for (const auto& row : rows) {
@@ -307,7 +323,7 @@ DbErrorOr<Value> Select::execute(Database& db) const {
 
     // ORDER BY
     if (m_options.order_by) {
-        auto generate_tuple_pair_for_ordering = [&](Tuple const& lhs, Tuple const& rhs) -> DbErrorOr<std::pair<Tuple, Tuple>> {
+        auto generate_tuple_pair_for_ordering = [&](TupleWithSource const& lhs, TupleWithSource const& rhs) -> DbErrorOr<std::pair<Tuple, Tuple>> {
             std::vector<Value> lhs_values;
             std::vector<Value> rhs_values;
 
@@ -328,7 +344,7 @@ DbErrorOr<Value> Select::execute(Database& db) const {
         };
 
         std::optional<DbError> error;
-        std::stable_sort(rows.begin(), rows.end(), [&](Tuple const& lhs, Tuple const& rhs) -> bool {
+        std::stable_sort(rows.begin(), rows.end(), [&](TupleWithSource const& lhs, TupleWithSource const& rhs) -> bool {
             auto pair = generate_tuple_pair_for_ordering(lhs, rhs);
             if (pair.is_error()) {
                 error = pair.release_error();
@@ -360,7 +376,11 @@ DbErrorOr<Value> Select::execute(Database& db) const {
             column_names.push_back(column.column->to_string());
     }
 
-    SelectResult result { column_names, std::move(rows) };
+    std::vector<Tuple> output_rows;
+    for (auto const& row : rows)
+        output_rows.push_back(std::move(row.tuple));
+
+    SelectResult result { column_names, std::move(output_rows) };
 
     if (m_options.select_into) {
         // TODO: Insert, not overwrite records
@@ -371,11 +391,11 @@ DbErrorOr<Value> Select::execute(Database& db) const {
     return Value::create_select_result(std::move(result));
 }
 
-DbErrorOr<std::vector<Tuple>> Select::collect_rows(EvaluationContext& context, Table const& table, std::vector<Tuple> const& input_rows) const {
+DbErrorOr<std::vector<TupleWithSource>> Select::collect_rows(EvaluationContext& context, Table const& table, std::vector<Tuple> const& input_rows) const {
     auto should_include_row = [&](Tuple const& row) -> DbErrorOr<bool> {
         if (!m_options.where)
             return true;
-        return TRY(m_options.where->evaluate(context, row)).to_bool();
+        return TRY(m_options.where->evaluate(context, TupleWithSource { .tuple = row, .source = {} })).to_bool();
     };
 
     // Collect all rows that should be included (applying WHERE and GROUP BY)
@@ -436,7 +456,7 @@ DbErrorOr<std::vector<Tuple>> Select::collect_rows(EvaluationContext& context, T
         Tuple dummy_row { values };
         context.row_group = &input_rows;
         for (auto const& column : m_options.columns.columns()) {
-            TRY(column.column->evaluate(context, dummy_row));
+            TRY(column.column->evaluate(context, TupleWithSource { .tuple = dummy_row, .source = {} }));
         }
     }
 
@@ -444,9 +464,9 @@ DbErrorOr<std::vector<Tuple>> Select::collect_rows(EvaluationContext& context, T
     // std::cout << "nonaggregated_row_groups.size(): " << nonaggregated_row_groups.size() << std::endl;
 
     // Group + aggregate rows if needed, otherwise just evaluate column expressions
-    std::vector<Tuple> aggregated_rows;
+    std::vector<TupleWithSource> aggregated_rows;
     if (should_group) {
-        auto should_include_group = [&](EvaluationContext& context, Tuple const& row) -> DbErrorOr<bool> {
+        auto should_include_group = [&](EvaluationContext& context, TupleWithSource const& row) -> DbErrorOr<bool> {
             if (!m_options.having)
                 return true;
             return TRY(m_options.having->evaluate(context, row)).to_bool();
@@ -473,7 +493,7 @@ DbErrorOr<std::vector<Tuple>> Select::collect_rows(EvaluationContext& context, T
                     values.push_back(TRY(aggregate_column->aggregate(context, group.second)));
                 }
                 else if (is_in_group_by(column)) {
-                    values.push_back(TRY(column.column->evaluate(context, group.second[0])));
+                    values.push_back(TRY(column.column->evaluate(context, { .tuple = group.second[0], .source = {} })));
                 }
                 else {
                     // "All columns must be either aggregate or occur in GROUP BY clause"
@@ -484,7 +504,7 @@ DbErrorOr<std::vector<Tuple>> Select::collect_rows(EvaluationContext& context, T
 
             context.row_type = EvaluationContext::RowType::FromResultSet;
 
-            Tuple aggregated_row { values };
+            TupleWithSource aggregated_row { .tuple = { values }, .source = {} };
 
             // HAVING
             if (!TRY(should_include_group(context, aggregated_row)))
@@ -498,9 +518,9 @@ DbErrorOr<std::vector<Tuple>> Select::collect_rows(EvaluationContext& context, T
             for (auto const& row : group.second) {
                 std::vector<Value> values;
                 for (auto& column : context.columns.columns()) {
-                    values.push_back(TRY(column.column->evaluate(context, row)));
+                    values.push_back(TRY(column.column->evaluate(context, { .tuple = row, .source = row })));
                 }
-                aggregated_rows.push_back({ values });
+                aggregated_rows.push_back(TupleWithSource { .tuple = { values }, .source = row });
             }
         }
     }
@@ -555,7 +575,7 @@ DbErrorOr<Value> DeleteFrom::execute(Database& db) const {
     auto should_include_row = [&](Tuple const& row) -> DbErrorOr<bool> {
         if (!m_where)
             return true;
-        return TRY(m_where->evaluate(context, row)).to_bool();
+        return TRY(m_where->evaluate(context, { .tuple = row, .source = {} })).to_bool();
     };
 label:;
 
@@ -580,7 +600,7 @@ DbErrorOr<Value> Update::execute(Database& db) const {
         size_t i = 0;
 
         for (auto& row : table->rows()) {
-            TRY(table->update_cell(i, column->second, TRY(update_pair.expr->evaluate(context, row))));
+            TRY(table->update_cell(i, column->second, TRY(update_pair.expr->evaluate(context, { .tuple = row, .source = {} }))));
             i++;
         }
     }
@@ -651,7 +671,7 @@ DbErrorOr<Value> InsertInto::execute(Database& db) const {
             return DbError { "Values doesn't have corresponding columns", start() };
 
         for (size_t i = 0; i < m_columns.size(); i++) {
-            map.insert({ m_columns[i], TRY(m_values[i]->evaluate(context, Tuple({}))) });
+            map.insert({ m_columns[i], TRY(m_values[i]->evaluate(context, {})) });
         }
 
         TRY(table->insert(std::move(map)));
