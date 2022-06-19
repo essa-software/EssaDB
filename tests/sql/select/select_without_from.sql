@@ -13,6 +13,9 @@ SELECT 1 + 4;
 -- |    1 |
 SELECT 1 AS test;
 
+-- error: You need a table to do SELECT *
+SELECT *;
+
 -- error: You need a table to resolve identifiers
 SELECT test;
 
