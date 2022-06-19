@@ -216,8 +216,7 @@ SelectColumns::SelectColumns(std::vector<Column> columns)
     for (auto const& column : m_columns) {
         if (column.alias)
             m_aliases.insert({ *column.alias, ResolvedAlias { .column = *column.column, .index = index } });
-        else
-            m_aliases.insert({ column.column->to_string(), ResolvedAlias { .column = *column.column, .index = index } });
+        m_aliases.insert({ column.column->to_string(), ResolvedAlias { .column = *column.column, .index = index } });
         index++;
     }
 }

@@ -75,3 +75,15 @@ SELECT * FROM test ORDER BY 2 DESC, 1 ASC;
 -- |  5 |           69 |
 -- |  2 |         null |
 SELECT id, number AS number_alias FROM test ORDER BY number_alias DESC, 1 ASC;
+
+-- Order by column name when alias is defined
+-- output:
+-- | number_alias |
+-- |         2137 |
+-- |         1234 |
+-- |          420 |
+-- |           69 |
+-- |           69 |
+-- |           69 |
+-- |         null |
+SELECT number AS number_alias FROM test ORDER BY number DESC;
