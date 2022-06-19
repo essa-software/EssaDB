@@ -28,6 +28,7 @@ private:
     Core::DbErrorOr<std::unique_ptr<Core::AST::Update>> parse_update();
     Core::DbErrorOr<std::unique_ptr<Core::AST::Import>> parse_import();
     Core::DbErrorOr<std::unique_ptr<Core::AST::Expression>> parse_expression(int min_precedence = 0);
+    Core::DbErrorOr<Core::AST::ExpressionOrIndex> parse_expression_or_index();
 
     struct BetweenRange : public Core::AST::Expression {
         std::unique_ptr<Core::AST::Expression> min;
@@ -47,7 +48,7 @@ private:
 
         InArgs(std::vector<std::unique_ptr<Core::AST::Expression>> arg_list)
             : Expression(arg_list.front()->start())
-            , args(std::move(arg_list)){ }
+            , args(std::move(arg_list)) { }
 
         virtual Core::DbErrorOr<Core::Value> evaluate(Core::AST::EvaluationContext&, Core::Tuple const&) const override { return Core::Value(); }
         virtual std::string to_string() const override { return "InArgs(args)"; }

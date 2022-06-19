@@ -228,7 +228,7 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Select>> Parser::parse_select() {
         Core::AST::OrderBy order_by;
 
         while (true) {
-            auto expression = TRY(parse_expression());
+            auto expression = TRY(parse_expression_or_index());
 
             auto param = m_tokens[m_offset];
             auto order_method = Core::AST::OrderBy::Order::Ascending;
@@ -240,7 +240,7 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Select>> Parser::parse_select() {
                 m_offset++;
             }
 
-            order_by.columns.push_back(Core::AST::OrderBy::OrderBySet { .name = expression->to_string(), .order = order_method });
+            order_by.columns.push_back(Core::AST::OrderBy::OrderBySet { .column = std::move(expression), .order = order_method });
 
             auto comma = m_tokens[m_offset];
             if (comma.type != Token::Type::Comma)
@@ -248,7 +248,7 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Select>> Parser::parse_select() {
             m_offset++;
         }
 
-        order = order_by;
+        order = std::move(order_by);
     }
 
     return std::make_unique<Core::AST::Select>(start,
@@ -645,6 +645,19 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Expression>> Parser::parse_expression
     auto maybe_operator = TRY(parse_operand(std::move(lhs), min_precedence));
     assert(maybe_operator);
     return maybe_operator;
+}
+
+Core::DbErrorOr<Core::AST::ExpressionOrIndex> Parser::parse_expression_or_index() {
+    auto token = m_tokens[m_offset];
+    if (token.type == Token::Type::Int) {
+        m_offset++;
+        auto index = std::stoi(token.value);
+        if (index < 1) {
+            return Core::DbError { "Index must be positive, " + token.value + " given", m_offset - 1 };
+        }
+        return Core::AST::ExpressionOrIndex { static_cast<size_t>(index - 1) };
+    }
+    return Core::AST::ExpressionOrIndex { TRY(parse_expression()) };
 }
 
 Core::DbErrorOr<std::unique_ptr<Core::AST::Literal>> Parser::parse_literal() {

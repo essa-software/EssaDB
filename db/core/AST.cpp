@@ -205,6 +205,18 @@ DbErrorOr<Value> CaseExpression::evaluate(EvaluationContext& context, Tuple cons
     return Value::null();
 }
 
+DbErrorOr<Value> ExpressionOrIndex::evaluate(EvaluationContext& context, SelectColumns const& columns, Tuple const& input) const {
+    if (is_expression()) {
+        return TRY(expression().evaluate(context, input));
+    }
+    auto index = this->index();
+    if (index >= columns.columns().size()) {
+        // TODO: Store location info
+        return DbError { "Index out of range", 0 };
+    }
+    return TRY(columns.columns()[index].column->evaluate(context, input));
+}
+
 DbErrorOr<Value> Select::execute(Database& db) const {
     // Comments specify SQL Conceptional Evaluation:
     // https://docs.microsoft.com/en-us/sql/t-sql/queries/select-transact-sql#logical-processing-order-of-the-select-statement
@@ -269,33 +281,40 @@ DbErrorOr<Value> Select::execute(Database& db) const {
 
     // ORDER BY
     if (m_options.order_by) {
-        for (const auto& column : m_options.order_by->columns) {
-            // TODO: Use select columns for that, not table columns
-            auto order_by_column = table->get_column(column.name);
-            if (!order_by_column) {
-                // TODO: Store source position info in ORDER BY node
-                return DbError { "Invalid column to order by: " + column.name, start() };
-            }
-        }
-        std::stable_sort(rows.begin(), rows.end(), [&](Tuple const& lhs, Tuple const& rhs) -> bool {
-            // TODO: Do sorting properly
-            for (const auto& column : m_options.order_by->columns) {
-                auto order_by_column = table->get_column(column.name)->second;
+        EvaluationContext context { .table = table };
+        auto generate_tuple_pair_for_ordering = [&](Tuple const& lhs, Tuple const& rhs) -> DbErrorOr<std::pair<Tuple, Tuple>> {
+            std::vector<Value> lhs_values;
+            std::vector<Value> rhs_values;
 
-                auto lhs_value = lhs.value(order_by_column);
-                auto rhs_value = rhs.value(order_by_column);
-
-                auto result = lhs_value < rhs_value;
-
-                if (result.is_error()) {
-                    return false;
+            for (auto const& column : m_options.order_by->columns) {
+                auto lhs_value = TRY(column.column.evaluate(context, columns, lhs));
+                auto rhs_value = TRY(column.column.evaluate(context, columns, rhs));
+                if (column.order == OrderBy::Order::Ascending) {
+                    lhs_values.push_back(std::move(lhs_value));
+                    rhs_values.push_back(std::move(rhs_value));
                 }
-
-                return result.release_value() == (column.order == OrderBy::Order::Ascending);
+                else {
+                    lhs_values.push_back(std::move(rhs_value));
+                    rhs_values.push_back(std::move(lhs_value));
+                }
             }
 
-            return false;
+            return std::pair<Tuple, Tuple> { Tuple { lhs_values }, Tuple { rhs_values } };
+        };
+
+        std::optional<DbError> error;
+        std::stable_sort(rows.begin(), rows.end(), [&](Tuple const& lhs, Tuple const& rhs) -> bool {
+            auto pair = generate_tuple_pair_for_ordering(lhs, rhs);
+            if (pair.is_error()) {
+                error = pair.release_error();
+                return false;
+            }
+            auto [lhs_value, rhs_value] = pair.release_value();
+            // std::cout << lhs_value << " < " << rhs_value << std::endl;
+            return lhs_value < rhs_value;
         });
+        if (error)
+            return *error;
     }
 
     if (m_options.top) {
@@ -622,5 +641,4 @@ DbErrorOr<Value> Import::execute(Database& db) const {
     }
     return Value::null();
 }
-
 }

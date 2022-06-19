@@ -289,6 +289,25 @@ private:
     std::vector<std::optional<std::string>> m_aliases {};
 };
 
+class ExpressionOrIndex : public std::variant<size_t, std::unique_ptr<Expression>> {
+public:
+    using Variant = std::variant<size_t, std::unique_ptr<Expression>>;
+
+    explicit ExpressionOrIndex(size_t index)
+    : Variant{index} {}
+
+    explicit ExpressionOrIndex(std::unique_ptr<Expression> expr)
+    : Variant(std::move(expr)) {}
+
+    bool is_index() const { return std::holds_alternative<size_t>(*this); }
+    size_t index() const { return std::get<size_t>(*this); }
+
+    bool is_expression() const { return std::holds_alternative<std::unique_ptr<Expression>>(*this); }
+    Expression& expression() const { return *std::get<std::unique_ptr<Expression>>(*this); }
+
+    DbErrorOr<Value> evaluate(EvaluationContext& context, SelectColumns const& columns, Tuple const& input) const;
+};
+
 struct OrderBy {
     enum class Order {
         Ascending,
@@ -296,7 +315,7 @@ struct OrderBy {
     };
 
     struct OrderBySet {
-        std::string name;
+        ExpressionOrIndex column;
         Order order = Order::Ascending;
     };
 

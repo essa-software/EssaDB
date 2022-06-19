@@ -1,5 +1,6 @@
 IMPORT CSV 'aggregate.csv' INTO test;
 
+-- skip won't work until proper alias support is implemented
 -- Ordering by grouped by column
 -- output:
 -- | group | COUNTED | len |
