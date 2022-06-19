@@ -1,4 +1,5 @@
 #include "Table.hpp"
+#include <cstring>
 #include <fstream>
 #include <iostream>
 #include <string>
@@ -145,23 +146,29 @@ DbErrorOr<void> Table::import_from_csv(const std::string& path) {
     m_columns.clear();
 
     std::ifstream f_in(path);
+    if (!f_in.good())
+        return DbError { "Failed to open CSV file '" + path + "': " + std::string(strerror(errno)), 0 };
 
     char c = '\0';
     std::string str = "";
     std::vector<std::vector<std::string>> table(1);
 
-    while (!f_in.eof()) {
-        f_in.read(&c, 1);
+    f_in >> std::ws;
+
+    while (true) {
+        if (!f_in.read(&c, 1))
+            break;
 
         if (c == ',') {
             table.back().push_back(str);
-
+            f_in >> std::ws;
             str = "";
         }
         else if (c == '\n') {
             table.back().push_back(str);
             table.push_back({});
 
+            f_in >> std::ws;
             str = "";
         }
         else {
