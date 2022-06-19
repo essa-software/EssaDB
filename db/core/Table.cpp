@@ -168,14 +168,23 @@ DbErrorOr<void> Table::import_from_csv(const std::string& path) {
             char c = line_in.peek();
             if (c == EOF)
                 break;
-            while (c != ',') {
+            bool quotes = false;
+            if (c == '\'') {
+                quotes = true;
+                line_in.get();
+                c = line_in.peek();
+            }
+            while (!((!quotes && c == ',') || (quotes && c == '\''))) {
                 if (c == EOF)
                     break;
                 value += c;
                 line_in.get();
                 c = line_in.peek();
             }
-            if (c == ',')
+            if (line_in.peek() == '\'')
+                line_in.get();
+            line_in >> std::ws;
+            if (line_in.peek() == ',')
                 line_in.get();
             values.push_back(std::move(value));
         }
@@ -191,7 +200,7 @@ DbErrorOr<void> Table::import_from_csv(const std::string& path) {
         if (row_line.empty())
             break;
         if (row_line.size() != column_names.size()) {
-            return DbError { "Not enough columns in row, expected " + std::to_string(column_names.size()) + ", got " + std::to_string(row_line.size()), 0 };
+            return DbError { "Invalid value count in row, expected " + std::to_string(column_names.size()) + ", got " + std::to_string(row_line.size()), 0 };
         }
         rows.push_back(std::move(row_line));
     }
