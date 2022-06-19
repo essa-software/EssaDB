@@ -12,7 +12,7 @@ namespace Db::Core {
 class Database : public Util::NonCopyable {
 public:
     Table& create_table(std::string name);
-    Table& create_table_from_query(SelectResult select, std::string name);
+    DbErrorOr<Table*> create_table_from_query(SelectResult select, std::string name);
 
     DbErrorOr<void> drop_table(std::string name);
     DbErrorOr<Table*> table(std::string name);

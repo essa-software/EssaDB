@@ -14,7 +14,9 @@ namespace Db::Core {
 class Table : public Util::NonCopyable {
 public:
     Table() = default;
-    Table(SelectResult const& select);
+
+    static DbErrorOr<Table> create_from_select_result(SelectResult const& select);
+
     std::optional<std::pair<Column, size_t>> get_column(std::string const& name) const;
     size_t size() const { return m_rows.size(); }
     std::vector<Column> const& columns() const { return m_columns; }

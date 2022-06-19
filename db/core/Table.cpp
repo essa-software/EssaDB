@@ -9,24 +9,19 @@
 
 namespace Db::Core {
 
-Table::Table(SelectResult const& select) {
-    auto columns = select.column_names();
-    auto rows = select.rows();
+DbErrorOr<Table> Table::create_from_select_result(SelectResult const& select) {
+    Table table;
+
+    auto const& columns = select.column_names();
+    auto const& rows = select.rows();
     size_t i = 0;
 
     for (const auto& col : columns) {
-        auto column = add_column(Column(col, rows[0].value(i).type(), Column::AutoIncrement::No));
+        TRY(table.add_column(Column(col, rows[0].value(i).type(), Column::AutoIncrement::No)));
     }
 
-    for (const auto& row : rows) {
-        RowWithColumnNames::MapType map;
-
-        for (size_t i = 0; i < columns.size(); i++) {
-            map.insert({ columns[i], row.value(i) });
-        }
-
-        auto insert_result = insert(map);
-    }
+    table.m_rows = rows;
+    return table;
 }
 
 DbErrorOr<void> Table::add_column(Column column) {

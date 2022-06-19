@@ -322,7 +322,7 @@ DbErrorOr<Value> Select::execute(Database& db) const {
         // TODO: Insert, not overwrite records
         if (db.exists(*m_options.select_into))
             TRY(db.drop_table(*m_options.select_into));
-        db.create_table_from_query(std::move(result), *m_options.select_into);
+        TRY(db.create_table_from_query(std::move(result), *m_options.select_into));
     }
     return Value::create_select_result(std::move(result));
 }
