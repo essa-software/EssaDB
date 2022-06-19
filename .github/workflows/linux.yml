@@ -1,0 +1,37 @@
+name: Linux build
+
+on:
+  push:
+    branches: [ main, ci ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-22.04
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Dependency install
+      run: sudo apt install libsfml-dev libglew-dev ninja-build
+    - name: Build & install EssaGUI
+      run: |
+        git clone https://github.com/essa-software/EssaGUI.git
+        cd EssaGUI
+        mkdir build
+        cd build
+        cmake .. -GNinja
+        ninja
+        sudo ninja install
+    - name: Generate build system
+      run: |
+        mkdir build
+        cd build
+        cmake .. -GNinja
+    - name: Build
+      working-directory: build
+      run: ninja
+    - name: Run tests
+      working-directory: build
+      run: for test in ./tests/test-*; do ./$test; done
