@@ -11,7 +11,6 @@ IMPORT CSV 'where/where.csv' INTO test;
 -- |  6 |   1234 |  testw |     165 |
 SELECT * INTO backup FROM test;
 
--- skip this currently returns only rows with string=null for some reason
 -- output:
 -- | id | number | string | integer |
 -- |  0 |     69 |   test |      48 |
