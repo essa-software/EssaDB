@@ -271,7 +271,7 @@ DbErrorOr<Value> Select::execute(Database& db) const {
     if (m_options.order_by) {
         for (const auto& column : m_options.order_by->columns) {
             // TODO: Use select columns for that, not table columns
-            auto order_by_column = table->get_column(column.name)->second;
+            auto order_by_column = table->get_column(column.name);
             if (!order_by_column) {
                 // TODO: Store source position info in ORDER BY node
                 return DbError { "Invalid column to order by: " + column.name, start() };
