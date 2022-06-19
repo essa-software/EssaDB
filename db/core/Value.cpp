@@ -5,7 +5,6 @@
 #include "db/core/DbError.hpp"
 #include "db/util/Clock.hpp"
 
-#include <bits/chrono.h>
 #include <cctype>
 #include <chrono>
 #include <ostream>
