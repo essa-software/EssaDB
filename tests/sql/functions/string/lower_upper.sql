@@ -1,4 +1,4 @@
-IMPORT CSV 'functions.csv' INTO test;
+IMPORT CSV 'data.csv' INTO test;
 
 -- upper
 -- skip FIXME: this doesn't actually work

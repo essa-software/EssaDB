@@ -1,4 +1,4 @@
-IMPORT CSV 'functions.csv' INTO test;
+IMPORT CSV 'data.csv' INTO test;
 
 -- ltrim
 -- | id | LENGTH |       TRIMMED |
