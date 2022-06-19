@@ -20,7 +20,9 @@
 namespace Db::Core::AST {
 
 DbErrorOr<Value> Identifier::evaluate(EvaluationContext& context, Tuple const& row) const {
-    auto column = context.table.get_column(m_id);
+    if (!context.table)
+        return DbError { "You need a table to resolve identifiers", start() };
+    auto column = context.table->get_column(m_id);
     if (!column)
         return DbError { "No such column: " + m_id, start() };
     return row.value(column->second);
@@ -210,11 +212,15 @@ DbErrorOr<Value> Select::execute(Database& db) const {
     // TODO: ON
     // TODO: JOIN
 
-    auto table = TRY(db.table(m_from));
+    auto table = m_options.from ? TRY(db.table(*m_options.from)) : nullptr;
 
     SelectColumns select_all_columns;
-    SelectColumns const& columns = *([this, table, &select_all_columns]() -> SelectColumns const* {
-        if (m_columns.select_all()) {
+
+    SelectColumns const& columns = *TRY([this, table, &select_all_columns]() -> DbErrorOr<SelectColumns const*> {
+        if (m_options.columns.select_all()) {
+            if (!table) {
+                return DbError { "You need a table to do SELECT *", start() };
+            }
             std::vector<SelectColumns::Column> all_columns;
             for (auto const& column : table->columns()) {
                 all_columns.push_back(SelectColumns::Column { .column = std::make_unique<Identifier>(start() + 1, column.name()) });
@@ -222,14 +228,26 @@ DbErrorOr<Value> Select::execute(Database& db) const {
             select_all_columns = SelectColumns { std::move(all_columns) };
             return &select_all_columns;
         }
-        return &m_columns;
-    })();
+        return &m_options.columns;
+    }());
 
-    // SELECT etc.
-    std::vector<Tuple> rows = TRY(collect_rows(*table, columns, table->rows()));
+    auto rows = TRY([&]() -> DbErrorOr<std::vector<Tuple>> {
+        if (m_options.from) {
+            // SELECT etc.
+            return collect_rows(*table, columns, table->rows());
+        }
+        else {
+            std::vector<Value> values;
+            EvaluationContext context;
+            for (auto const& column : m_options.columns.columns()) {
+                values.push_back(TRY(column.column->evaluate(context, {})));
+            }
+            return std::vector<Tuple> { Tuple { values } };
+        }
+    }());
 
     // DISTINCT
-    if (m_distinct) {
+    if (m_options.distinct) {
         std::vector<Tuple> occurences;
 
         // FIXME: O(n^2)
@@ -250,8 +268,9 @@ DbErrorOr<Value> Select::execute(Database& db) const {
     }
 
     // ORDER BY
-    if (m_order_by) {
-        for (const auto& column : m_order_by->columns) {
+    if (m_options.order_by) {
+        for (const auto& column : m_options.order_by->columns) {
+            // TODO: Use select columns for that, not table columns
             auto order_by_column = table->get_column(column.name)->second;
             if (!order_by_column) {
                 // TODO: Store source position info in ORDER BY node
@@ -260,7 +279,7 @@ DbErrorOr<Value> Select::execute(Database& db) const {
         }
         std::stable_sort(rows.begin(), rows.end(), [&](Tuple const& lhs, Tuple const& rhs) -> bool {
             // TODO: Do sorting properly
-            for (const auto& column : m_order_by->columns) {
+            for (const auto& column : m_options.order_by->columns) {
                 auto order_by_column = table->get_column(column.name)->second;
 
                 auto lhs_value = lhs.value(order_by_column);
@@ -279,13 +298,13 @@ DbErrorOr<Value> Select::execute(Database& db) const {
         });
     }
 
-    if (m_top) {
-        if (m_top->unit == Top::Unit::Perc) {
-            float mul = static_cast<float>(std::min(m_top->value, (unsigned)100)) / 100;
+    if (m_options.top) {
+        if (m_options.top->unit == Top::Unit::Perc) {
+            float mul = static_cast<float>(std::min(m_options.top->value, (unsigned)100)) / 100;
             rows.resize(rows.size() * mul, rows.back());
         }
         else {
-            rows.resize(std::min(m_top->value, (unsigned)rows.size()), rows.back());
+            rows.resize(std::min(m_options.top->value, (unsigned)rows.size()), rows.back());
         }
     }
 
@@ -299,22 +318,22 @@ DbErrorOr<Value> Select::execute(Database& db) const {
 
     SelectResult result { column_names, std::move(rows) };
 
-    if (m_select_into) {
+    if (m_options.select_into) {
         // TODO: Insert, not overwrite records
-        if (db.exists(*m_select_into))
-            TRY(db.drop_table(*m_select_into));
-        db.create_table_from_query(std::move(result), *m_select_into);
+        if (db.exists(*m_options.select_into))
+            TRY(db.drop_table(*m_options.select_into));
+        db.create_table_from_query(std::move(result), *m_options.select_into);
     }
     return Value::create_select_result(std::move(result));
 }
 
 DbErrorOr<std::vector<Tuple>> Select::collect_rows(Table const& table, SelectColumns const& columns, std::vector<Tuple> const& input_rows) const {
-    EvaluationContext context_for_nonaggregated_rows { .table = table, .row_group = nullptr };
+    EvaluationContext context_for_nonaggregated_rows { .table = &table, .row_group = nullptr };
 
     auto should_include_row = [&](Tuple const& row) -> DbErrorOr<bool> {
-        if (!m_where)
+        if (!m_options.where)
             return true;
-        return TRY(m_where->evaluate(context_for_nonaggregated_rows, row)).to_bool();
+        return TRY(m_options.where->evaluate(context_for_nonaggregated_rows, row)).to_bool();
     };
 
     // Collect all rows that should be included (applying WHERE and GROUP BY)
@@ -327,8 +346,8 @@ DbErrorOr<std::vector<Tuple>> Select::collect_rows(Table const& table, SelectCol
 
         std::vector<Value> group_key;
 
-        if (m_group_by) {
-            for (const auto& column_name : m_group_by->columns) {
+        if (m_options.group_by) {
+            for (const auto& column_name : m_options.group_by->columns) {
                 // TODO: Handle aliases, indexes ("GROUP BY 1") and aggregate functions ("GROUP BY COUNT(x)")
                 // https://docs.microsoft.com/en-us/sql/t-sql/queries/select-transact-sql?view=sql-server-ver16#g-using-group-by-with-an-expression
                 auto column = table.get_column(column_name);
@@ -345,7 +364,7 @@ DbErrorOr<std::vector<Tuple>> Select::collect_rows(Table const& table, SelectCol
 
     // Check if grouping / aggregation should be performed
     bool should_group = false;
-    if (m_group_by) {
+    if (m_options.group_by) {
         should_group = true;
     }
     else {
@@ -364,15 +383,15 @@ DbErrorOr<std::vector<Tuple>> Select::collect_rows(Table const& table, SelectCol
     std::vector<Tuple> aggregated_rows;
     if (should_group) {
         auto should_include_group = [&](EvaluationContext& context, Tuple const& row) -> DbErrorOr<bool> {
-            if (!m_having)
+            if (!m_options.having)
                 return true;
-            return TRY(m_having->evaluate(context, row)).to_bool();
+            return TRY(m_options.having->evaluate(context, row)).to_bool();
         };
 
         auto is_in_group_by = [&](SelectColumns::Column const& column) {
-            if (!m_group_by)
+            if (!m_options.group_by)
                 return false;
-            for (auto const& group_by_column : m_group_by->columns) {
+            for (auto const& group_by_column : m_options.group_by->columns) {
                 auto referenced_columns = column.column->referenced_columns();
                 if (std::find(referenced_columns.begin(), referenced_columns.end(), group_by_column) != referenced_columns.end())
                     return true;
@@ -381,7 +400,7 @@ DbErrorOr<std::vector<Tuple>> Select::collect_rows(Table const& table, SelectCol
         };
 
         for (auto const& group : nonaggregated_row_groups) {
-            EvaluationContext context { .table = table, .row_group = &group.second };
+            EvaluationContext context { .table = &table, .row_group = &group.second };
             std::vector<Value> values;
             for (auto& column : columns.columns()) {
                 if (auto aggregate_column = dynamic_cast<AggregateFunction*>(column.column.get()); aggregate_column) {
@@ -463,7 +482,7 @@ DbErrorOr<Value> Union::execute(Database& db) const {
 DbErrorOr<Value> DeleteFrom::execute(Database& db) const {
     auto table = TRY(db.table(m_from));
 
-    EvaluationContext context { .table = *table };
+    EvaluationContext context { .table = table };
 
     auto should_include_row = [&](Tuple const& row) -> DbErrorOr<bool> {
         if (!m_where)
@@ -486,7 +505,7 @@ label:;
 DbErrorOr<Value> Update::execute(Database& db) const {
     auto table = TRY(db.table(m_table));
 
-    EvaluationContext context { .table = *table };
+    EvaluationContext context { .table = table };
 
     for (const auto& update_pair : m_to_update) {
         auto column = table->get_column(update_pair.column);
@@ -544,7 +563,7 @@ DbErrorOr<Value> InsertInto::execute(Database& db) const {
     auto table = TRY(db.table(m_name));
 
     RowWithColumnNames::MapType map;
-    EvaluationContext context { .table = *table };
+    EvaluationContext context { .table = table };
     if (m_select) {
         auto result = TRY(TRY(m_select.value()->execute(db)).to_select_result());
 

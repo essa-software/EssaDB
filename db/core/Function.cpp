@@ -438,7 +438,9 @@ DbErrorOr<Value> AggregateFunction::evaluate(EvaluationContext& context, Tuple c
 }
 
 DbErrorOr<Value> AggregateFunction::aggregate(EvaluationContext& context, std::vector<Tuple> const& rows) const {
-    auto column = context.table.get_column(m_column);
+    if (!context.table)
+        return DbError { "Internal error: aggregate() called without table", start() };
+    auto column = context.table->get_column(m_column);
     if (!column)
         return DbError { "Invalid column '" + m_column + "' used in aggregate function", start() };
 

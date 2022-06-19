@@ -25,7 +25,7 @@ class Database;
 namespace Db::Core::AST {
 
 struct EvaluationContext {
-    Table const& table;
+    Table const* table = nullptr;
     std::vector<Tuple> const* row_group = nullptr;
 };
 
@@ -336,32 +336,28 @@ public:
 
 class Select : public Statement {
 public:
-    Select(ssize_t start, SelectColumns columns, std::string from, std::unique_ptr<Expression> where = {}, std::optional<OrderBy> order_by = {}, std::optional<Top> top = {}, std::optional<GroupBy> group_by = {}, std::unique_ptr<Expression> having = {}, bool distinct = false, std::optional<std::string> select_into = {})
+    struct SelectOptions {
+        SelectColumns columns;
+        std::optional<std::string> from;
+        std::unique_ptr<Expression> where = {};
+        std::optional<OrderBy> order_by = {};
+        std::optional<Top> top = {};
+        std::optional<GroupBy> group_by = {};
+        std::unique_ptr<Expression> having = {};
+        bool distinct = false;
+        std::optional<std::string> select_into = {};
+    };
+
+    Select(ssize_t start, SelectOptions options)
         : Statement(start)
-        , m_columns(std::move(columns))
-        , m_from(std::move(from))
-        , m_where(std::move(where))
-        , m_order_by(std::move(order_by))
-        , m_top(std::move(top))
-        , m_group_by(std::move(group_by))
-        , m_having(std::move(having))
-        , m_distinct(distinct)
-        , m_select_into(std::move(select_into)) { }
+        , m_options(std::move(options)) { }
 
     virtual DbErrorOr<Value> execute(Database&) const override;
 
 private:
     DbErrorOr<std::vector<Tuple>> collect_rows(Table const& table, SelectColumns const& columns, std::vector<Tuple> const& input_rows) const;
 
-    SelectColumns m_columns;
-    std::string m_from;
-    std::unique_ptr<Expression> m_where;
-    std::optional<OrderBy> m_order_by;
-    std::optional<Top> m_top;
-    std::optional<GroupBy> m_group_by;
-    std::unique_ptr<Expression> m_having;
-    bool m_distinct {};
-    std::optional<std::string> m_select_into;
+    SelectOptions m_options;
 };
 
 class Union : public Statement {

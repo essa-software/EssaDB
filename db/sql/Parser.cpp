@@ -168,13 +168,14 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Select>> Parser::parse_select() {
     }
 
     // FROM
+    std::optional<std::string> from_table;
     auto from = m_tokens[m_offset++];
-    if (from.type != Token::Type::KeywordFrom)
-        return Core::DbError { "Expected 'FROM', got " + from.value, m_offset - 1 };
-
-    auto from_token = m_tokens[m_offset++];
-    if (from_token.type != Token::Type::Identifier)
-        return Core::DbError { "Expected table name after 'FROM'", m_offset - 1 };
+    if (from.type == Token::Type::KeywordFrom) {
+        auto from_token = m_tokens[m_offset++];
+        if (from_token.type != Token::Type::Identifier)
+            return Core::DbError { "Expected table name after 'FROM'", m_offset - 1 };
+        from_table = from_token.value;
+    }
 
     // WHERE
     std::unique_ptr<Core::AST::Expression> where;
@@ -250,15 +251,17 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Select>> Parser::parse_select() {
         order = order_by;
     }
 
-    return std::make_unique<Core::AST::Select>(start, Core::AST::SelectColumns { std::move(columns) },
-        from_token.value,
-        std::move(where),
-        std::move(order),
-        std::move(top),
-        std::move(group),
-        std::move(having),
-        distinct,
-        std::move(select_into));
+    return std::make_unique<Core::AST::Select>(start,
+        Core::AST::Select::SelectOptions {
+            .columns = Core::AST::SelectColumns { std::move(columns) },
+            .from = from_table,
+            .where = std::move(where),
+            .order_by = std::move(order),
+            .top = std::move(top),
+            .group_by = std::move(group),
+            .having = std::move(having),
+            .distinct = distinct,
+            .select_into = std::move(select_into) });
 }
 
 Core::DbErrorOr<std::unique_ptr<Core::AST::Update>> Parser::parse_update() {
