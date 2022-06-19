@@ -143,9 +143,6 @@ void Table::export_to_csv(const std::string& path) const {
 }
 
 DbErrorOr<void> Table::import_from_csv(const std::string& path) {
-    m_rows.clear();
-    m_columns.clear();
-
     std::ifstream f_in(path);
     f_in >> std::ws;
     if (!f_in.good())
@@ -207,24 +204,31 @@ DbErrorOr<void> Table::import_from_csv(const std::string& path) {
 
     f_in.close();
 
-    size_t column_index = 0;
-    for (auto const& column_name : column_names) {
-        Value::Type type = Value::Type::Null;
+    if (m_columns.empty()) {
+        size_t column_index = 0;
+        for (auto const& column_name : column_names) {
+            Value::Type type = Value::Type::Null;
 
-        for (auto const& row : rows) {
+            for (auto const& row : rows) {
 
-            if (type == Value::Type::Null) {
-                auto new_type = find_type(row[column_index]);
-                if (new_type != Value::Type::Null)
-                    type = new_type;
+                if (type == Value::Type::Null) {
+                    auto new_type = find_type(row[column_index]);
+                    if (new_type != Value::Type::Null)
+                        type = new_type;
+                }
+                else if (type == Value::Type::Int && find_type(row[column_index]) == Value::Type::Varchar)
+                    type = Value::Type::Varchar;
             }
-            else if (type == Value::Type::Int && find_type(row[column_index]) == Value::Type::Varchar)
-                type = Value::Type::Varchar;
+
+            TRY(add_column(Column(column_name, type, Column::AutoIncrement::No)));
+
+            column_index++;
         }
-
-        TRY(add_column(Column(column_name, type, Column::AutoIncrement::No)));
-
-        column_index++;
+    }
+    else {
+        // std::cout << "Reading CSV into existing table" << std::endl;
+        if (column_names.size() != m_columns.size())
+            return DbError { "Column count differs in CSV file and in table", 0 };
     }
 
     for (auto const& row : rows) {
@@ -238,19 +242,9 @@ DbErrorOr<void> Table::import_from_csv(const std::string& path) {
             if (value == "null")
                 continue;
 
-            switch (col.type()) {
-            case Value::Type::Int:
-                map.insert({ col.name(), Value::create_int(std::stoi(value)) });
-                break;
-            case Value::Type::Varchar:
-                map.insert({ col.name(), Value::create_varchar(value) });
-                break;
-            case Value::Type::Bool:
-                map.insert({ col.name(), Value::create_bool(value == "true" ? true : false) });
-                break;
-            default:
-                break;
-            }
+            auto created_value = TRY(Value::from_string(col.type(), value));
+            // std::cout << created_value.to_debug_string() << std::endl;
+            map.insert({ col.name(), created_value });
         }
 
         TRY(insert(map));
