@@ -339,6 +339,7 @@ DbErrorOr<std::vector<Tuple>> Select::collect_rows(Table const& table, SelectCol
     // Collect all rows that should be included (applying WHERE and GROUP BY)
     // There rows are not yet SELECT'ed - they contain columns from table, no aliases etc.
     std::map<Tuple, std::vector<Tuple>> nonaggregated_row_groups;
+
     for (const auto& row : input_rows) {
         // WHERE
         if (!TRY(should_include_row(row)))
@@ -373,6 +374,27 @@ DbErrorOr<std::vector<Tuple>> Select::collect_rows(Table const& table, SelectCol
                 should_group = true;
                 break;
             }
+        }
+    }
+
+    // Special-case for empty sets
+    if (input_rows.size() == 0) {
+        if (should_group) {
+            // We need to create at least one group to make aggregate
+            // functions return one row with value "0".
+            nonaggregated_row_groups.insert({ Tuple {}, {} });
+        }
+
+        // Let's also check column expressions for validity, even
+        // if they won't run on real rows.
+        std::vector<Value> values;
+        for (size_t s = 0; s < table.columns().size(); s++) {
+            values.push_back(Value::null());
+        }
+        Tuple dummy_row { values };
+        EvaluationContext context { .table = &table, .row_group = &input_rows };
+        for (auto const& column : m_options.columns.columns()) {
+            TRY(column.column->evaluate(context, dummy_row));
         }
     }
 
