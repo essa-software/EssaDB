@@ -46,7 +46,7 @@ public:
     virtual DbErrorOr<Value> evaluate(EvaluationContext&, TupleWithSource const&) const override;
     virtual std::string to_string() const override { return "AggregateFunction?(TODO)"; }
 
-    DbErrorOr<Value> aggregate(EvaluationContext&, std::vector<Tuple> const&) const;
+    DbErrorOr<Value> aggregate(EvaluationContext&, std::span<Tuple const> rows) const;
 
     virtual std::vector<std::string> referenced_columns() const override { return { m_column }; }
 

@@ -281,7 +281,7 @@ class SelectColumns;
 struct EvaluationContext {
     SelectColumns const& columns;
     Table const* table = nullptr;
-    std::vector<Tuple> const* row_group = nullptr;
+    std::optional<std::span<Tuple const>> row_group {};
     enum class RowType {
         FromTable,
         FromResultSet
@@ -401,7 +401,7 @@ public:
     virtual DbErrorOr<Value> execute(Database&) const override;
 
 private:
-    DbErrorOr<std::vector<TupleWithSource>> collect_rows(EvaluationContext& context, Table const& table, std::vector<Tuple> const& input_rows) const;
+    DbErrorOr<std::vector<TupleWithSource>> collect_rows(EvaluationContext&, AbstractTable&) const;
 
     SelectOptions m_options;
 };

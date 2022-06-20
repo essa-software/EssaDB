@@ -18,22 +18,23 @@ DbErrorOr<RowWithColumnNames> RowWithColumnNames::from_map(Table& table, MapType
             return DbError { "No such column in table: " + value.first, 0 };
         }
 
-        if (column->first.type() != value.second.type() && value.second.type() != Value::Type::Null) {
+        if (column->column.type() != value.second.type() && value.second.type() != Value::Type::Null) {
             // TODO: Save location info
             return DbError { "Invalid value type for column '" + value.first + "': " + value.second.to_debug_string(), 0 };
         }
 
-        if (column->first.unique()) {
-            for(const auto& table_row : table.rows()){
-                if(TRY(table_row.value(column->second) == value.second))
+        if (column->column.unique()) {
+            // TODO: Port this to AbstractTable.
+            for(const auto& table_row : table.raw_rows()){
+                if(TRY(table_row.value(column->index) == value.second))
                     return DbError { "Not valid UNIQUE value.", 0 };
             }
-        }else if (column->first.not_null()) {
+        }else if (column->column.not_null()) {
             if(value.second.type() == Value::Type::Null)
                 return DbError { "Value can't be null.", 0 };
         }
 
-        row[column->second] = std::move(value.second);
+        row[column->index] = std::move(value.second);
     }
 
     // Null check

@@ -5,6 +5,7 @@
 #include "Function.hpp"
 #include "Tuple.hpp"
 #include "Value.hpp"
+#include "db/core/AbstractTable.hpp"
 #include "db/core/RowWithColumnNames.hpp"
 
 #include <cctype>
@@ -26,7 +27,7 @@ DbErrorOr<Value> Identifier::evaluate(EvaluationContext& context, TupleWithSourc
         auto column = context.table->get_column(m_id);
         if (!column)
             return DbError { "No such column: " + m_id, start() };
-        return row.tuple.value(column->second);
+        return row.tuple.value(column->index);
     }
 
     return TRY(context.columns.resolve_value(context, row, m_id));
@@ -241,7 +242,7 @@ DbErrorOr<Value> SelectColumns::resolve_value(EvaluationContext& context, TupleW
         return DbError { "Identifier '" + alias + "' not defined in table nor as an alias", 0 };
     if (!tuple.source)
         return DbError { "Cannot use table columns on aggregated rows", 0 };
-    return tuple.source->value(column->second);
+    return tuple.source->value(column->index);
 }
 
 DbErrorOr<Value> ExpressionOrIndex::evaluate(EvaluationContext& context, TupleWithSource const& input) const {
@@ -287,7 +288,9 @@ DbErrorOr<Value> Select::execute(Database& db) const {
     auto rows = TRY([&]() -> DbErrorOr<std::vector<TupleWithSource>> {
         if (m_options.from) {
             // SELECT etc.
-            return collect_rows(context, *table, table->rows());
+            // TODO: Make use of iterator capabilities of this instead of
+            //       reading everything into memory.
+            return collect_rows(context, *table);
         }
         else {
             std::vector<Value> values;
@@ -391,7 +394,7 @@ DbErrorOr<Value> Select::execute(Database& db) const {
     return Value::create_select_result(std::move(result));
 }
 
-DbErrorOr<std::vector<TupleWithSource>> Select::collect_rows(EvaluationContext& context, Table const& table, std::vector<Tuple> const& input_rows) const {
+DbErrorOr<std::vector<TupleWithSource>> Select::collect_rows(EvaluationContext& context, AbstractTable& table) const {
     auto should_include_row = [&](Tuple const& row) -> DbErrorOr<bool> {
         if (!m_options.where)
             return true;
@@ -402,10 +405,10 @@ DbErrorOr<std::vector<TupleWithSource>> Select::collect_rows(EvaluationContext& 
     // There rows are not yet SELECT'ed - they contain columns from table, no aliases etc.
     std::map<Tuple, std::vector<Tuple>> nonaggregated_row_groups;
 
-    for (const auto& row : input_rows) {
+    TRY(table.rows().try_for_each_row([&](Tuple const& row) -> DbErrorOr<void> {
         // WHERE
         if (!TRY(should_include_row(row)))
-            continue;
+            return {};
 
         std::vector<Value> group_key;
 
@@ -418,12 +421,13 @@ DbErrorOr<std::vector<TupleWithSource>> Select::collect_rows(EvaluationContext& 
                     // TODO: Store source location info
                     return DbError { "Nonexistent column used in GROUP BY: '" + column_name + "'", start() };
                 }
-                group_key.push_back(row.value(column->second));
+                group_key.push_back(row.value(column->index));
             }
         }
 
         nonaggregated_row_groups[{ group_key }].push_back(row);
-    }
+        return {};
+    }));
 
     // Check if grouping / aggregation should be performed
     bool should_group = false;
@@ -440,7 +444,7 @@ DbErrorOr<std::vector<TupleWithSource>> Select::collect_rows(EvaluationContext& 
     }
 
     // Special-case for empty sets
-    if (input_rows.size() == 0) {
+    if (table.size() == 0) {
         if (should_group) {
             // We need to create at least one group to make aggregate
             // functions return one row with value "0".
@@ -454,7 +458,7 @@ DbErrorOr<std::vector<TupleWithSource>> Select::collect_rows(EvaluationContext& 
             values.push_back(Value::null());
         }
         Tuple dummy_row { values };
-        context.row_group = &input_rows;
+        context.row_group = std::span{&dummy_row, 1};
         for (auto const& column : m_options.columns.columns()) {
             TRY(column.column->evaluate(context, TupleWithSource { .tuple = dummy_row, .source = {} }));
         }
@@ -485,7 +489,7 @@ DbErrorOr<std::vector<TupleWithSource>> Select::collect_rows(EvaluationContext& 
 
         for (auto const& group : nonaggregated_row_groups) {
             context.row_type = EvaluationContext::RowType::FromTable;
-            context.row_group = &group.second;
+            context.row_group = group.second;
 
             std::vector<Value> values;
             for (auto& column : context.columns.columns()) {
@@ -577,16 +581,17 @@ DbErrorOr<Value> DeleteFrom::execute(Database& db) const {
             return true;
         return TRY(m_where->evaluate(context, { .tuple = row, .source = {} })).to_bool();
     };
-label:;
 
-    for (size_t i = 0; i < table->rows().size(); i++) {
-        if (TRY(should_include_row(table->rows()[i]))) {
-            table->delete_row(i);
-
-            goto label;
-        }
-    }
-
+    // TODO: Maintain integrity on error
+    std::optional<DbError> error;
+    std::erase_if(table->raw_rows(), [&](auto const& row) {
+        auto result = should_include_row(row);
+        if (result.is_error())
+            return false;
+        return result.release_value();
+    });
+    if (error)
+        return *error;
     return Value::null();
 }
 
@@ -599,8 +604,8 @@ DbErrorOr<Value> Update::execute(Database& db) const {
         auto column = table->get_column(update_pair.column);
         size_t i = 0;
 
-        for (auto& row : table->rows()) {
-            TRY(table->update_cell(i, column->second, TRY(update_pair.expr->evaluate(context, { .tuple = row, .source = {} }))));
+        for (auto& row : table->raw_rows()) {
+            TRY(table->update_cell(i, column->index, TRY(update_pair.expr->evaluate(context, { .tuple = row, .source = {} }))));
             i++;
         }
     }

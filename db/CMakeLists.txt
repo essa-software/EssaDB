@@ -2,6 +2,7 @@ add_library(
     essadb
 
     core/AST.cpp
+    core/AbstractTable.cpp
     core/Database.cpp
     core/Function.cpp
     core/ResultSet.cpp

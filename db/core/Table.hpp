@@ -1,5 +1,6 @@
 #pragma once
 
+#include "AbstractTable.hpp"
 #include "Column.hpp"
 #include "DbError.hpp"
 #include "ResultSet.hpp"
@@ -10,16 +11,20 @@
 
 namespace Db::Core {
 
-class Table : public Util::NonCopyable {
+class Table : public Util::NonCopyable
+    , public AbstractTable {
 public:
     Table() = default;
 
     static DbErrorOr<Table> create_from_select_result(ResultSet const& select);
 
-    std::optional<std::pair<Column, size_t>> get_column(std::string const& name) const;
-    size_t size() const { return m_rows.size(); }
-    std::vector<Column> const& columns() const { return m_columns; }
-    std::vector<Tuple> const& rows() const { return m_rows; }
+    virtual std::vector<Column> const& columns() const override { return m_columns; }
+    virtual AbstractTableRowIterator rows() const override {
+        return { std::make_unique<MemoryBackedAbstractTableIteratorImpl<decltype(m_rows)::const_iterator>>(m_rows.begin(), m_rows.end()) };
+    }
+
+    std::vector<Tuple> const& raw_rows() const { return m_rows; }
+    std::vector<Tuple>& raw_rows() { return m_rows; }
 
     void truncate() { m_rows.clear(); }
     void delete_row(size_t index);

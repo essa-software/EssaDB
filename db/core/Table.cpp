@@ -1,9 +1,13 @@
 #include "Table.hpp"
-#include "db/core/Column.hpp"
-#include "db/core/ResultSet.hpp"
+
+#include "AbstractTable.hpp"
+#include "Column.hpp"
+#include "ResultSet.hpp"
+
 #include <cstring>
 #include <fstream>
 #include <iostream>
+#include <sstream>
 #include <string>
 #include <utility>
 #include <vector>
@@ -95,16 +99,6 @@ void Table::delete_row(size_t index) {
 DbErrorOr<void> Table::insert(RowWithColumnNames::MapType map) {
 
     m_rows.push_back(TRY(RowWithColumnNames::from_map(*this, map)).row());
-    return {};
-}
-
-std::optional<std::pair<Column, size_t>> Table::get_column(std::string const& name) const {
-    size_t index = 0;
-    for (auto& column : m_columns) {
-        if (column.name() == name)
-            return { { column, index } };
-        index++;
-    }
     return {};
 }
 

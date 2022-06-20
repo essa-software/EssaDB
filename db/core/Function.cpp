@@ -437,7 +437,7 @@ DbErrorOr<Value> AggregateFunction::evaluate(EvaluationContext& context, TupleWi
     return result;
 }
 
-DbErrorOr<Value> AggregateFunction::aggregate(EvaluationContext& context, std::vector<Tuple> const& rows) const {
+DbErrorOr<Value> AggregateFunction::aggregate(EvaluationContext& context, std::span<Tuple const> rows) const {
     if (!context.table)
         return DbError { "Internal error: aggregate() called without table", start() };
     auto column = context.table->get_column(m_column);
@@ -448,7 +448,7 @@ DbErrorOr<Value> AggregateFunction::aggregate(EvaluationContext& context, std::v
     case Function::Count: {
         int count = 0;
         for (auto& row : rows) {
-            if (row.value(column->second).type() != Value::Type::Null)
+            if (row.value(column->index).type() != Value::Type::Null)
                 count += 1;
         }
         return Value::create_int(count);
@@ -456,7 +456,7 @@ DbErrorOr<Value> AggregateFunction::aggregate(EvaluationContext& context, std::v
     case Function::Sum: {
         float sum = 0;
         for (auto& row : rows) {
-            sum += TRY(row.value(column->second).to_float());
+            sum += TRY(row.value(column->index).to_float());
         }
 
         return Value::create_float(sum);
@@ -464,7 +464,7 @@ DbErrorOr<Value> AggregateFunction::aggregate(EvaluationContext& context, std::v
     case Function::Min: {
         float min = std::numeric_limits<float>::max();
         for (auto& row : rows) {
-            min = std::min(min, TRY(row.value(column->second).to_float()));
+            min = std::min(min, TRY(row.value(column->index).to_float()));
         }
 
         return Value::create_float(min);
@@ -472,7 +472,7 @@ DbErrorOr<Value> AggregateFunction::aggregate(EvaluationContext& context, std::v
     case Function::Max: {
         float max = std::numeric_limits<float>::min();
         for (auto& row : rows) {
-            max = std::max(max, TRY(row.value(column->second).to_float()));
+            max = std::max(max, TRY(row.value(column->index).to_float()));
         }
 
         return Value::create_float(max);
@@ -481,7 +481,7 @@ DbErrorOr<Value> AggregateFunction::aggregate(EvaluationContext& context, std::v
         float sum = 0;
         size_t count = 0;
         for (auto& row : rows) {
-            sum += TRY(row.value(column->second).to_int());
+            sum += TRY(row.value(column->index).to_int());
             count++;
         }
 
