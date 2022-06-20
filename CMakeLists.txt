@@ -8,6 +8,7 @@ set(CMAKE_CXX_STANDARD 20)
 function(setup_target targetname)
     install(TARGETS ${targetname} EXPORT EssaGUI DESTINATION lib)
 
+    target_compile_options(${targetname} PRIVATE -fdiagnostics-color=always)
     target_compile_options(${targetname} PRIVATE -Wall -Wextra -Werror)
     target_compile_options(${targetname} PRIVATE
         -Wnon-virtual-dtor
