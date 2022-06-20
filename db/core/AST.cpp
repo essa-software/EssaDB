@@ -458,7 +458,7 @@ DbErrorOr<std::vector<TupleWithSource>> Select::collect_rows(EvaluationContext& 
             values.push_back(Value::null());
         }
         Tuple dummy_row { values };
-        context.row_group = std::span{&dummy_row, 1};
+        context.row_group = std::span { &dummy_row, 1 };
         for (auto const& column : m_options.columns.columns()) {
             TRY(column.column->evaluate(context, TupleWithSource { .tuple = dummy_row, .source = {} }));
         }
@@ -576,6 +576,7 @@ DbErrorOr<Value> DeleteFrom::execute(Database& db) const {
 
     EvaluationContext context { .columns = {}, .table = table, .row_type = EvaluationContext::RowType::FromTable };
 
+    // TODO: Implement
     auto should_include_row = [&](Tuple const& row) -> DbErrorOr<bool> {
         if (!m_where)
             return true;
@@ -584,12 +585,14 @@ DbErrorOr<Value> DeleteFrom::execute(Database& db) const {
 
     // TODO: Maintain integrity on error
     std::optional<DbError> error;
-    std::erase_if(table->raw_rows(), [&](auto const& row) {
-        auto result = should_include_row(row);
+    TRY(table->rows_writable().try_for_each_row([&](TupleWriter const& writer) -> DbErrorOr<void> {
+        auto result = should_include_row(writer.read());
         if (result.is_error())
-            return false;
-        return result.release_value();
-    });
+            return {};
+        if (result.release_value())
+            TRY(writer.remove());
+        return {};
+    }));
     if (error)
         return *error;
     return Value::null();
@@ -602,12 +605,12 @@ DbErrorOr<Value> Update::execute(Database& db) const {
 
     for (const auto& update_pair : m_to_update) {
         auto column = table->get_column(update_pair.column);
-        size_t i = 0;
-
-        for (auto& row : table->raw_rows()) {
-            TRY(table->update_cell(i, column->index, TRY(update_pair.expr->evaluate(context, { .tuple = row, .source = {} }))));
-            i++;
-        }
+        TRY(table->rows_writable().try_for_each_row([&](TupleWriter const& row) -> DbErrorOr<void> {
+            auto tuple = row.read();
+            tuple.set_value(column->index, TRY(update_pair.expr->evaluate(context, { .tuple = tuple, .source = {} })));
+            TRY(row.write(tuple));
+            return {};
+        }));
     }
 
     return Value::null();
@@ -629,7 +632,7 @@ DbErrorOr<Value> DropTable::execute(Database& db) const {
 
 DbErrorOr<Value> TruncateTable::execute(Database& db) const {
     auto table = TRY(db.table(m_name));
-    table->truncate();
+    TRY(table->truncate());
 
     return { Value::null() };
 }
@@ -646,7 +649,7 @@ DbErrorOr<Value> AlterTable::execute(Database& db) const {
     }
 
     for (const auto& to_drop : m_to_drop) {
-        TRY(table->drop_column(to_drop));
+        TRY(table->drop_column(to_drop.name()));
     }
 
     return { Value::null() };

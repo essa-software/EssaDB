@@ -24,12 +24,14 @@ DbErrorOr<RowWithColumnNames> RowWithColumnNames::from_map(Table& table, MapType
         }
 
         if (column->column.unique()) {
-            for(const auto& table_row : table.raw_rows()){
-                if(TRY(table_row.value(column->index) == value.second))
+            TRY(table.rows().try_for_each_row([&](Tuple const& row) -> DbErrorOr<void> {
+                if (TRY(row.value(column->index) == value.second))
                     return DbError { "Not valid UNIQUE value.", 0 };
-            }
-        }else if (column->column.not_null()) {
-            if(value.second.type() == Value::Type::Null)
+                return {};
+            }));
+        }
+        else if (column->column.not_null()) {
+            if (value.second.type() == Value::Type::Null)
                 return DbError { "Value can't be null.", 0 };
         }
 
@@ -45,10 +47,12 @@ DbErrorOr<RowWithColumnNames> RowWithColumnNames::from_map(Table& table, MapType
                     value = Value::create_int(table.increment(columns[s].name()));
                 else
                     return DbError { "Internal error: AUTO_INCREMENT used on non-int field", 0 };
-            }else if(columns[s].not_null()) {
-                if(value.type() == Value::Type::Null)
+            }
+            else if (columns[s].not_null()) {
+                if (value.type() == Value::Type::Null)
                     return DbError { "Value can't be null.", 0 };
-            }else {
+            }
+            else {
                 value = columns[s].default_value();
             }
         }

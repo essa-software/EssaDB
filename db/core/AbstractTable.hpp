@@ -2,32 +2,53 @@
 
 #include "Column.hpp"
 #include "Tuple.hpp"
-#include "db/core/DbError.hpp"
 
 #include <memory>
 #include <vector>
 
 namespace Db::Core {
 
+class TupleWriter {
+public:
+    virtual ~TupleWriter() = default;
+    virtual DbErrorOr<void> write(Tuple const&) const = 0;
+    virtual Tuple read() const = 0;
+    virtual DbErrorOr<void> remove() const = 0;
+};
+
 class AbstractTableRowIteratorImpl {
 public:
     virtual ~AbstractTableRowIteratorImpl() = default;
     virtual std::optional<Tuple> next() = 0;
-    virtual size_t size() const = 0;
 };
 
-// A wrapper for iterator indirection, just so you can use '.' instead of '->'
+class WritableAbstractTableRowIteratorImpl {
+public:
+    virtual ~WritableAbstractTableRowIteratorImpl() = default;
+    virtual std::optional<std::unique_ptr<TupleWriter>> next_writable() = 0;
+};
+
+// Boldly copied from SerenityOS
+template<typename T, typename... Ts>
+inline constexpr bool IsOneOf = (std::is_same_v<T, Ts> || ...);
+
+// clang-format off
+    
+template<bool Const>
 class AbstractTableRowIterator {
 public:
-    AbstractTableRowIterator(std::unique_ptr<AbstractTableRowIteratorImpl> impl)
+    AbstractTableRowIterator(std::unique_ptr<AbstractTableRowIteratorImpl> impl) requires(Const)
         : m_impl(std::move(impl)) { }
 
-    auto next() { return m_impl->next(); }
+    AbstractTableRowIterator(std::unique_ptr<WritableAbstractTableRowIteratorImpl> impl) requires(!Const)
+        : m_impl(std::move(impl)) { }
+
+    auto next() requires(Const) { return m_impl->next(); }
+    auto next_writable() requires(!Const) { return m_impl->next_writable(); }
     auto size() const { return m_impl->size(); }
 
-    std::vector<Tuple> read_all();
-
     template<class Callback>
+    requires(Const)
     void for_each_row(Callback&& callback) {
         for (auto row = next(); row; row = next()) {
             callback(*row);
@@ -35,6 +56,7 @@ public:
     }
 
     template<class Callback>
+    requires(Const)
     DbErrorOr<void> try_for_each_row(Callback&& callback) {
         for (auto row = next(); row; row = next()) {
             TRY(callback(*row));
@@ -42,9 +64,28 @@ public:
         return {};
     }
 
+    template<class Callback>
+    requires(!Const)
+    void for_each_row(Callback&& callback) {
+        for (auto row = next_writable(); row; row = next_writable()) {
+            callback(**row);
+        }
+    }
+
+    template<class Callback>
+    requires(!Const)
+    DbErrorOr<void> try_for_each_row(Callback&& callback) {
+        for (auto row = next_writable(); row; row = next_writable()) {
+            TRY(callback(**row));
+        }
+        return {};
+    }
+
 private:
-    std::unique_ptr<AbstractTableRowIteratorImpl> m_impl {};
+    std::unique_ptr<std::conditional_t<Const, AbstractTableRowIteratorImpl, WritableAbstractTableRowIteratorImpl>> m_impl {};
 };
+
+// clang-format on
 
 // A database thing that has columns and rows. Note that it *doesn't allow*
 // modifying a table; iterator returns a tuple as a value (For example, join
@@ -57,9 +98,9 @@ public:
     virtual ~AbstractTable() = default;
 
     virtual std::vector<Column> const& columns() const = 0;
-    virtual AbstractTableRowIterator rows() const = 0;
-
-    size_t size() const { return rows().size(); }
+    virtual AbstractTableRowIterator<true> rows() const = 0;
+    virtual AbstractTableRowIterator<false> rows_writable() = 0;
+    virtual size_t size() const = 0;
 
     struct ResolvedColumn {
         size_t index;
@@ -84,18 +125,62 @@ public:
         return *(m_current++);
     }
 
-    virtual size_t size() const override {
-        return m_end - m_begin;
-    }
-
-    auto iterator() const {
-        return m_current;
-    }
-
 private:
     It m_begin;
     It m_current;
     It m_end;
+};
+
+template<class Container>
+class WritableMemoryBackedAbstractTableIteratorImpl : public WritableAbstractTableRowIteratorImpl {
+public:
+    using Iterator = decltype(Container {}.begin());
+
+    explicit WritableMemoryBackedAbstractTableIteratorImpl(Container& container)
+        : m_container(container)
+        , m_current(container.begin()) { }
+
+    class _TupleWriter : public TupleWriter {
+    public:
+        explicit _TupleWriter(WritableMemoryBackedAbstractTableIteratorImpl& base, Iterator it)
+            : m_base(base)
+            , m_iterator(it) { }
+
+    private:
+        virtual DbErrorOr<void> write(Tuple const& tuple) const override {
+            *m_iterator = tuple;
+            return {};
+        }
+        virtual Tuple read() const override {
+            return *m_iterator;
+        }
+        virtual DbErrorOr<void> remove() const {
+            m_base.m_container.erase(m_iterator);
+            m_base.m_previous_erased = true;
+            return {};
+        }
+
+        WritableMemoryBackedAbstractTableIteratorImpl& m_base;
+        Iterator m_iterator;
+    };
+
+    virtual std::optional<std::unique_ptr<TupleWriter>> next_writable() override {
+        if (m_previous_erased)
+            --m_current;
+        if (m_current == std::end(m_container))
+            return {};
+        auto tuple_writer = std::make_unique<_TupleWriter>(*this, m_current);
+        ++m_current;
+        if (m_previous_erased)
+            m_previous_erased = false;
+        return tuple_writer;
+    }
+
+private:
+    friend class _TupleWriter;
+    Container& m_container;
+    Iterator m_current;
+    bool m_previous_erased = false;
 };
 
 }

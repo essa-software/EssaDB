@@ -3,9 +3,9 @@
 #include "Table.hpp"
 #include "db/core/DbError.hpp"
 
+#include <db/util/NonCopyable.hpp>
 #include <string>
 #include <unordered_map>
-#include <db/util/NonCopyable.hpp>
 
 namespace Db::Core {
 
@@ -17,10 +17,10 @@ public:
     DbErrorOr<void> drop_table(std::string name);
     DbErrorOr<Table*> table(std::string name);
 
-    bool exists(std::string name) const{return m_tables.find(name) != m_tables.end();}
+    bool exists(std::string name) const { return m_tables.find(name) != m_tables.end(); }
 
 private:
-    std::unordered_map<std::string, Table> m_tables;
+    std::unordered_map<std::string, std::unique_ptr<Table>> m_tables;
 };
 
 }

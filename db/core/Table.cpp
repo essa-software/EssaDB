@@ -7,6 +7,7 @@
 #include <cstring>
 #include <fstream>
 #include <iostream>
+#include <memory>
 #include <sstream>
 #include <string>
 #include <utility>
@@ -14,22 +15,21 @@
 
 namespace Db::Core {
 
-DbErrorOr<Table> Table::create_from_select_result(ResultSet const& select) {
-    Table table;
+DbErrorOr<std::unique_ptr<MemoryBackedTable>> MemoryBackedTable::create_from_select_result(ResultSet const& select) {
+    std::unique_ptr<MemoryBackedTable> table = std::make_unique<MemoryBackedTable>();
 
     auto const& columns = select.column_names();
     auto const& rows = select.rows();
     size_t i = 0;
 
     for (const auto& col : columns) {
-        TRY(table.add_column(Column(col, rows[0].value(i).type(), 0, 0, 0)));
+        TRY(table->add_column(Column(col, rows[0].value(i).type(), 0, 0, 0)));
     }
-
-    table.m_rows = rows;
+    table->m_rows = rows;
     return table;
 }
 
-DbErrorOr<void> Table::add_column(Column column) {
+DbErrorOr<void> MemoryBackedTable::add_column(Column column) {
     if (get_column(column.name())) {
         // TODO: Save location info
         return DbError { "Duplicate column '" + column.name() + "'", 0 };
@@ -43,7 +43,7 @@ DbErrorOr<void> Table::add_column(Column column) {
     return {};
 }
 
-DbErrorOr<void> Table::alter_column(Column column) {
+DbErrorOr<void> MemoryBackedTable::alter_column(Column column) {
     if (!get_column(column.name())) {
         // TODO: Save location info
         return DbError { "Couldn't find column '" + column.name() + "'", 0 };
@@ -57,16 +57,16 @@ DbErrorOr<void> Table::alter_column(Column column) {
     return {};
 }
 
-DbErrorOr<void> Table::drop_column(Column column) {
-    if (!get_column(column.name())) {
+DbErrorOr<void> MemoryBackedTable::drop_column(std::string const& column) {
+    if (!get_column(column)) {
         // TODO: Save location info
-        return DbError { "Couldn't find column '" + column.name() + "'", 0 };
+        return DbError { "Couldn't find column '" + column + "'", 0 };
     }
 
     std::vector<Column> vec;
 
     for (size_t i = 0; i < m_columns.size(); i++) {
-        if (m_columns[i].name() == column.name()) {
+        if (m_columns[i].name() == column) {
             for (auto& row : m_rows) {
                 row.remove(i);
             }
@@ -81,23 +81,7 @@ DbErrorOr<void> Table::drop_column(Column column) {
     return {};
 }
 
-DbErrorOr<void> Table::update_cell(size_t row, size_t column, Value value) {
-    m_rows[row].set_value(column, value);
-
-    return {};
-}
-
-void Table::delete_row(size_t index) {
-    std::vector<Tuple> vec;
-    for (size_t i = 0; i < m_rows.size(); i++) {
-        if (i != index)
-            vec.push_back(m_rows[i]);
-    }
-    m_rows = std::move(vec);
-}
-
-DbErrorOr<void> Table::insert(RowWithColumnNames::MapType map) {
-
+DbErrorOr<void> MemoryBackedTable::insert(RowWithColumnNames::MapType map) {
     m_rows.push_back(TRY(RowWithColumnNames::from_map(*this, map)).row());
     return {};
 }
@@ -107,30 +91,30 @@ void Table::export_to_csv(const std::string& path) const {
 
     unsigned i = 0;
 
-    for (const auto& col : m_columns) {
+    auto const& columns = this->columns();
+
+    for (const auto& col : columns) {
         f_out << col.name();
 
-        if (i < m_columns.size() - 1)
+        if (i < columns.size() - 1)
             f_out << ',';
         else
             f_out << '\n';
         i++;
     }
 
-    for (const auto& row : m_rows) {
+    rows().for_each_row([&](auto const& row) {
         i = 0;
         for (auto it = row.begin(); it != row.end(); it++) {
             f_out << it->to_string().release_value();
 
-            if (i < m_columns.size() - 1)
+            if (i < columns.size() - 1)
                 f_out << ',';
             else
                 f_out << '\n';
             i++;
         }
-    }
-
-    f_out.close();
+    });
 }
 
 DbErrorOr<void> Table::import_from_csv(const std::string& path) {
@@ -195,7 +179,7 @@ DbErrorOr<void> Table::import_from_csv(const std::string& path) {
 
     f_in.close();
 
-    if (m_columns.empty()) {
+    if (columns().empty()) {
         size_t column_index = 0;
         for (auto const& column_name : column_names) {
             Value::Type type = Value::Type::Null;
@@ -218,15 +202,16 @@ DbErrorOr<void> Table::import_from_csv(const std::string& path) {
     }
     else {
         // std::cout << "Reading CSV into existing table" << std::endl;
-        if (column_names.size() != m_columns.size())
+        if (column_names.size() != columns().size())
             return DbError { "Column count differs in CSV file and in table", 0 };
     }
 
+    auto columns = this->columns();
     for (auto const& row : rows) {
         RowWithColumnNames::MapType map;
         unsigned i = 0;
 
-        for (const auto& col : m_columns) {
+        for (const auto& col : columns) {
             auto value = row[i];
             i++;
 
@@ -234,7 +219,6 @@ DbErrorOr<void> Table::import_from_csv(const std::string& path) {
                 continue;
 
             auto created_value = TRY(Value::from_string(col.type(), value));
-            // std::cout << created_value.to_debug_string() << std::endl;
             map.insert({ col.name(), created_value });
         }
 
