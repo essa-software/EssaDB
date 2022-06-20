@@ -66,6 +66,8 @@ public:
     virtual DbErrorOr<Value> evaluate(EvaluationContext&, TupleWithSource const&) const override { return m_value; }
     virtual std::string to_string() const override { return m_value.to_string().release_value_but_fixme_should_propagate_errors(); }
 
+    Value value() const {return m_value;}
+
 private:
     Value m_value;
 };

@@ -1,10 +1,9 @@
 #include "Table.hpp"
-#include "Column.hpp"
-
+#include "db/core/Column.hpp"
+#include "db/core/ResultSet.hpp"
 #include <cstring>
 #include <fstream>
 #include <iostream>
-#include <sstream>
 #include <string>
 #include <utility>
 #include <vector>
@@ -19,7 +18,7 @@ DbErrorOr<Table> Table::create_from_select_result(ResultSet const& select) {
     size_t i = 0;
 
     for (const auto& col : columns) {
-        TRY(table.add_column(Column(col, rows[0].value(i).type(), Column::AutoIncrement::No)));
+        TRY(table.add_column(Column(col, rows[0].value(i).type(), 0, 0, 0)));
     }
 
     table.m_rows = rows;
@@ -94,6 +93,7 @@ void Table::delete_row(size_t index) {
 }
 
 DbErrorOr<void> Table::insert(RowWithColumnNames::MapType map) {
+
     m_rows.push_back(TRY(RowWithColumnNames::from_map(*this, map)).row());
     return {};
 }
@@ -217,7 +217,7 @@ DbErrorOr<void> Table::import_from_csv(const std::string& path) {
                     type = Value::Type::Varchar;
             }
 
-            TRY(add_column(Column(column_name, type, Column::AutoIncrement::No)));
+            TRY(add_column(Column(column_name, type, 0, 0, 0)));
 
             column_index++;
         }

@@ -1,6 +1,7 @@
 #include "RowWithColumnNames.hpp"
 
 #include "Table.hpp"
+#include "db/core/Value.hpp"
 
 #include <ostream>
 
@@ -21,6 +22,17 @@ DbErrorOr<RowWithColumnNames> RowWithColumnNames::from_map(Table& table, MapType
             // TODO: Save location info
             return DbError { "Invalid value type for column '" + value.first + "': " + value.second.to_debug_string(), 0 };
         }
+
+        if (column->first.unique()) {
+            for(const auto& table_row : table.rows()){
+                if(TRY(table_row.value(column->second) == value.second))
+                    return DbError { "Not valid UNIQUE value.", 0 };
+            }
+        }else if (column->first.not_null()) {
+            if(value.second.type() == Value::Type::Null)
+                return DbError { "Value can't be null.", 0 };
+        }
+
         row[column->second] = std::move(value.second);
     }
 
@@ -33,8 +45,12 @@ DbErrorOr<RowWithColumnNames> RowWithColumnNames::from_map(Table& table, MapType
                     value = Value::create_int(table.increment(columns[s].name()));
                 else
                     return DbError { "Internal error: AUTO_INCREMENT used on non-int field", 0 };
+            }else if(columns[s].not_null()) {
+                if(value.type() == Value::Type::Null)
+                    return DbError { "Value can't be null.", 0 };
+            }else {
+                value = columns[s].default_value();
             }
-            // TODO: Error if field is NOT NULL
         }
     }
 

@@ -264,6 +264,20 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Select>> Parser::parse_select() {
             .select_into = std::move(select_into) });
 }
 
+static bool is_literal(Token::Type token) {
+    switch (token) {
+    case Token::Type::Int:
+    case Token::Type::Float:
+    case Token::Type::String:
+    case Token::Type::Bool:
+    case Token::Type::Date:
+    case Token::Type::Null:
+        return true;
+    default:
+        return false;
+    }
+}
+
 Core::DbErrorOr<std::unique_ptr<Core::AST::Update>> Parser::parse_update() {
     auto start = m_offset;
     m_offset++;
@@ -390,19 +404,38 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::CreateTable>> Parser::parse_create_ta
             return Core::DbError { "Invalid type: '" + type_token.value + "'", m_offset - 1 };
 
         bool auto_increment = false;
+        bool unique = false;
+        bool not_null = false;
+        std::optional<Core::Value> default_value = {};
+        
         while (true) {
             auto param = m_tokens[m_offset];
-            if (param.type != Token::Type::Identifier)
+            if (param.type != Token::Type::Identifier && param.type != Token::Type::OpNot && param.type != Token::Type::KeywordDefault && !is_literal(param.type))
                 break;
             m_offset++;
             if (param.value == "AUTO_INCREMENT")
                 auto_increment = true;
-            else
+            else if (param.value == "UNIQUE")
+                unique = true;
+            else if (param.type == Token::Type::OpNot){
+                if(m_tokens[m_offset].type != Token::Type::Null)
+                    return Core::DbError { "Expected 'NULL' after 'NOT'", m_offset };
+                
+                m_offset++;
+                not_null = true;
+            }
+            else if (param.type == Token::Type::KeywordDefault){
+                if(!is_literal(m_tokens[m_offset].type))
+                    return Core::DbError { "Expected value after `DEFAULT`", m_offset };
+                auto default_ptr = TRY(parse_literal());
+
+                default_value = default_ptr->value();
+            }
+            else 
                 return Core::DbError { "Invalid param for column: '" + param.value + "'", m_offset };
         }
 
-        columns.push_back(Core::Column { name.value, *type,
-            auto_increment ? Core::Column::AutoIncrement::Yes : Core::Column::AutoIncrement::No });
+        columns.push_back(Core::Column { name.value, *type, auto_increment, unique, not_null, std::move(default_value)});
 
         auto comma = m_tokens[m_offset];
         if (comma.type != Token::Type::Comma)
@@ -463,7 +496,7 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::AlterTable>> Parser::parse_alter_tabl
                 return expected("column type", type_token, m_offset - 1);
 
             // TODO: Parse autoincrement
-            to_add.push_back(Core::Column(column_token.value, Core::Value::type_from_string(type_token.value).value(), Core::Column::AutoIncrement::Yes));
+            to_add.push_back(Core::Column(column_token.value, Core::Value::type_from_string(type_token.value).value(), 1, 1, 1));
         }
         else if (m_tokens[m_offset].type == Token::Type::KeywordAlter) {
             m_offset++;
@@ -479,7 +512,7 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::AlterTable>> Parser::parse_alter_tabl
             if (type_token.type != Token::Type::Identifier)
                 return expected("column type", type_token, m_offset - 1);
 
-            to_alter.push_back(Core::Column(column_token.value, Core::Value::type_from_string(type_token.value).value(), Core::Column::AutoIncrement::Yes));
+            to_alter.push_back(Core::Column(column_token.value, Core::Value::type_from_string(type_token.value).value(), 1, 1, 1));
         }
         else if (m_tokens[m_offset].type == Token::Type::KeywordDrop) {
             m_offset++;
@@ -490,7 +523,7 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::AlterTable>> Parser::parse_alter_tabl
             if (column_token.type != Token::Type::Identifier)
                 return expected("column name", column_token, m_offset - 1);
 
-            to_drop.push_back(Core::Column(column_token.value, {}, Core::Column::AutoIncrement::Yes));
+            to_drop.push_back(Core::Column(column_token.value, {}, 1, 1, 1));
         }
         else {
             return Core::DbError { "Unrecognized option", m_offset - 1 };
@@ -560,20 +593,6 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::InsertInto>> Parser::parse_insert_int
     }
 
     return expected("'VALUES' or 'SELECT'", value_token, m_offset - 1);
-}
-
-static bool is_literal(Token::Type token) {
-    switch (token) {
-    case Token::Type::Int:
-    case Token::Type::Float:
-    case Token::Type::String:
-    case Token::Type::Bool:
-    case Token::Type::Date:
-    case Token::Type::Null:
-        return true;
-    default:
-        return false;
-    }
 }
 
 Core::DbErrorOr<std::unique_ptr<Core::AST::Expression>> Parser::parse_expression(int min_precedence) {
