@@ -26,7 +26,7 @@ DbErrorOr<void> csv_export_import() {
     auto table = TRY(db.table("test"));
     table->export_to_csv("test.csv");
 
-    auto* new_table = &db.create_table("newtest");
+    auto* new_table = &db.create_table("newtest", {});
     TRY(new_table->import_from_csv("test.csv"));
 
     auto result = TRY(TRY(Db::Sql::run_query(db, "SELECT * FROM newtest;")).to_select_result());
@@ -45,7 +45,7 @@ DbErrorOr<void> csv_export_import_with_aliases() {
     auto table = TRY(db.create_table_from_query(result, "test_from_query"));
     table->export_to_csv("test.csv");
 
-    auto& new_table = db.create_table("new_test");
+    auto& new_table = db.create_table("new_test", {});
     TRY(new_table.import_from_csv("test.csv"));
 
     result = TRY(TRY(Db::Sql::run_query(db, "SELECT * FROM [new_test];")).to_select_result());
@@ -65,7 +65,7 @@ DbErrorOr<void> csv_import_statement() {
     auto table = TRY(db.create_table_from_query(result, "test_from_query"));
     table->export_to_csv("test.csv");
 
-    auto& new_table = db.create_table("new_test");
+    auto& new_table = db.create_table("new_test", {});
     TRY(Db::Sql::run_query(db, "IMPORT CSV 'test.csv' INTO new_test"));
 
     result = TRY(TRY(Db::Sql::run_query(db, "SELECT * FROM [new_test];")).to_select_result());

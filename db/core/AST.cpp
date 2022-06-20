@@ -67,7 +67,7 @@ DbErrorOr<Value> Update::execute(Database& db) const {
 }
 
 DbErrorOr<Value> CreateTable::execute(Database& db) const {
-    auto& table = db.create_table(m_name);
+    auto& table = db.create_table(m_name, m_check);
     for (auto const& column : m_columns) {
         TRY(table.add_column(column));
     }
@@ -138,7 +138,7 @@ DbErrorOr<Value> InsertInto::execute(Database& db) const {
 }
 
 DbErrorOr<Value> Import::execute(Database& db) const {
-    auto& new_table = db.create_table(m_table);
+    auto& new_table = db.create_table(m_table, {});
     switch (m_mode) {
     case Mode::Csv:
         TRY(new_table.import_from_csv(m_filename));

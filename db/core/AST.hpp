@@ -89,16 +89,18 @@ private:
 
 class CreateTable : public Statement {
 public:
-    CreateTable(ssize_t start, std::string name, std::vector<Column> columns)
+    CreateTable(ssize_t start, std::string name, std::vector<Column> columns, Table::CheckConstraint check)
         : Statement(start)
         , m_name(std::move(name))
-        , m_columns(std::move(columns)) { }
+        , m_columns(std::move(columns))
+        , m_check(check) { }
 
     virtual DbErrorOr<Value> execute(Database&) const override;
 
 private:
     std::string m_name;
     std::vector<Column> m_columns;
+    Table::CheckConstraint m_check;
 };
 
 class DropTable : public Statement {

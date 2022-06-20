@@ -1,5 +1,13 @@
 #pragma once
-#include "db/core/Table.hpp"
+
+#include "db/core/Tuple.hpp"
+#include <memory>
+#include <map>
+#include <sys/types.h>
+
+namespace Db::Core{
+    class Table;
+}
 
 namespace Db::Core::AST {
 

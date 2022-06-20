@@ -154,6 +154,9 @@ std::vector<Token> Lexer::lex() {
             else if (Db::Sql::Parser::compare_case_insensitive(id, "CHECK")) {
                 tokens.push_back(Token { .type = Token::Type::KeywordCheck, .value = "CHECK", .start = start });
             }
+            else if (Db::Sql::Parser::compare_case_insensitive(id, "CONSTRAINT")) {
+                tokens.push_back(Token { .type = Token::Type::KeywordCheck, .value = "CHECK", .start = start });
+            }
             else if (Db::Sql::Parser::compare_case_insensitive(id, "ALL")) {
                 tokens.push_back(Token { .type = Token::Type::KeywordAll, .value = "ALL", .start = start });
             }

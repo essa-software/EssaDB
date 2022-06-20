@@ -1,7 +1,9 @@
 #include "Parser.hpp"
 #include "db/core/Column.hpp"
+#include "db/core/Expression.hpp"
 #include "db/core/Function.hpp"
 #include "db/core/Select.hpp"
+#include "db/core/Table.hpp"
 #include "db/core/Value.hpp"
 #include "db/sql/Lexer.hpp"
 
@@ -387,8 +389,11 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::CreateTable>> Parser::parse_create_ta
 
     auto paren_open = m_tokens[m_offset];
     if (paren_open.type != Token::Type::ParenOpen)
-        return std::make_unique<Core::AST::CreateTable>(start, table_name.value, std::vector<Core::Column> {});
+        return std::make_unique<Core::AST::CreateTable>(start, table_name.value, std::vector<Core::Column> {}, Core::Table::CheckConstraint{});
     m_offset++;
+
+    std::unique_ptr<Core::AST::Expression> check_expr;
+    std::optional<std::string> check_alias = {};
 
     std::vector<Core::Column> columns;
     while (true) {
@@ -441,7 +446,23 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::CreateTable>> Parser::parse_create_ta
         auto keyword_or_comma = m_tokens[m_offset];
         if(keyword_or_comma.type == Token::Type::KeywordCheck){
             m_offset++;
+            check_expr = TRY(parse_expression());
+        }else if(keyword_or_comma.type == Token::Type::KeywordConstraint){
+            m_offset++;
 
+            auto identifier = m_tokens[m_offset];
+
+            if(identifier.type != Token::Type::Identifier)
+                return expected("identifier", identifier, m_offset - 1);
+            m_offset++;
+
+            check_alias = identifier.value;
+
+            if(m_tokens[m_offset].type != Token::Type::KeywordCheck)
+                return expected("'CHECK' after identifier", identifier, m_offset - 1);
+            m_offset++;
+
+            check_expr = TRY(parse_expression());
         }
 
         if (keyword_or_comma.type != Token::Type::Comma)
@@ -453,7 +474,7 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::CreateTable>> Parser::parse_create_ta
     if (paren_close.type != Token::Type::ParenClose)
         return expected("')' to close column list", paren_close, m_offset - 1);
 
-    return std::make_unique<Core::AST::CreateTable>(start, table_name.value, columns);
+    return std::make_unique<Core::AST::CreateTable>(start, table_name.value, columns, Core::Table::CheckConstraint{.expr = check_expr.get(), .alias = std::move(check_alias)});
 }
 
 Core::DbErrorOr<std::unique_ptr<Core::AST::DropTable>> Parser::parse_drop_table() {

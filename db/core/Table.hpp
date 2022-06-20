@@ -5,6 +5,7 @@
 #include "DbError.hpp"
 #include "ResultSet.hpp"
 #include "RowWithColumnNames.hpp"
+#include "db/core/Expression.hpp"
 
 #include <db/util/NonCopyable.hpp>
 #include <optional>
@@ -24,11 +25,19 @@ public:
 
     void export_to_csv(const std::string& path) const;
     DbErrorOr<void> import_from_csv(const std::string& path);
+
+    struct CheckConstraint {
+        AST::Expression* expr = nullptr;
+        std::optional<std::string> alias = {};
+    };
+
+    virtual CheckConstraint check_value() const = 0;
 };
 
 class MemoryBackedTable : public Table {
 public:
-    MemoryBackedTable() = default;
+    MemoryBackedTable(Table::CheckConstraint check)
+        : m_check(std::move(check)) { }
 
     static DbErrorOr<std::unique_ptr<MemoryBackedTable>> create_from_select_result(ResultSet const& select);
 
@@ -57,10 +66,7 @@ public:
     virtual DbErrorOr<void> drop_column(std::string const&) override;
     virtual DbErrorOr<void> insert(RowWithColumnNames::MapType) override;
 
-    struct CheckConstraint{
-        // std::unique_ptr<AST::Expression> expr;
-        std::optional<std::string> alias;
-    };
+    virtual Table::CheckConstraint check_value() const override {return m_check;}
 
 private:
     friend class RowWithColumnNames;
@@ -69,6 +75,7 @@ private:
 
     std::vector<Tuple> m_rows;
     std::vector<Column> m_columns;
+    Table::CheckConstraint m_check;
     std::map<std::string, int> m_auto_increment_values;
 };
 

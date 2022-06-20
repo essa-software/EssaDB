@@ -3,8 +3,8 @@
 
 namespace Db::Core {
 
-Table& Database::create_table(std::string name) {
-    return *m_tables.insert({ name, std::make_unique<MemoryBackedTable>() }).first->second;
+Table& Database::create_table(std::string name, Table::CheckConstraint check) {
+    return *m_tables.insert({ name, std::make_unique<MemoryBackedTable>(std::move(check)) }).first->second;
 }
 
 DbErrorOr<void> Database::drop_table(std::string name) {

@@ -1,6 +1,8 @@
 #include "RowWithColumnNames.hpp"
 
 #include "Table.hpp"
+#include "db/core/Expression.hpp"
+#include "db/core/Tuple.hpp"
 #include "db/core/Value.hpp"
 
 #include <ostream>
@@ -36,6 +38,23 @@ DbErrorOr<RowWithColumnNames> RowWithColumnNames::from_map(Table& table, MapType
         }
 
         row[column->index] = std::move(value.second);
+    }
+    AST::SelectColumns select_all_columns;
+
+    AST::SelectColumns const& columns_to_context = *TRY([&table, &select_all_columns]() -> DbErrorOr<AST::SelectColumns const*> {
+        std::vector<AST::SelectColumns::Column> all_columns;
+        for (auto const& column : table.columns()) {
+            all_columns.push_back(AST::SelectColumns::Column { .column = std::make_unique<AST::Identifier>(0, column.name()) });
+        }
+        select_all_columns = AST::SelectColumns { std::move(all_columns) };
+        return &select_all_columns;
+    }());
+    
+    AST::EvaluationContext context{ .columns = columns_to_context, .table = &table, .row_type = AST::EvaluationContext::RowType::FromTable};
+
+    if(table.check_value().expr){
+        if(!TRY(TRY(table.check_value().expr->evaluate(context, AST::TupleWithSource{.tuple = Tuple{row}, .source = {}})).to_bool()))
+            return DbError { "Values doesn't match check rules specified for this table", 0 };
     }
 
     // Null check

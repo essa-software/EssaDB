@@ -1,4 +1,5 @@
 #include "Expression.hpp"
+#include "Table.hpp"
 
 namespace Db::Core::AST {
 

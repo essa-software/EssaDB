@@ -33,7 +33,7 @@ void run_query(Db::Core::Database& db, std::string const& query) {
 
 int main() {
     Db::Core::Database db;
-    db.create_table("test");
+    db.create_table("test", {});
     while (true) {
         std::cout << "> \e[32m";
         std::string query;
