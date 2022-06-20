@@ -5,6 +5,7 @@
 
 #include "Lexer.hpp"
 #include "db/core/Database.hpp"
+#include "db/core/Select.hpp"
 
 namespace Db::Sql {
 

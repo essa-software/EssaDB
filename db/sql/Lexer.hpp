@@ -41,7 +41,9 @@ struct Token {
         KeywordUnion,
         KeywordAll,
         KeywordImport,
+        KeywordUnique,
         KeywordDefault,
+        KeywordCheck,
 
         OrderByParam,
         Identifier,

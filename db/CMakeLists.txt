@@ -4,9 +4,11 @@ add_library(
     core/AST.cpp
     core/AbstractTable.cpp
     core/Database.cpp
+    core/Expression.cpp
     core/Function.cpp
     core/ResultSet.cpp
     core/RowWithColumnNames.cpp
+    core/Select.cpp
     core/Table.cpp
     core/Tuple.cpp
     core/Value.cpp

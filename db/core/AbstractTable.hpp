@@ -154,7 +154,7 @@ public:
         virtual Tuple read() const override {
             return *m_iterator;
         }
-        virtual DbErrorOr<void> remove() const {
+        virtual DbErrorOr<void> remove() const override {
             m_base.m_container.erase(m_iterator);
             m_base.m_previous_erased = true;
             return {};

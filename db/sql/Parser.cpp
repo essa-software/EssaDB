@@ -1,6 +1,7 @@
 #include "Parser.hpp"
 #include "db/core/Column.hpp"
 #include "db/core/Function.hpp"
+#include "db/core/Select.hpp"
 #include "db/core/Value.hpp"
 #include "db/sql/Lexer.hpp"
 
@@ -410,12 +411,12 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::CreateTable>> Parser::parse_create_ta
         
         while (true) {
             auto param = m_tokens[m_offset];
-            if (param.type != Token::Type::Identifier && param.type != Token::Type::OpNot && param.type != Token::Type::KeywordDefault && !is_literal(param.type))
+            if (param.type != Token::Type::Identifier && param.type != Token::Type::OpNot && param.type != Token::Type::KeywordDefault && param.type != Token::Type::KeywordUnique)
                 break;
             m_offset++;
             if (param.value == "AUTO_INCREMENT")
                 auto_increment = true;
-            else if (param.value == "UNIQUE")
+            else if (param.type == Token::Type::KeywordUnique)
                 unique = true;
             else if (param.type == Token::Type::OpNot){
                 if(m_tokens[m_offset].type != Token::Type::Null)
@@ -437,8 +438,13 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::CreateTable>> Parser::parse_create_ta
 
         columns.push_back(Core::Column { name.value, *type, auto_increment, unique, not_null, std::move(default_value)});
 
-        auto comma = m_tokens[m_offset];
-        if (comma.type != Token::Type::Comma)
+        auto keyword_or_comma = m_tokens[m_offset];
+        if(keyword_or_comma.type == Token::Type::KeywordCheck){
+            m_offset++;
+
+        }
+
+        if (keyword_or_comma.type != Token::Type::Comma)
             break;
         m_offset++;
     }

@@ -7,6 +7,7 @@
 #include "RowWithColumnNames.hpp"
 
 #include <db/util/NonCopyable.hpp>
+#include <optional>
 #include <set>
 
 namespace Db::Core {
@@ -55,6 +56,11 @@ public:
     virtual DbErrorOr<void> alter_column(Column) override;
     virtual DbErrorOr<void> drop_column(std::string const&) override;
     virtual DbErrorOr<void> insert(RowWithColumnNames::MapType) override;
+
+    struct CheckConstraint{
+        // std::unique_ptr<AST::Expression> expr;
+        std::optional<std::string> alias;
+    };
 
 private:
     friend class RowWithColumnNames;
