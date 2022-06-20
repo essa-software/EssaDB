@@ -24,7 +24,6 @@ DbErrorOr<RowWithColumnNames> RowWithColumnNames::from_map(Table& table, MapType
         }
 
         if (column->column.unique()) {
-            // TODO: Port this to AbstractTable.
             for(const auto& table_row : table.raw_rows()){
                 if(TRY(table_row.value(column->index) == value.second))
                     return DbError { "Not valid UNIQUE value.", 0 };
