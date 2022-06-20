@@ -37,7 +37,7 @@ public:
     using Variant = std::variant<T, ErrorType>;
 
     template<typename U>
-    ALWAYS_INLINE ErrorOr(U&& value) requires(!std::is_same_v<std::remove_cvref_t<U>, ErrorOr<T, ErrorType>>)
+    ALWAYS_INLINE ErrorOr(U&& value) requires(!std::is_same_v<std::remove_cvref_t<U>, ErrorOr<T, ErrorType>> && (std::is_convertible_v<U, T> || std::is_convertible_v<U, ErrorType>))
         : Variant(std::forward<U>(value)) {
     }
 
