@@ -4,8 +4,8 @@ add_library(
     core/AST.cpp
     core/Database.cpp
     core/Function.cpp
+    core/ResultSet.cpp
     core/RowWithColumnNames.cpp
-    core/SelectResult.cpp
     core/Table.cpp
     core/Tuple.cpp
     core/Value.cpp

@@ -1,24 +1,24 @@
-#include "SelectResult.hpp"
+#include "ResultSet.hpp"
 
+#include "Database.hpp"
+#include "Table.hpp"
 #include "Tuple.hpp"
-#include "db/core/Database.hpp"
-#include "db/core/Table.hpp"
 
 #include <iomanip>
 #include <iostream>
 
 namespace Db::Core {
 
-SelectResult::SelectResult(std::vector<std::string> column_names, std::vector<Tuple> rows)
+ResultSet::ResultSet(std::vector<std::string> column_names, std::vector<Tuple> rows)
     : m_column_names(std::move(column_names))
     , m_rows(std::move(rows)) {
 }
 
 // This must be out of line because of dependency cycle
 // See https://stackoverflow.com/questions/23984061/incomplete-type-for-stdvector
-SelectResult::~SelectResult() = default;
+ResultSet::~ResultSet() = default;
 
-void SelectResult::dump(std::ostream& out) const {
+void ResultSet::dump(std::ostream& out) const {
     std::vector<int> widths;
     unsigned long index = 0;
 

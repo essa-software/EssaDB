@@ -1,6 +1,6 @@
 #pragma once
 
-#include "SelectResult.hpp"
+#include "ResultSet.hpp"
 #include "Table.hpp"
 #include "Tuple.hpp"
 #include "Value.hpp"

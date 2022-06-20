@@ -3,7 +3,7 @@
 
 #include <db/core/AST.hpp>
 #include <db/core/Database.hpp>
-#include <db/core/SelectResult.hpp>
+#include <db/core/ResultSet.hpp>
 #include <db/sql/SQL.hpp>
 
 using namespace Db::Core;

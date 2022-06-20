@@ -2,9 +2,8 @@
 
 #include "Column.hpp"
 #include "DbError.hpp"
+#include "ResultSet.hpp"
 #include "RowWithColumnNames.hpp"
-#include "AST.hpp"
-#include "db/core/SelectResult.hpp"
 
 #include <db/util/NonCopyable.hpp>
 #include <set>
@@ -15,7 +14,7 @@ class Table : public Util::NonCopyable {
 public:
     Table() = default;
 
-    static DbErrorOr<Table> create_from_select_result(SelectResult const& select);
+    static DbErrorOr<Table> create_from_select_result(ResultSet const& select);
 
     std::optional<std::pair<Column, size_t>> get_column(std::string const& name) const;
     size_t size() const { return m_rows.size(); }

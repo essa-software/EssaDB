@@ -380,7 +380,7 @@ DbErrorOr<Value> Select::execute(Database& db) const {
     for (auto const& row : rows)
         output_rows.push_back(std::move(row.tuple));
 
-    SelectResult result { column_names, std::move(output_rows) };
+    ResultSet result { column_names, std::move(output_rows) };
 
     if (m_options.select_into) {
         // TODO: Insert, not overwrite records

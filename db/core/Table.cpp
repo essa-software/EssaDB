@@ -1,5 +1,6 @@
 #include "Table.hpp"
-#include "db/core/Column.hpp"
+#include "Column.hpp"
+
 #include <cstring>
 #include <fstream>
 #include <iostream>
@@ -9,7 +10,7 @@
 
 namespace Db::Core {
 
-DbErrorOr<Table> Table::create_from_select_result(SelectResult const& select) {
+DbErrorOr<Table> Table::create_from_select_result(ResultSet const& select) {
     Table table;
 
     auto const& columns = select.column_names();

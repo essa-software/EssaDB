@@ -13,7 +13,7 @@ DbErrorOr<void> Database::drop_table(std::string name){
     return {};
 }
 
-DbErrorOr<Table*> Database::create_table_from_query(SelectResult select, std::string name){
+DbErrorOr<Table*> Database::create_table_from_query(ResultSet select, std::string name){
     return &m_tables.emplace(name, TRY(Table::create_from_select_result(select))).first->second;
 }
 

@@ -1,8 +1,8 @@
 #pragma once
 
-#include "DbError.hpp"
-#include "SelectResult.hpp"
 #include "../util/Clock.hpp"
+#include "DbError.hpp"
+#include "ResultSet.hpp"
 
 #include <optional>
 #include <string>
@@ -10,9 +10,9 @@
 
 namespace Db::Core {
 
-class SelectResult;
+class ResultSet;
 
-using ValueBase = std::variant<std::monostate, int, float, std::string, bool, Util::Clock::time_point, SelectResult>;
+using ValueBase = std::variant<std::monostate, int, float, std::string, bool, Util::Clock::time_point, ResultSet>;
 
 class Value : public ValueBase {
 public:
@@ -49,13 +49,13 @@ public:
     static Value create_bool(bool b);
     static Value create_time(Util::Clock::time_point clock);
     static Value create_time(std::string str, Util::Clock::Format format);
-    static Value create_select_result(SelectResult);
+    static Value create_select_result(ResultSet);
 
     DbErrorOr<int> to_int() const;
     DbErrorOr<float> to_float() const;
     DbErrorOr<std::string> to_string() const;
     DbErrorOr<bool> to_bool() const;
-    DbErrorOr<SelectResult> to_select_result() const;
+    DbErrorOr<ResultSet> to_select_result() const;
 
     Type type() const { return m_type; }
 

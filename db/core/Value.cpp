@@ -1,8 +1,8 @@
 #include "Value.hpp"
 
-#include "SelectResult.hpp"
+#include "DbError.hpp"
+#include "ResultSet.hpp"
 #include "Tuple.hpp"
-#include "db/core/DbError.hpp"
 #include "db/util/Clock.hpp"
 
 #include <cctype>
@@ -117,7 +117,7 @@ Value Value::create_time(std::string time, Util::Clock::Format format) {
     }
 }
 
-Value Value::create_select_result(SelectResult result) {
+Value Value::create_select_result(ResultSet result) {
     return Value { std::move(result), Type::SelectResult };
 }
 
@@ -144,7 +144,7 @@ DbErrorOr<int> Value::to_int() const {
     case Type::Time:
         return static_cast<int>(std::get<Util::Clock::time_point>(*this).time_since_epoch().count());
     case Type::SelectResult: {
-        auto select_result = std::get<SelectResult>(*this);
+        auto select_result = std::get<ResultSet>(*this);
         if (select_result.rows().size() != 1)
             return DbError { "SelectResult must have only one 1 row to be convertible to int", 0 };
         if (select_result.rows()[0].value_count() != 1)
@@ -178,7 +178,7 @@ DbErrorOr<float> Value::to_float() const {
     case Type::Time:
         return DbError { "Time is not convertible to float", 0 };
     case Type::SelectResult: {
-        auto select_result = std::get<SelectResult>(*this);
+        auto select_result = std::get<ResultSet>(*this);
         if (select_result.rows().size() != 1)
             return DbError { "SelectResult must have only one 1 row to be convertible to float", 0 };
         if (select_result.rows()[0].value_count() != 1)
@@ -209,7 +209,7 @@ DbErrorOr<std::string> Value::to_string() const {
         return stream.str();
     }
     case Type::SelectResult: {
-        auto select_result = std::get<SelectResult>(*this);
+        auto select_result = std::get<ResultSet>(*this);
         if (select_result.rows().size() != 1)
             return DbError { "SelectResult must have only one 1 row to be convertible to string", 0 };
         if (select_result.rows()[0].value_count() != 1)
@@ -224,12 +224,12 @@ DbErrorOr<bool> Value::to_bool() const {
     return TRY(to_int()) != 0;
 }
 
-DbErrorOr<SelectResult> Value::to_select_result() const {
+DbErrorOr<ResultSet> Value::to_select_result() const {
     if (m_type != Type::SelectResult) {
         // TODO: Save location info
         return DbError { "Value '" + to_debug_string() + "' is not a select result", 0 };
     }
-    return std::get<SelectResult>(*this);
+    return std::get<ResultSet>(*this);
 }
 
 std::string Value::to_debug_string() const {
@@ -248,14 +248,14 @@ std::string Value::to_debug_string() const {
     case Type::Time:
         return "time " + value;
     case Type::SelectResult:
-        return "SelectResult (" + std::to_string(std::get<SelectResult>(*this).rows().size()) + " rows)";
+        return "SelectResult (" + std::to_string(std::get<ResultSet>(*this).rows().size()) + " rows)";
     }
     __builtin_unreachable();
 }
 
 void Value::repl_dump(std::ostream& out) const {
     if (m_type == Type::SelectResult) {
-        return std::get<SelectResult>(*this).dump(out);
+        return std::get<ResultSet>(*this).dump(out);
     }
     else {
         out << to_debug_string() << std::endl;
