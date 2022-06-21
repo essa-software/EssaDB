@@ -168,7 +168,10 @@ DbErrorOr<std::vector<TupleWithSource>> Select::collect_rows(EvaluationContext& 
                 auto column = table.get_column(column_name);
                 if (!column) {
                     // TODO: Store source location info
-                    return DbError { "Nonexistent column used in GROUP BY: '" + column_name + "'", start() };
+                    if(m_options.group_by->type == GroupBy::GroupOrPartition::GROUP)
+                        return DbError { "Nonexistent column used in GROUP BY: '" + column_name + "'", start() };
+                    else if(m_options.group_by->type == GroupBy::GroupOrPartition::PARTITION)
+                        return DbError { "Nonexistent column used in PARTITION BY: '" + column_name + "'", start() };
                 }
                 group_key.push_back(row.value(column->index));
             }
@@ -240,30 +243,36 @@ DbErrorOr<std::vector<TupleWithSource>> Select::collect_rows(EvaluationContext& 
             context.row_type = EvaluationContext::RowType::FromTable;
             context.row_group = group.second;
 
-            std::vector<Value> values;
-            for (auto& column : context.columns.columns()) {
-                if (auto aggregate_column = dynamic_cast<AggregateFunction*>(column.column.get()); aggregate_column) {
-                    values.push_back(TRY(aggregate_column->aggregate(context, group.second)));
+            for(const auto& row : group.second){
+                std::vector<Value> values;
+                for (auto& column : context.columns.columns()) {
+                    if (auto aggregate_column = dynamic_cast<AggregateFunction*>(column.column.get()); aggregate_column) {
+                        values.push_back(TRY(aggregate_column->aggregate(context, group.second)));
+                    }
+                    else if ((is_in_group_by(column) && m_options.group_by->type == GroupBy::GroupOrPartition::GROUP) || 
+                              (m_options.group_by && m_options.group_by->type == GroupBy::GroupOrPartition::PARTITION)) {
+                        values.push_back(TRY(column.column->evaluate(context, { .tuple = row, .source = {} })));
+                    }
+                    else {
+                        // "All columns must be either aggregate or occur in GROUP BY clause"
+                        // TODO: Store location info
+                        return DbError { "Column '" + column.column->to_string() + "' must be either aggregate or occur in GROUP BY clause", start() };
+                    }
                 }
-                else if (is_in_group_by(column)) {
-                    values.push_back(TRY(column.column->evaluate(context, { .tuple = group.second[0], .source = {} })));
-                }
-                else {
-                    // "All columns must be either aggregate or occur in GROUP BY clause"
-                    // TODO: Store location info
-                    return DbError { "Column '" + column.column->to_string() + "' must be either aggregate or occur in GROUP BY clause", start() };
-                }
+
+                context.row_type = EvaluationContext::RowType::FromResultSet;
+
+                TupleWithSource aggregated_row { .tuple = { values }, .source = {} };
+
+                // HAVING
+                if (!TRY(should_include_group(context, aggregated_row)))
+                    continue;
+
+                aggregated_rows.push_back(std::move(aggregated_row));
+
+                if(!m_options.group_by || m_options.group_by->type != GroupBy::GroupOrPartition::PARTITION)
+                    break;
             }
-
-            context.row_type = EvaluationContext::RowType::FromResultSet;
-
-            TupleWithSource aggregated_row { .tuple = { values }, .source = {} };
-
-            // HAVING
-            if (!TRY(should_include_group(context, aggregated_row)))
-                continue;
-
-            aggregated_rows.push_back(std::move(aggregated_row));
         }
     }
     else {

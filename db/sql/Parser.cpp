@@ -198,6 +198,7 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Select>> Parser::parse_select() {
             return expected("'BY' after 'GROUP", m_tokens[m_offset], m_offset - 1);
 
         Core::AST::GroupBy group_by;
+        group_by.type = Core::AST::GroupBy::GroupOrPartition::GROUP;
 
         while (true) {
             auto expression = TRY(parse_expression());
@@ -211,6 +212,32 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Select>> Parser::parse_select() {
         }
 
         group = group_by;
+    }
+
+    // PARTITION BY
+    if (m_tokens[m_offset].type == Token::Type::KeywordPartition) {
+        m_offset++;
+        if(group)
+            Core::DbError{"'PARTITION BY' can't be used with 'GROUP BY'", m_offset - 1};
+        
+        if (m_tokens[m_offset++].type != Token::Type::KeywordBy)
+            return expected("'BY' after 'GROUP", m_tokens[m_offset], m_offset - 1);
+
+        Core::AST::GroupBy partition_by;
+        partition_by.type = Core::AST::GroupBy::GroupOrPartition::PARTITION;
+
+        while (true) {
+            auto expression = TRY(parse_expression());
+
+            partition_by.columns.push_back(expression->to_string());
+
+            auto comma = m_tokens[m_offset];
+            if (comma.type != Token::Type::Comma)
+                break;
+            m_offset++;
+        }
+
+        group = partition_by;
     }
 
     // HAVING

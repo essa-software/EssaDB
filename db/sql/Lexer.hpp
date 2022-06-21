@@ -47,6 +47,7 @@ struct Token {
         KeywordConstraint,
         KeywordPrimary,
         KeywordKey,
+        KeywordPartition,
 
         OrderByParam,
         Identifier,

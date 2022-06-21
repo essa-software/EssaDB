@@ -23,6 +23,12 @@ struct OrderBy {
 };
 
 struct GroupBy {
+    enum class GroupOrPartition{
+        GROUP,
+        PARTITION
+    };
+    GroupOrPartition type;
+    
     std::vector<std::string> columns;
 
     bool is_valid(std::string const& rhs) const {
