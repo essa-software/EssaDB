@@ -27,7 +27,7 @@ public:
     DbErrorOr<void> import_from_csv(const std::string& path);
 
     struct CheckConstraint {
-        AST::Expression* expr = nullptr;
+        std::shared_ptr<AST::Expression> expr;
         std::optional<std::string> alias = {};
     };
 

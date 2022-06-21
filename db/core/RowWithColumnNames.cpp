@@ -52,11 +52,6 @@ DbErrorOr<RowWithColumnNames> RowWithColumnNames::from_map(Table& table, MapType
     
     AST::EvaluationContext context{ .columns = columns_to_context, .table = &table, .row_type = AST::EvaluationContext::RowType::FromTable};
 
-    if(table.check_value().expr){
-        if(!TRY(TRY(table.check_value().expr->evaluate(context, AST::TupleWithSource{.tuple = Tuple{row}, .source = {}})).to_bool()))
-            return DbError { "Values doesn't match check rules specified for this table", 0 };
-    }
-
     // Null check
     for (size_t s = 0; s < row.size(); s++) {
         auto& value = row[s];
@@ -75,6 +70,11 @@ DbErrorOr<RowWithColumnNames> RowWithColumnNames::from_map(Table& table, MapType
                 value = columns[s].default_value();
             }
         }
+    }
+
+    if(table.check_value().expr){
+        if(!TRY(TRY(table.check_value().expr->evaluate(context, AST::TupleWithSource{.tuple = Tuple{row}, .source = {}})).to_bool()))
+            return DbError { "Values doesn't match check rules specified for this table", 0 };
     }
 
     return RowWithColumnNames { Tuple { row }, table };

@@ -474,7 +474,7 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::CreateTable>> Parser::parse_create_ta
     if (paren_close.type != Token::Type::ParenClose)
         return expected("')' to close column list", paren_close, m_offset - 1);
 
-    return std::make_unique<Core::AST::CreateTable>(start, table_name.value, columns, Core::Table::CheckConstraint{.expr = check_expr.get(), .alias = std::move(check_alias)});
+    return std::make_unique<Core::AST::CreateTable>(start, table_name.value, columns, Core::Table::CheckConstraint{.expr = std::move(check_expr), .alias = std::move(check_alias)});
 }
 
 Core::DbErrorOr<std::unique_ptr<Core::AST::DropTable>> Parser::parse_drop_table() {
