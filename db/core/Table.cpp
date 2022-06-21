@@ -3,6 +3,7 @@
 #include "AbstractTable.hpp"
 #include "Column.hpp"
 #include "ResultSet.hpp"
+#include "db/core/Expression.hpp"
 
 #include <cstring>
 #include <fstream>
@@ -16,7 +17,7 @@
 namespace Db::Core {
 
 DbErrorOr<std::unique_ptr<MemoryBackedTable>> MemoryBackedTable::create_from_select_result(ResultSet const& select) {
-    std::unique_ptr<MemoryBackedTable> table = std::make_unique<MemoryBackedTable>(Table::CheckConstraint{});
+    std::unique_ptr<MemoryBackedTable> table = std::make_unique<MemoryBackedTable>(nullptr, std::map<std::string, std::shared_ptr<AST::Expression>> {});
 
     auto const& columns = select.column_names();
     auto const& rows = select.rows();

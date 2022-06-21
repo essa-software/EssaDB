@@ -8,6 +8,7 @@
 #include "db/core/Expression.hpp"
 
 #include <db/util/NonCopyable.hpp>
+#include <memory>
 #include <optional>
 #include <set>
 
@@ -26,18 +27,15 @@ public:
     void export_to_csv(const std::string& path) const;
     DbErrorOr<void> import_from_csv(const std::string& path);
 
-    struct CheckConstraint {
-        std::shared_ptr<AST::Expression> expr;
-        std::optional<std::string> alias = {};
-    };
-
-    virtual CheckConstraint check_value() const = 0;
+    virtual std::shared_ptr<AST::Expression> const& check_value() const = 0;
+    virtual std::map<std::string, std::shared_ptr<AST::Expression>> const& check_map() const = 0;
 };
 
 class MemoryBackedTable : public Table {
 public:
-    MemoryBackedTable(Table::CheckConstraint check)
-        : m_check(std::move(check)) { }
+    MemoryBackedTable(std::shared_ptr<AST::Expression> check, std::map<std::string, std::shared_ptr<AST::Expression>> check_map)
+        : m_check(std::move(check))
+        , m_check_constraints(std::move(check_map)) { }
 
     static DbErrorOr<std::unique_ptr<MemoryBackedTable>> create_from_select_result(ResultSet const& select);
 
@@ -66,7 +64,8 @@ public:
     virtual DbErrorOr<void> drop_column(std::string const&) override;
     virtual DbErrorOr<void> insert(RowWithColumnNames::MapType) override;
 
-    virtual Table::CheckConstraint check_value() const override {return m_check;}
+    virtual std::shared_ptr<AST::Expression> const& check_value() const override { return m_check; }
+    virtual std::map<std::string, std::shared_ptr<AST::Expression>> const& check_map() const override { return m_check_constraints; }
 
 private:
     friend class RowWithColumnNames;
@@ -75,7 +74,8 @@ private:
 
     std::vector<Tuple> m_rows;
     std::vector<Column> m_columns;
-    Table::CheckConstraint m_check;
+    std::shared_ptr<AST::Expression> m_check;
+    std::map<std::string, std::shared_ptr<AST::Expression>> m_check_constraints;
     std::map<std::string, int> m_auto_increment_values;
 };
 

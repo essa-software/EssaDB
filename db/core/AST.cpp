@@ -67,7 +67,7 @@ DbErrorOr<Value> Update::execute(Database& db) const {
 }
 
 DbErrorOr<Value> CreateTable::execute(Database& db) const {
-    auto& table = db.create_table(m_name, m_check);
+    auto& table = db.create_table(m_name, m_check, m_check_constraints);
     for (auto const& column : m_columns) {
         TRY(table.add_column(column));
     }
@@ -138,7 +138,7 @@ DbErrorOr<Value> InsertInto::execute(Database& db) const {
 }
 
 DbErrorOr<Value> Import::execute(Database& db) const {
-    auto& new_table = db.create_table(m_table, {});
+    auto& new_table = db.create_table(m_table, {}, std::map<std::string, std::shared_ptr<AST::Expression>>{});
     switch (m_mode) {
     case Mode::Csv:
         TRY(new_table.import_from_csv(m_filename));

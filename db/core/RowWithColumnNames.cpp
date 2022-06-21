@@ -72,9 +72,14 @@ DbErrorOr<RowWithColumnNames> RowWithColumnNames::from_map(Table& table, MapType
         }
     }
 
-    if(table.check_value().expr){
-        if(!TRY(TRY(table.check_value().expr->evaluate(context, AST::TupleWithSource{.tuple = Tuple{row}, .source = {}})).to_bool()))
-            return DbError { "Values doesn't match check rules specified for this table", 0 };
+    if(table.check_value()){
+        if(!TRY(TRY(table.check_value()->evaluate(context, AST::TupleWithSource{.tuple = Tuple{row}, .source = {}})).to_bool()))
+            return DbError { "Values doesn't match general check rule specified for this table", 0 };
+    }
+
+    for(const auto& expr : table.check_map()){
+        if(!TRY(TRY(expr.second->evaluate(context, AST::TupleWithSource{.tuple = Tuple{row}, .source = {}})).to_bool()))
+            return DbError { "Values doesn't match '" + expr.first +"' check rule specified for this table", 0 };
     }
 
     return RowWithColumnNames { Tuple { row }, table };
