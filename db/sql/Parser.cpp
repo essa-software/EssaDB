@@ -416,18 +416,29 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::CreateTable>> Parser::parse_create_ta
         
         while (true) {
             auto param = m_tokens[m_offset];
-            if (param.type != Token::Type::Identifier && param.type != Token::Type::OpNot && param.type != Token::Type::KeywordDefault && param.type != Token::Type::KeywordUnique)
+            if (param.type != Token::Type::Identifier && 
+                param.type != Token::Type::OpNot && 
+                param.type != Token::Type::KeywordDefault && 
+                param.type != Token::Type::KeywordUnique && 
+                param.type != Token::Type::KeywordConstraint && 
+                param.type != Token::Type::KeywordPrimary)
                 break;
             m_offset++;
             if (param.value == "AUTO_INCREMENT")
                 auto_increment = true;
-            else if (param.type == Token::Type::KeywordUnique)
+            else if (param.type == Token::Type::KeywordUnique){
+                if(unique)
+                    return Core::DbError { "Column is already 'UNIQUE'", m_offset };
+
                 unique = true;
-            else if (param.type == Token::Type::OpNot){
+            }else if (param.type == Token::Type::OpNot){
                 if(m_tokens[m_offset].type != Token::Type::Null)
                     return Core::DbError { "Expected 'NULL' after 'NOT'", m_offset };
-                
                 m_offset++;
+
+                if(not_null)
+                    return Core::DbError { "Column is already 'NOT NULL'", m_offset };
+
                 not_null = true;
             }
             else if (param.type == Token::Type::KeywordDefault){
@@ -435,7 +446,19 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::CreateTable>> Parser::parse_create_ta
                     return Core::DbError { "Expected value after `DEFAULT`", m_offset };
                 auto default_ptr = TRY(parse_literal());
 
+                if(default_value)
+                    return Core::DbError { "Column already has its default value!", m_offset };
                 default_value = default_ptr->value();
+            }else if(param.type == Token::Type::KeywordPrimary){
+                if(m_tokens[m_offset].type != Token::Type::KeywordKey)
+                    return Core::DbError { "Expected 'KEY' after 'PRIMARY'", m_offset };
+                m_offset++;
+
+                if(unique || not_null)
+                    return Core::DbError { "Column is already 'UNIQUE' or 'NOT NULL'", m_offset };
+
+                unique = true;
+                not_null = true;
             }
             else 
                 return Core::DbError { "Invalid param for column: '" + param.value + "'", m_offset };
