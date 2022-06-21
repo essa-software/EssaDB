@@ -79,6 +79,9 @@ std::vector<Token> Lexer::lex() {
             else if (Db::Sql::Parser::compare_case_insensitive(id, "PARTITION")) {
                 tokens.push_back(Token { .type = Token::Type::KeywordPartition, .value = "PARTITION", .start = start });
             }
+            else if (Db::Sql::Parser::compare_case_insensitive(id, "OVER")) {
+                tokens.push_back(Token { .type = Token::Type::KeywordOver, .value = "OVER", .start = start });
+            }
             else if (Db::Sql::Parser::compare_case_insensitive(id, "WHERE")) {
                 tokens.push_back(Token { .type = Token::Type::KeywordWhere, .value = "WHERE", .start = start });
             }

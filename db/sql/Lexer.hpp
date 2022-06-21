@@ -48,6 +48,7 @@ struct Token {
         KeywordPrimary,
         KeywordKey,
         KeywordPartition,
+        KeywordOver,
 
         OrderByParam,
         Identifier,

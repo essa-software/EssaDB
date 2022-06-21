@@ -38,10 +38,11 @@ public:
         Invalid
     };
 
-    explicit AggregateFunction(size_t start, Function function, std::string column)
+    explicit AggregateFunction(size_t start, Function function, std::string column, std::optional<std::string> over)
         : Expression(start)
         , m_function(function)
-        , m_column(std::move(column)) { }
+        , m_column(std::move(column))
+        , m_over(std::move(over)) { }
 
     virtual DbErrorOr<Value> evaluate(EvaluationContext&, TupleWithSource const&) const override;
     virtual std::string to_string() const override { return "AggregateFunction?(TODO)"; }
@@ -53,6 +54,7 @@ public:
 private:
     Function m_function {};
     std::string m_column;
+    std::optional<std::string> m_over;
 };
 
 }

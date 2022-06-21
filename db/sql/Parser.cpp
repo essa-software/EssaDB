@@ -1020,8 +1020,32 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Expression>> Parser::parse_function(s
 
             if (m_tokens[m_offset++].type != Token::Type::ParenClose)
                 return expected("')' to close aggregate function", m_tokens[m_offset], m_offset - 1);
+            
+            std::optional<std::string> over;
+            
+            if(m_tokens[m_offset].type == Token::Type::KeywordOver){
+                m_offset++;
+                if(m_tokens[m_offset++].type != Token::Type::ParenOpen)
+                    return expected("'(' for 'OVER PARTITION' clause", m_tokens[m_offset], m_offset - 1);
 
-            return { std::make_unique<Core::AST::AggregateFunction>(m_offset, aggregate_function, column.value) };
+                if(m_tokens[m_offset++].type != Token::Type::KeywordPartition)
+                    return expected("'PARTITION' for 'OVER PARTITION' clause", m_tokens[m_offset], m_offset - 1);
+                
+                if(m_tokens[m_offset++].type != Token::Type::KeywordBy)
+                    return expected("'BY' after 'PARTITION'", m_tokens[m_offset], m_offset - 1);
+                
+                auto identifier = m_tokens[m_offset++];
+
+                if(identifier.type != Token::Type::Identifier)
+                    return expected("identifier after 'PARTITION BY'", m_tokens[m_offset], m_offset - 1);
+
+                over = identifier.value;
+
+            if (m_tokens[m_offset++].type != Token::Type::ParenClose)
+                return expected("')' to close 'OVER' clause", m_tokens[m_offset], m_offset - 1);
+            }
+
+            return { std::make_unique<Core::AST::AggregateFunction>(m_offset, aggregate_function, column.value, std::move(over)) };
         }
 
         auto expression = TRY(parse_expression());
