@@ -4,7 +4,9 @@
 #include <db/core/Function.hpp>
 
 #include "Lexer.hpp"
+#include "db/core/Column.hpp"
 #include "db/core/Database.hpp"
+#include "db/core/DbError.hpp"
 #include "db/core/Select.hpp"
 
 namespace Db::Sql {
@@ -61,6 +63,7 @@ private:
     Core::DbErrorOr<std::unique_ptr<Parser::InArgs>> parse_in();
     Core::DbErrorOr<std::unique_ptr<Core::AST::Identifier>> parse_identifier();
     Core::DbErrorOr<std::unique_ptr<Core::AST::Literal>> parse_literal();
+    Core::DbErrorOr<Core::Column> parse_column();
 
     std::vector<Token> const& m_tokens;
 

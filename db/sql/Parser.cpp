@@ -407,6 +407,75 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::DeleteFrom>> Parser::parse_delete_fro
         std::move(where));
 }
 
+Core::DbErrorOr<Core::Column> Parser::parse_column(){
+        auto name = m_tokens[m_offset++];
+        if (name.type != Token::Type::Identifier)
+            return expected("column name", name, m_offset - 1);
+
+        auto type_token = m_tokens[m_offset++];
+        if (type_token.type != Token::Type::Identifier)
+            return expected("column type", type_token, m_offset - 1);
+
+        auto type = Core::Value::type_from_string(type_token.value);
+        if (!type.has_value())
+            return Core::DbError { "Invalid type: '" + type_token.value + "'", m_offset - 1 };
+
+        bool auto_increment = false;
+        bool unique = false;
+        bool not_null = false;
+        std::optional<Core::Value> default_value = {};
+        
+    while (true) {
+        auto param = m_tokens[m_offset];
+        if (param.type != Token::Type::Identifier && 
+            param.type != Token::Type::OpNot && 
+            param.type != Token::Type::KeywordDefault && 
+            param.type != Token::Type::KeywordUnique && 
+            param.type != Token::Type::KeywordPrimary)
+            break;
+        m_offset++;
+        if (param.value == "AUTO_INCREMENT")
+            auto_increment = true;
+        else if (param.type == Token::Type::KeywordUnique){
+            if(unique)
+                return Core::DbError { "Column is already 'UNIQUE'", m_offset };
+
+            unique = true;
+        }else if (param.type == Token::Type::OpNot){
+            if(m_tokens[m_offset].type != Token::Type::Null)
+                return Core::DbError { "Expected 'NULL' after 'NOT'", m_offset };
+            m_offset++;
+
+            if(not_null)
+                return Core::DbError { "Column is already 'NOT NULL'", m_offset };
+
+            not_null = true;
+        }
+        else if (param.type == Token::Type::KeywordDefault){
+            if(!is_literal(m_tokens[m_offset].type))
+                return Core::DbError { "Expected value after `DEFAULT`", m_offset };
+            auto default_ptr = TRY(parse_literal());
+
+            if(default_value)
+                return Core::DbError { "Column already has its default value!", m_offset };
+            default_value = default_ptr->value();
+        }else if(param.type == Token::Type::KeywordPrimary){
+            if(m_tokens[m_offset].type != Token::Type::KeywordKey)
+                return Core::DbError { "Expected 'KEY' after 'PRIMARY'", m_offset };
+            m_offset++;
+
+            if(unique || not_null)
+                return Core::DbError { "Column is already 'UNIQUE' or 'NOT NULL'", m_offset };
+
+            unique = true;
+            not_null = true;
+        }
+        else 
+            return Core::DbError { "Invalid param for column: '" + param.value + "'", m_offset };
+    }
+    return Core::Column { name.value, *type, auto_increment, unique, not_null, std::move(default_value)};
+}
+
 Core::DbErrorOr<std::unique_ptr<Core::AST::CreateTable>> Parser::parse_create_table() {
     auto start = m_offset;
     m_offset += 2; // CREATE TABLE
@@ -426,73 +495,8 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::CreateTable>> Parser::parse_create_ta
     std::map<std::string, std::shared_ptr<Core::AST::Expression>> check_map;
     
     while (true) {
-        auto name = m_tokens[m_offset++];
-        if (name.type != Token::Type::Identifier)
-            return expected("column name", name, m_offset - 1);
 
-        auto type_token = m_tokens[m_offset++];
-        if (type_token.type != Token::Type::Identifier)
-            return expected("column type", type_token, m_offset - 1);
-
-        auto type = Core::Value::type_from_string(type_token.value);
-        if (!type.has_value())
-            return Core::DbError { "Invalid type: '" + type_token.value + "'", m_offset - 1 };
-
-        bool auto_increment = false;
-        bool unique = false;
-        bool not_null = false;
-        std::optional<Core::Value> default_value = {};
-        
-        while (true) {
-            auto param = m_tokens[m_offset];
-            if (param.type != Token::Type::Identifier && 
-                param.type != Token::Type::OpNot && 
-                param.type != Token::Type::KeywordDefault && 
-                param.type != Token::Type::KeywordUnique && 
-                param.type != Token::Type::KeywordPrimary)
-                break;
-            m_offset++;
-            if (param.value == "AUTO_INCREMENT")
-                auto_increment = true;
-            else if (param.type == Token::Type::KeywordUnique){
-                if(unique)
-                    return Core::DbError { "Column is already 'UNIQUE'", m_offset };
-
-                unique = true;
-            }else if (param.type == Token::Type::OpNot){
-                if(m_tokens[m_offset].type != Token::Type::Null)
-                    return Core::DbError { "Expected 'NULL' after 'NOT'", m_offset };
-                m_offset++;
-
-                if(not_null)
-                    return Core::DbError { "Column is already 'NOT NULL'", m_offset };
-
-                not_null = true;
-            }
-            else if (param.type == Token::Type::KeywordDefault){
-                if(!is_literal(m_tokens[m_offset].type))
-                    return Core::DbError { "Expected value after `DEFAULT`", m_offset };
-                auto default_ptr = TRY(parse_literal());
-
-                if(default_value)
-                    return Core::DbError { "Column already has its default value!", m_offset };
-                default_value = default_ptr->value();
-            }else if(param.type == Token::Type::KeywordPrimary){
-                if(m_tokens[m_offset].type != Token::Type::KeywordKey)
-                    return Core::DbError { "Expected 'KEY' after 'PRIMARY'", m_offset };
-                m_offset++;
-
-                if(unique || not_null)
-                    return Core::DbError { "Column is already 'UNIQUE' or 'NOT NULL'", m_offset };
-
-                unique = true;
-                not_null = true;
-            }
-            else 
-                return Core::DbError { "Invalid param for column: '" + param.value + "'", m_offset };
-        }
-
-        columns.push_back(Core::Column { name.value, *type, auto_increment, unique, not_null, std::move(default_value)});
+        columns.push_back(TRY(parse_column()));
 
         while(true){
             auto keyword = m_tokens[m_offset];
@@ -585,11 +589,8 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::AlterTable>> Parser::parse_alter_tabl
             auto thing_to_add = m_tokens[m_offset++];
 
             if(thing_to_add.type == Token::Type::Identifier){
-                auto type_token = m_tokens[m_offset++];
-                if (type_token.type != Token::Type::Identifier)
-                    return expected("column type", type_token, m_offset - 1);
-
-                to_add.push_back(Core::Column(thing_to_add.value, Core::Value::type_from_string(type_token.value).value(), 1, 1, 1));
+                m_offset--;
+                to_add.push_back(TRY(parse_column()));
             }else if(thing_to_add.type == Token::Type::KeywordCheck){
                 if(check_to_add)
                     Core::DbError {"Check already added!", m_offset};
@@ -617,15 +618,7 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::AlterTable>> Parser::parse_alter_tabl
             auto thing_to_alter = m_tokens[m_offset++];
 
             if(thing_to_alter.type == Token::Type::KeywordColumn){
-                auto column_token = m_tokens[m_offset++];
-                if (column_token.type != Token::Type::Identifier)
-                    return expected("column name", column_token, m_offset - 1);
-
-                auto type_token = m_tokens[m_offset++];
-                if (type_token.type != Token::Type::Identifier)
-                    return expected("column type", type_token, m_offset - 1);
-
-                to_alter.push_back(Core::Column(column_token.value, Core::Value::type_from_string(type_token.value).value(), 1, 1, 1));
+                to_alter.push_back(TRY(parse_column()));
             }else if(thing_to_alter.type == Token::Type::KeywordCheck){
                 if(check_to_alter)
                     Core::DbError {"Check already altered!", m_offset};
