@@ -102,6 +102,32 @@ DbErrorOr<Value> AlterTable::execute(Database& db) const {
         TRY(table->drop_column(to_drop.name()));
     }
 
+    auto memory_backed_table = dynamic_cast<MemoryBackedTable*>(table);
+
+    if(!memory_backed_table)
+        return DbError { "Table with invalid type!", 0 };
+
+    if(m_check_to_add)
+        TRY(memory_backed_table->add_check(m_check_to_add));
+
+    if(m_check_to_alter)
+        TRY(memory_backed_table->alter_check(m_check_to_alter));
+
+    if(m_check_to_drop)
+        TRY(memory_backed_table->drop_check());
+
+    for (const auto& to_add : m_constraint_to_add) {
+        TRY(memory_backed_table->add_constraint(to_add.first, to_add.second));
+    }
+
+    for (const auto& to_alter : m_constraint_to_alter) {
+        TRY(memory_backed_table->alter_constraint(to_alter.first, to_alter.second));
+    }
+
+    for (const auto& to_drop : m_constraint_to_drop) {
+        TRY(memory_backed_table->drop_constraint(to_drop));
+    }
+
     return { Value::null() };
 }
 

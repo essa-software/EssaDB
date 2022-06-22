@@ -131,12 +131,20 @@ private:
 
 class AlterTable : public Statement {
 public:
-    AlterTable(ssize_t start, std::string name, std::vector<Column> to_add, std::vector<Column> to_alter, std::vector<Column> to_drop)
+    AlterTable(ssize_t start, std::string name, std::vector<Column> to_add, std::vector<Column> to_alter, std::vector<Column> to_drop, 
+                              std::shared_ptr<Expression> check_to_add, std::shared_ptr<Expression> check_to_alter, bool check_to_drop,
+                              std::vector<std::pair<std::string, std::shared_ptr<Expression>>> constraint_to_add, std::vector<std::pair<std::string, std::shared_ptr<Expression>>> constraint_to_alter, std::vector<std::string> constraint_to_drop)
         : Statement(start)
         , m_name(std::move(name))
         , m_to_add(std::move(to_add))
         , m_to_alter(std::move(to_alter))
-        , m_to_drop(std::move(to_drop)) { }
+        , m_to_drop(std::move(to_drop))
+        , m_check_to_add(std::move(check_to_add))
+        , m_check_to_alter(std::move(check_to_alter))
+        , m_check_to_drop(check_to_drop)
+        , m_constraint_to_add(std::move(constraint_to_add))
+        , m_constraint_to_alter(std::move(constraint_to_alter))
+        , m_constraint_to_drop(std::move(constraint_to_drop)){}
 
     virtual DbErrorOr<Value> execute(Database&) const override;
 
@@ -145,6 +153,12 @@ private:
     std::vector<Column> m_to_add;
     std::vector<Column> m_to_alter;
     std::vector<Column> m_to_drop;
+    std::shared_ptr<Expression> m_check_to_add;
+    std::shared_ptr<Expression> m_check_to_alter;
+    bool m_check_to_drop;
+    std::vector<std::pair<std::string, std::shared_ptr<Expression>>> m_constraint_to_add;
+    std::vector<std::pair<std::string, std::shared_ptr<Expression>>> m_constraint_to_alter;
+    std::vector<std::string> m_constraint_to_drop;
 };
 
 }

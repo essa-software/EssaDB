@@ -571,54 +571,120 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::AlterTable>> Parser::parse_alter_tabl
     std::vector<Core::Column> to_add;
     std::vector<Core::Column> to_alter;
     std::vector<Core::Column> to_drop;
+    std::shared_ptr<Core::AST::Expression> check_to_add = nullptr;
+    std::shared_ptr<Core::AST::Expression> check_to_alter = nullptr;
+    bool check_to_drop = false;
+    std::vector<std::pair<std::string, std::shared_ptr<Core::AST::Expression>>> constraint_to_add;
+    std::vector<std::pair<std::string, std::shared_ptr<Core::AST::Expression>>> constraint_to_alter;
+    std::vector<std::string> constraint_to_drop;
 
-    while (m_tokens[m_offset].type == Token::Type::KeywordAdd || m_tokens[m_offset].type == Token::Type::KeywordAlter || m_tokens[m_offset].type == Token::Type::KeywordDrop) {
+    while (true) {
         if (m_tokens[m_offset].type == Token::Type::KeywordAdd) {
             m_offset++;
-            auto column_token = m_tokens[m_offset++];
-            if (column_token.type != Token::Type::Identifier)
-                return expected("column name", column_token, m_offset - 1);
 
-            auto type_token = m_tokens[m_offset++];
-            if (type_token.type != Token::Type::Identifier)
-                return expected("column type", type_token, m_offset - 1);
+            auto thing_to_add = m_tokens[m_offset++];
 
-            // TODO: Parse autoincrement
-            to_add.push_back(Core::Column(column_token.value, Core::Value::type_from_string(type_token.value).value(), 1, 1, 1));
+            if(thing_to_add.type == Token::Type::Identifier){
+                auto type_token = m_tokens[m_offset++];
+                if (type_token.type != Token::Type::Identifier)
+                    return expected("column type", type_token, m_offset - 1);
+
+                to_add.push_back(Core::Column(thing_to_add.value, Core::Value::type_from_string(type_token.value).value(), 1, 1, 1));
+            }else if(thing_to_add.type == Token::Type::KeywordCheck){
+                if(check_to_add)
+                    Core::DbError {"Check already added!", m_offset};
+                check_to_add = TRY(parse_expression());
+            }else if(thing_to_add.type == Token::Type::KeywordConstraint){
+                auto constraint_token = m_tokens[m_offset++];
+                if (constraint_token.type != Token::Type::Identifier)
+                    return expected("constraint name", constraint_token, m_offset - 1);
+
+                auto check = m_tokens[m_offset++];
+                if (check.type != Token::Type::KeywordCheck)
+                    return expected("'CHECK' keyword after '" + constraint_token.value + "'", check, m_offset - 1);
+
+                auto expr = TRY(parse_expression());
+
+                constraint_to_add.push_back(std::make_pair(constraint_token.value, std::move(expr)));
+                
+            }else{
+                return expected("thing to alter", m_tokens[m_offset], m_offset - 1);
+            }
         }
         else if (m_tokens[m_offset].type == Token::Type::KeywordAlter) {
             m_offset++;
 
-            if (m_tokens[m_offset++].type != Token::Type::KeywordColumn)
+            auto thing_to_alter = m_tokens[m_offset++];
+
+            if(thing_to_alter.type == Token::Type::KeywordColumn){
+                auto column_token = m_tokens[m_offset++];
+                if (column_token.type != Token::Type::Identifier)
+                    return expected("column name", column_token, m_offset - 1);
+
+                auto type_token = m_tokens[m_offset++];
+                if (type_token.type != Token::Type::Identifier)
+                    return expected("column type", type_token, m_offset - 1);
+
+                to_alter.push_back(Core::Column(column_token.value, Core::Value::type_from_string(type_token.value).value(), 1, 1, 1));
+            }else if(thing_to_alter.type == Token::Type::KeywordCheck){
+                if(check_to_alter)
+                    Core::DbError {"Check already altered!", m_offset};
+                check_to_alter = TRY(parse_expression());
+            }else if(thing_to_alter.type == Token::Type::KeywordConstraint){
+                auto constraint_token = m_tokens[m_offset++];
+                if (constraint_token.type != Token::Type::Identifier)
+                    return expected("constraint name", constraint_token, m_offset - 1);
+
+                auto check = m_tokens[m_offset++];
+                if (check.type != Token::Type::KeywordCheck)
+                    return expected("'CHECK' keyword after '" + constraint_token.value + "'", check, m_offset - 1);
+
+                auto expr = TRY(parse_expression());
+
+                constraint_to_alter.push_back(std::make_pair(constraint_token.value, std::move(expr)));
+                
+            }else{
                 return expected("thing to alter", m_tokens[m_offset], m_offset - 1);
-
-            auto column_token = m_tokens[m_offset++];
-            if (column_token.type != Token::Type::Identifier)
-                return expected("column name", column_token, m_offset - 1);
-
-            auto type_token = m_tokens[m_offset++];
-            if (type_token.type != Token::Type::Identifier)
-                return expected("column type", type_token, m_offset - 1);
-
-            to_alter.push_back(Core::Column(column_token.value, Core::Value::type_from_string(type_token.value).value(), 1, 1, 1));
+            }
         }
         else if (m_tokens[m_offset].type == Token::Type::KeywordDrop) {
             m_offset++;
-            if (m_tokens[m_offset++].type != Token::Type::KeywordColumn)
+
+            auto thing_to_drop = m_tokens[m_offset++];
+
+            if(thing_to_drop.type == Token::Type::KeywordColumn){
+                auto column_token = m_tokens[m_offset++];
+                if (column_token.type != Token::Type::Identifier)
+                    return expected("column name", column_token, m_offset - 1);
+
+                to_drop.push_back(Core::Column(column_token.value, {}, 1, 1, 1));
+            }else if(thing_to_drop.type == Token::Type::KeywordCheck){
+                if(check_to_drop)
+                    Core::DbError {"Check already dropped!", m_offset};
+                check_to_drop = true;
+            }else if(thing_to_drop.type == Token::Type::KeywordConstraint){
+                auto constraint_token = m_tokens[m_offset++];
+                if (constraint_token.type != Token::Type::Identifier)
+                    return expected("constraint name", constraint_token, m_offset - 1);
+
+                constraint_to_drop.push_back(constraint_token.value);
+                
+            }else{
                 return expected("thing to drop", m_tokens[m_offset], m_offset - 1);
-
-            auto column_token = m_tokens[m_offset++];
-            if (column_token.type != Token::Type::Identifier)
-                return expected("column name", column_token, m_offset - 1);
-
-            to_drop.push_back(Core::Column(column_token.value, {}, 1, 1, 1));
+            }
         }
         else {
             return Core::DbError { "Unrecognized option", m_offset - 1 };
         }
+        if(m_tokens[m_offset].type != Token::Type::Comma)
+            break;
+        m_offset++;
     }
 
-    return std::make_unique<Core::AST::AlterTable>(start, table_name.value, std::move(to_add), std::move(to_alter), std::move(to_drop));
+    return std::make_unique<Core::AST::AlterTable>(start, table_name.value, 
+    std::move(to_add), std::move(to_alter), std::move(to_drop),
+    std::move(check_to_add), std::move(check_to_alter), check_to_drop,
+    std::move(constraint_to_add), std::move(constraint_to_alter), std::move(constraint_to_drop));
 }
 
 Core::DbErrorOr<std::unique_ptr<Core::AST::InsertInto>> Parser::parse_insert_into() {

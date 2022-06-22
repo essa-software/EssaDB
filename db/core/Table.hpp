@@ -26,9 +26,6 @@ public:
 
     void export_to_csv(const std::string& path) const;
     DbErrorOr<void> import_from_csv(const std::string& path);
-
-    virtual std::shared_ptr<AST::Expression> const& check_value() const = 0;
-    virtual std::map<std::string, std::shared_ptr<AST::Expression>> const& check_map() const = 0;
 };
 
 class MemoryBackedTable : public Table {
@@ -62,10 +59,19 @@ public:
     virtual DbErrorOr<void> add_column(Column) override;
     virtual DbErrorOr<void> alter_column(Column) override;
     virtual DbErrorOr<void> drop_column(std::string const&) override;
+
+    DbErrorOr<void> add_check(std::shared_ptr<AST::Expression> expr);
+    DbErrorOr<void> alter_check(std::shared_ptr<AST::Expression> expr);
+    DbErrorOr<void> drop_check();
+
+    DbErrorOr<void> add_constraint(std::string const& name, std::shared_ptr<AST::Expression> expr);
+    DbErrorOr<void> alter_constraint(std::string const& name, std::shared_ptr<AST::Expression> expr);
+    DbErrorOr<void> drop_constraint(std::string const& name);
+
     virtual DbErrorOr<void> insert(RowWithColumnNames::MapType) override;
 
-    virtual std::shared_ptr<AST::Expression> const& check_value() const override { return m_check; }
-    virtual std::map<std::string, std::shared_ptr<AST::Expression>> const& check_map() const override { return m_check_constraints; }
+    std::shared_ptr<AST::Expression> const& check_value() const { return m_check; }
+    std::map<std::string, std::shared_ptr<AST::Expression>> const& check_map() const { return m_check_constraints; }
 
 private:
     friend class RowWithColumnNames;
@@ -74,7 +80,7 @@ private:
 
     std::vector<Tuple> m_rows;
     std::vector<Column> m_columns;
-    std::shared_ptr<AST::Expression> m_check;
+    std::shared_ptr<AST::Expression> m_check = nullptr;
     std::map<std::string, std::shared_ptr<AST::Expression>> m_check_constraints;
     std::map<std::string, int> m_auto_increment_values;
 };
