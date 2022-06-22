@@ -63,7 +63,7 @@ static void setup_sql_functions() {
     register_sql_function("ASCII", [](ArgumentList args) -> DbErrorOr<Value> {
         // https://docs.microsoft.com/en-us/sql/t-sql/functions/ascii-transact-sql?view=sql-server-ver16
         auto arg = TRY(args.get_required(0, "char"));
-        if (arg.type() == Value::Type::Null)
+        if (arg.is_null())
             return Value::null();
         auto string_ = TRY(arg.to_string());
         if (string_.size() < 1) {
@@ -281,7 +281,7 @@ static void setup_sql_functions() {
             return Value::create_int(std::abs(TRY(value.to_int())));
         if (value.type() == Value::Type::Float)
             return Value::create_float(std::fabs(TRY(value.to_float())));
-        if (value.type() == Value::Type::Null)
+        if (value.is_null())
             return Value::null();
         return DbError(TRY(value.to_string()) + " is not a valid type!", 0);
     });
@@ -400,7 +400,7 @@ static void setup_sql_functions() {
         auto val = TRY(args.get_required(0, "value"));
         auto alternative = TRY(args.get_required(1, "alternative value"));
 
-        if (val.type() == Value::Type::Null)
+        if (val.is_null())
             return alternative;
         return val;
     });
