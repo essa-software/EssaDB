@@ -1,5 +1,7 @@
 #pragma once
 
+#include "DbError.hpp"
+
 #include <string>
 #include <vector>
 
@@ -20,6 +22,7 @@ public:
 
     std::vector<Tuple> const& rows() const { return m_rows; }
     std::vector<std::string> column_names() const { return m_column_names; }
+    DbErrorOr<bool> compare(ResultSet const&) const;
 
     void dump(std::ostream& out) const;
 
