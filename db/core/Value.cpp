@@ -348,10 +348,18 @@ DbErrorOr<Value> operator/(Value const& lhs, Value const& rhs) {
     switch (lhs.type()) {
     case Value::Type::Bool:
         return Value::create_bool(TRY(lhs.to_bool()) / TRY(rhs.to_bool()));
-    case Value::Type::Int:
-        return Value::create_int(TRY(lhs.to_int()) / TRY(rhs.to_int()));
-    case Value::Type::Float:
-        return Value::create_float(TRY(lhs.to_float()) / TRY(rhs.to_float()));
+    case Value::Type::Int: {
+        auto rhs_int = TRY(rhs.to_int());
+        if (rhs_int == 0)
+            return DbError { "Cannot divide by 0", 0 };
+        return Value::create_int(TRY(lhs.to_int()) / rhs_int);
+    }
+    case Value::Type::Float: {
+        auto rhs_float = TRY(rhs.to_float());
+        if (rhs_float == 0)
+            return DbError { "Cannot divide by 0", 0 };
+        return Value::create_float(TRY(lhs.to_float()) / rhs_float);
+    }
     case Value::Type::Null:
         return Value::null();
     case Value::Type::Varchar:
