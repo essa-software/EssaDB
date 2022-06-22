@@ -2,5 +2,5 @@ IMPORT CSV 'where/where.csv' INTO test;
 
 -- output:
 -- | subquery |
--- |        2 |
-SELECT (SELECT TOP 1 id FROM test) AS subquery;
+-- |       69 |
+SELECT (SELECT TOP 1 number FROM test) AS subquery;

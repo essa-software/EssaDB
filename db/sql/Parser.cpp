@@ -111,9 +111,20 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Select>> Parser::parse_select() {
     // FROM
     // FIXME: make it an expression
     std::optional<std::string> from_table;
-    size_t jmp_from = 0;
-    while(true){
+    size_t jmp_from = 0, depth = 0;
+    while(m_offset < m_tokens.size()){
         auto from = m_tokens[m_offset++];
+        if(from.type == Token::Type::ParenOpen){
+            depth++;
+        }else if(from.type == Token::Type::ParenClose){
+            depth--;
+            if(depth < 0)
+                break;
+        }
+
+        if(depth > 0)
+            continue;
+
         if (from.type == Token::Type::KeywordFrom) {
             jmp_from++;
             while (true) {
@@ -139,9 +150,11 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Select>> Parser::parse_select() {
                 }
                 
                 if(alias){
-                    if(m_table_aliases.find(*alias) != m_table_aliases.end())
-                        return Core::DbError {"Table with alias '" + *alias + "' already exists!", m_offset - 1};
-                    m_table_aliases.insert({*alias, table.value});
+                    for(const auto& pair : m_table_aliases){
+                        if(pair.first == *alias)
+                            return Core::DbError {"Table with alias '" + *alias + "' already exists!", m_offset - 1};
+                    }
+                    m_table_aliases.push_back({*alias, table.value});
                 }
 
                 auto comma = m_tokens[m_offset];
@@ -805,7 +818,11 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Expression>> Parser::parse_expression
         auto postfix = m_tokens[m_offset + 1];
         if (postfix.type == Token::Type::KeywordSelect) {
             m_offset++;
+
+            size_t arr_size = m_table_aliases.size();
             lhs = TRY(parse_select());
+            m_table_aliases.resize(arr_size);
+
             m_offset++;
         }
         else {
@@ -1209,14 +1226,16 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Identifier>> Parser::parse_identifier
     
     if(m_tokens[m_offset].type == Token::Type::Period){
         m_offset++;
-
-        auto find = m_table_aliases.find(name.value);
-
-        if(find != m_table_aliases.end()){
-            table = find->second;
-        }else{
-            table = name.value;
+        
+        for(const auto& pair : m_table_aliases){
+            if(pair.first == name.value){
+                table = pair.second;
+                break;
+            }
         }
+
+        if(!table)
+            table = name.value;
 
         name = m_tokens[m_offset++];
     
