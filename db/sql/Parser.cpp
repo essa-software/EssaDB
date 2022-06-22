@@ -1147,10 +1147,29 @@ Core::DbErrorOr<std::unique_ptr<Parser::InArgs>> Parser::parse_in() {
 
 Core::DbErrorOr<std::unique_ptr<Core::AST::Identifier>> Parser::parse_identifier() {
     auto name = m_tokens[m_offset++];
+    std::optional<std::string> table = {};
+
     if (name.type != Token::Type::Identifier)
         return expected("identifier", name, m_offset - 1);
+    
+    if(m_tokens[m_offset].type == Token::Type::Period){
+        m_offset++;
 
-    return std::make_unique<Core::AST::Identifier>(m_offset - 1, name.value);
+        auto find = m_table_aliases.find(name.value);
+
+        if(find != m_table_aliases.end()){
+            table = find->second;
+        }else{
+            table = name.value;
+        }
+
+        name = m_tokens[m_offset++];
+    
+        if (name.type != Token::Type::Identifier)
+            return expected("identifier", name, m_offset - 1);
+    }
+
+    return std::make_unique<Core::AST::Identifier>(m_offset - 1, name.value, std::move(table));
 }
 
 Core::DbError Parser::expected(std::string what, Token got, size_t offset) {

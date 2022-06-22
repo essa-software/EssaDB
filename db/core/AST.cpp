@@ -24,7 +24,7 @@ namespace Db::Core::AST {
 DbErrorOr<Value> DeleteFrom::execute(Database& db) const {
     auto table = TRY(db.table(m_from));
 
-    EvaluationContext context { .columns = {}, .table = table, .row_type = EvaluationContext::RowType::FromTable };
+    EvaluationContext context { .columns = {}, .table = table, .db = &db, .row_type = EvaluationContext::RowType::FromTable };
 
     // TODO: Implement
     auto should_include_row = [&](Tuple const& row) -> DbErrorOr<bool> {
@@ -51,7 +51,7 @@ DbErrorOr<Value> DeleteFrom::execute(Database& db) const {
 DbErrorOr<Value> Update::execute(Database& db) const {
     auto table = TRY(db.table(m_table));
 
-    EvaluationContext context { .columns = {}, .table = table, .row_type = EvaluationContext::RowType::FromTable };
+    EvaluationContext context { .columns = {}, .table = table, .db = &db, .row_type = EvaluationContext::RowType::FromTable };
 
     for (const auto& update_pair : m_to_update) {
         auto column = table->get_column(update_pair.column);
@@ -135,7 +135,7 @@ DbErrorOr<Value> InsertInto::execute(Database& db) const {
     auto table = TRY(db.table(m_name));
 
     RowWithColumnNames::MapType map;
-    EvaluationContext context { .columns = {}, .table = table, .row_type = EvaluationContext::RowType::FromTable };
+    EvaluationContext context { .columns = {}, .table = table, .db = &db, .row_type = EvaluationContext::RowType::FromTable };
     if (m_select) {
         auto result = TRY(TRY(m_select.value()->execute(db)).to_select_result());
 

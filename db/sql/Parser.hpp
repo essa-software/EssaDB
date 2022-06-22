@@ -66,6 +66,7 @@ private:
     Core::DbErrorOr<Core::Column> parse_column();
 
     std::vector<Token> const& m_tokens;
+    std::map<std::string, std::string> m_table_aliases;
 
     static Core::DbError expected(std::string what, Token got, size_t offset);
 

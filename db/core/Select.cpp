@@ -24,7 +24,7 @@ DbErrorOr<Value> Select::execute(Database& db) const {
             }
             std::vector<SelectColumns::Column> all_columns;
             for (auto const& column : table->columns()) {
-                all_columns.push_back(SelectColumns::Column { .column = std::make_unique<Identifier>(start() + 1, column.name()) });
+                all_columns.push_back(SelectColumns::Column { .column = std::make_unique<Identifier>(start() + 1, column.name(), std::optional<std::string>{}) });
             }
             select_all_columns = SelectColumns { std::move(all_columns) };
             return &select_all_columns;
@@ -32,7 +32,7 @@ DbErrorOr<Value> Select::execute(Database& db) const {
         return &m_options.columns;
     }());
 
-    EvaluationContext context { .columns = columns, .table = table, .row_type = EvaluationContext::RowType::FromTable };
+    EvaluationContext context { .columns = columns, .table = table, .db = &db, .row_type = EvaluationContext::RowType::FromTable };
 
     auto rows = TRY([&]() -> DbErrorOr<std::vector<TupleWithSource>> {
         if (m_options.from) {

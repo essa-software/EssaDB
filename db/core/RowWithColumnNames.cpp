@@ -44,7 +44,7 @@ DbErrorOr<RowWithColumnNames> RowWithColumnNames::from_map(Table& table, MapType
     AST::SelectColumns const& columns_to_context = *TRY([&table, &select_all_columns]() -> DbErrorOr<AST::SelectColumns const*> {
         std::vector<AST::SelectColumns::Column> all_columns;
         for (auto const& column : table.columns()) {
-            all_columns.push_back(AST::SelectColumns::Column { .column = std::make_unique<AST::Identifier>(0, column.name()) });
+            all_columns.push_back(AST::SelectColumns::Column { .column = std::make_unique<AST::Identifier>(0, column.name(), std::optional<std::string>{}) });
         }
         select_all_columns = AST::SelectColumns { std::move(all_columns) };
         return &select_all_columns;

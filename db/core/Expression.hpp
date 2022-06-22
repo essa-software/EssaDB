@@ -3,10 +3,13 @@
 #include "db/core/Tuple.hpp"
 #include <memory>
 #include <map>
+#include <optional>
+#include <string>
 #include <sys/types.h>
 
 namespace Db::Core{
     class Table;
+    class Database;
 }
 
 namespace Db::Core::AST {
@@ -64,6 +67,7 @@ private:
 struct EvaluationContext {
     SelectColumns const& columns;
     Table const* table = nullptr;
+    Database* db;
     std::optional<std::span<Tuple const>> row_group {};
     enum class RowType {
         FromTable,
@@ -100,9 +104,10 @@ private:
 
 class Identifier : public Expression {
 public:
-    explicit Identifier(ssize_t start, std::string id)
+    explicit Identifier(ssize_t start, std::string id, std::optional<std::string> table)
         : Expression(start)
-        , m_id(std::move(id)) { }
+        , m_id(std::move(id))
+        , m_table(std::move(table)) { }
 
     virtual DbErrorOr<Value> evaluate(EvaluationContext&, TupleWithSource const&) const override;
     virtual std::string to_string() const override { return m_id; }
@@ -110,6 +115,7 @@ public:
 
 private:
     std::string m_id;
+    std::optional<std::string> m_table;
 };
 
 class BinaryOperator : public Expression {

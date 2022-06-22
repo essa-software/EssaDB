@@ -1,16 +1,28 @@
 #include "Expression.hpp"
 #include "Table.hpp"
+#include "Database.hpp"
 
 namespace Db::Core::AST {
 
 DbErrorOr<Value> Identifier::evaluate(EvaluationContext& context, TupleWithSource const& row) const {
     if (context.row_type == EvaluationContext::RowType::FromTable) {
-        if (!context.table)
+        size_t index = 0;
+        if(m_table){
+            auto table = TRY(context.db->table(*m_table));
+
+            auto column = table->get_column(m_id);
+            if (!column)
+                return DbError { "No such column: " + m_id, start() };
+            index = column->index;
+        }else if (context.table) {  
+            auto column = context.table->get_column(m_id);
+            if (!column)
+                return DbError { "No such column: " + m_id, start() };
+            index = column->index;
+        }else {
             return DbError { "You need a table to resolve identifiers", start() };
-        auto column = context.table->get_column(m_id);
-        if (!column)
-            return DbError { "No such column: " + m_id, start() };
-        return row.tuple.value(column->index);
+        }
+        return row.tuple.value(index);
     }
 
     return TRY(context.columns.resolve_value(context, row, m_id));
