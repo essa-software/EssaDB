@@ -270,6 +270,8 @@ std::ostream& operator<<(std::ostream& out, Value const& value) {
 }
 
 DbErrorOr<Value> operator+(Value const& lhs, Value const& rhs) {
+    if (lhs.is_null() || rhs.is_null())
+        return Value::null();
     switch (lhs.type()) {
     case Value::Type::Bool:
         return Value::create_bool(TRY(lhs.to_bool()) + TRY(rhs.to_bool()));
@@ -293,6 +295,8 @@ DbErrorOr<Value> operator+(Value const& lhs, Value const& rhs) {
 }
 
 DbErrorOr<Value> operator-(Value const& lhs, Value const& rhs) {
+    if (lhs.is_null() || rhs.is_null())
+        return Value::null();
     switch (lhs.type()) {
     case Value::Type::Bool:
         return Value::create_bool(TRY(lhs.to_bool()) - TRY(rhs.to_bool()));
@@ -316,6 +320,8 @@ DbErrorOr<Value> operator-(Value const& lhs, Value const& rhs) {
 }
 
 DbErrorOr<Value> operator*(Value const& lhs, Value const& rhs) {
+    if (lhs.is_null() || rhs.is_null())
+        return Value::null();
     switch (lhs.type()) {
     case Value::Type::Bool:
         // FIXME: Is this legal?
@@ -337,6 +343,8 @@ DbErrorOr<Value> operator*(Value const& lhs, Value const& rhs) {
 }
 
 DbErrorOr<Value> operator/(Value const& lhs, Value const& rhs) {
+    if (lhs.is_null() || rhs.is_null())
+        return Value::null();
     switch (lhs.type()) {
     case Value::Type::Bool:
         return Value::create_bool(TRY(lhs.to_bool()) / TRY(rhs.to_bool()));
