@@ -14,9 +14,21 @@ ResultSet::ResultSet(std::vector<std::string> column_names, std::vector<Tuple> r
     , m_rows(std::move(rows)) {
 }
 
+ResultSet ResultSet::create_single_value(Value value) {
+    return ResultSet { { "tmp" }, { { std::move(value) } } };
+}
+
 // This must be out of line because of dependency cycle
 // See https://stackoverflow.com/questions/23984061/incomplete-type-for-stdvector
 ResultSet::~ResultSet() = default;
+
+bool ResultSet::is_convertible_to_value() const {
+    return m_rows.size() == 1 && m_column_names.size() == 1;
+}
+
+Value ResultSet::as_value() const {
+    return m_rows[0].value(0);
+}
 
 void ResultSet::dump(std::ostream& out) const {
     std::vector<int> widths;

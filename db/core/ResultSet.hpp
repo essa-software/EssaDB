@@ -6,10 +6,13 @@
 namespace Db::Core {
 
 class Tuple;
+class Value;
 
 class ResultSet {
 public:
     ResultSet(std::vector<std::string> column_names, std::vector<Tuple> rows);
+
+    static ResultSet create_single_value(Value);
 
     // This must be out of line because of dependency cycle
     // See https://stackoverflow.com/questions/23984061/incomplete-type-for-stdvector
@@ -19,6 +22,9 @@ public:
     std::vector<std::string> column_names() const { return m_column_names; }
 
     void dump(std::ostream& out) const;
+
+    bool is_convertible_to_value() const;
+    Value as_value() const;
 
 private:
     std::vector<std::string> m_column_names;
