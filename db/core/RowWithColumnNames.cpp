@@ -33,7 +33,7 @@ DbErrorOr<RowWithColumnNames> RowWithColumnNames::from_map(Table& table, MapType
             }));
         }
         else if (column->column.not_null()) {
-            if (value.second.type() == Value::Type::Null)
+            if (value.second.is_null())
                 return DbError { "Value can't be null.", 0 };
         }
 
@@ -55,7 +55,7 @@ DbErrorOr<RowWithColumnNames> RowWithColumnNames::from_map(Table& table, MapType
     // Null check
     for (size_t s = 0; s < row.size(); s++) {
         auto& value = row[s];
-        if (value.type() == Value::Type::Null) {
+        if (value.is_null()) {
             if (columns[s].auto_increment()) {
                 if (columns[s].type() == Value::Type::Int)
                     value = Value::create_int(table.increment(columns[s].name()));
@@ -63,7 +63,7 @@ DbErrorOr<RowWithColumnNames> RowWithColumnNames::from_map(Table& table, MapType
                     return DbError { "Internal error: AUTO_INCREMENT used on non-int field", 0 };
             }
             else if (columns[s].not_null()) {
-                if (value.type() == Value::Type::Null)
+                if (value.is_null())
                     return DbError { "Value can't be null.", 0 };
             }
             else {

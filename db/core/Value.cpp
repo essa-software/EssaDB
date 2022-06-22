@@ -357,9 +357,9 @@ DbErrorOr<Value> operator/(Value const& lhs, Value const& rhs) {
 }
 
 DbErrorOr<bool> operator<(Value const& lhs, Value const& rhs) {
-    if (lhs.type() == Value::Type::Null)
+    if (lhs.is_null())
         return true;
-    if (rhs.type() == Value::Type::Null)
+    if (rhs.is_null())
         return false;
 
     switch (lhs.type()) {
@@ -396,7 +396,7 @@ DbErrorOr<bool> operator==(Value const& lhs, Value const& rhs) {
     case Value::Type::Float:
         return TRY(lhs.to_float()) == TRY(rhs.to_float());
     case Value::Type::Null:
-        return rhs.type() == Value::Type::Null;
+        return rhs.is_null();
     case Value::Type::Varchar:
         return TRY(lhs.to_string()) == TRY(rhs.to_string());
     case Value::Type::Time: {
