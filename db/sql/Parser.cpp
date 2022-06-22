@@ -111,7 +111,7 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Select>> Parser::parse_select() {
     // FROM
     // FIXME: make it an expression
     std::optional<std::string> from_table;
-    size_t jmp_from = 0, depth = 0;
+    int jmp_from = 0, depth = 0;
     while(m_offset < m_tokens.size()){
         auto from = m_tokens[m_offset++];
         if(from.type == Token::Type::ParenOpen){
