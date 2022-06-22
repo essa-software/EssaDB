@@ -1,4 +1,4 @@
-IMPORT CSV 'where/where.csv' INTO test;
+IMPORT CSV '../where/where.csv' INTO test;
 
 -- output:
 -- | subquery |

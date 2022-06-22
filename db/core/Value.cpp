@@ -377,7 +377,8 @@ DbErrorOr<bool> operator<(Value const& lhs, Value const& rhs) {
         return TRY(lhs.to_int()) < TRY(rhs.to_int());
     }
     case Value::Type::SelectResult:
-        return DbError { "No matching operator '<' for 'SelectResult' type.", 0 };
+        // FIXME: make it properly
+        return TRY(lhs.to_string()) < TRY(rhs.to_string());
     }
     __builtin_unreachable();
 }
@@ -402,7 +403,8 @@ DbErrorOr<bool> operator==(Value const& lhs, Value const& rhs) {
         return TRY(lhs.to_int()) == TRY(rhs.to_int());
     }
     case Value::Type::SelectResult:
-        return DbError { "No matching operator '==' for 'SelectResult' type.", 0 };
+        // FIXME: make it properly
+        return TRY(lhs.to_string()) == TRY(rhs.to_string());
     }
     __builtin_unreachable();
 }
