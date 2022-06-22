@@ -4,8 +4,8 @@
 SELECT 1
 
 -- output:
--- | BinaryOperator(1,4) |
--- |                   5 |
+-- | ArithmeticOperator(1,4) |
+-- |                       5 |
 SELECT 1 + 4;
 
 -- output:

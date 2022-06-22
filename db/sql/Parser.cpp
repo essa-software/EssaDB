@@ -822,13 +822,16 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Expression>> Parser::parse_expression
             size_t arr_size = m_table_aliases.size();
             lhs = TRY(parse_select());
             m_table_aliases.resize(arr_size);
-
-            m_offset++;
         }
         else {
             m_offset++;
             lhs = TRY(parse_expression());
         }
+
+        auto paren_close = m_tokens[m_offset++];
+
+        if(paren_close.type != Token::Type::ParenClose)
+            expected("')' to close expression", paren_close, m_offset - 1);
     }
     else if (token.type == Token::Type::KeywordCase) {
         m_offset++;

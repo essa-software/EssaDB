@@ -180,7 +180,7 @@ public:
 
     virtual DbErrorOr<Value> evaluate(EvaluationContext& context, TupleWithSource const& row) const override;
 
-    virtual std::string to_string() const override { return "BinaryOperator(" + m_lhs->to_string() + "," + m_rhs->to_string() + ")"; }
+    virtual std::string to_string() const override { return "ArithmeticOperator(" + m_lhs->to_string() + "," + m_rhs->to_string() + ")"; }
 
     virtual std::vector<std::string> referenced_columns() const override {
         auto lhs_columns = m_lhs->referenced_columns();
