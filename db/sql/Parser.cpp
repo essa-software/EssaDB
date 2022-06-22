@@ -38,6 +38,7 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Statement>> Parser::parse_statement()
     auto keyword = m_tokens[m_offset];
     // std::cout << keyword.value << "\n";
     if (keyword.type == Token::Type::KeywordSelect) {
+        ssize_t start = m_offset;
         auto lhs = TRY(parse_select());
 
         if (m_tokens[m_offset].type == Token::Type::KeywordUnion) {
@@ -55,7 +56,7 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Statement>> Parser::parse_statement()
 
             auto rhs = TRY(parse_select());
 
-            return std::make_unique<Core::AST::Union>(std::move(lhs), std::move(rhs), distinct);
+            return std::make_unique<Core::AST::Union>(start, std::move(lhs), std::move(rhs), distinct);
         }
         else {
             return lhs;
@@ -799,6 +800,17 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Expression>> Parser::parse_expression
         }
         else {
             lhs = TRY(parse_identifier());
+        }
+    }else if(token.type == Token::Type::ParenOpen){
+        auto postfix = m_tokens[m_offset + 1];
+        if (postfix.type == Token::Type::KeywordSelect) {
+            m_offset++;
+            lhs = TRY(parse_select());
+            m_offset++;
+        }
+        else {
+            m_offset++;
+            lhs = TRY(parse_expression());
         }
     }
     else if (token.type == Token::Type::KeywordCase) {

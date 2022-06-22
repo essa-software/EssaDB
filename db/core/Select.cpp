@@ -1,6 +1,7 @@
 #include "Select.hpp"
 #include "Value.hpp"
 #include "db/core/Database.hpp"
+#include "db/core/DbError.hpp"
 #include "db/core/Function.hpp"
 #include "db/util/Is.hpp"
 
@@ -285,6 +286,14 @@ DbErrorOr<std::vector<TupleWithSource>> Select::collect_rows(EvaluationContext& 
     }
 
     return aggregated_rows;
+}
+
+DbErrorOr<Value> Select::evaluate(EvaluationContext& context, const TupleWithSource& row) const{
+    for(const auto& val : row.tuple){
+        val.null();
+    }
+
+    return TRY(execute(*context.db));
 }
 
 DbErrorOr<Value> Union::execute(Database& db) const {

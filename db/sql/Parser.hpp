@@ -7,6 +7,7 @@
 #include "db/core/Column.hpp"
 #include "db/core/Database.hpp"
 #include "db/core/DbError.hpp"
+#include "db/core/Expression.hpp"
 #include "db/core/Select.hpp"
 
 namespace Db::Sql {
@@ -38,7 +39,7 @@ private:
         std::unique_ptr<Core::AST::Expression> max;
 
         BetweenRange(std::unique_ptr<Core::AST::Expression> min, std::unique_ptr<Core::AST::Expression> max)
-            : Expression(min->start())
+            : ASTNode(min->start()), Expression(min->start())
             , min(std::move(min))
             , max(std::move(max)) { }
 
@@ -50,7 +51,7 @@ private:
         std::vector<std::unique_ptr<Core::AST::Expression>> args;
 
         InArgs(std::vector<std::unique_ptr<Core::AST::Expression>> arg_list)
-            : Expression(arg_list.front()->start())
+            : ASTNode(arg_list.front()->start()), Expression(arg_list.front()->start())
             , args(std::move(arg_list)) { }
 
         virtual Core::DbErrorOr<Core::Value> evaluate(Core::AST::EvaluationContext&, Core::AST::TupleWithSource const&) const override { return Core::Value(); }

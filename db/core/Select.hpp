@@ -50,7 +50,7 @@ struct Top {
     unsigned value = 100;
 };
 
-class Select : public Statement {
+class Select : public Statement, public Expression {
 public:
     struct SelectOptions {
         SelectColumns columns;
@@ -65,10 +65,12 @@ public:
     };
 
     Select(ssize_t start, SelectOptions options)
-        : Statement(start)
+        : ASTNode(start), Statement(start), Expression(start)
         , m_options(std::move(options)) { }
 
     virtual DbErrorOr<Value> execute(Database&) const override;
+    virtual DbErrorOr<Value> evaluate(EvaluationContext&, TupleWithSource const&) const override;
+    virtual std::string to_string() const override{return "SELECT(TODO)";}
 
 private:
     DbErrorOr<std::vector<TupleWithSource>> collect_rows(EvaluationContext&, AbstractTable&) const;
@@ -78,8 +80,8 @@ private:
 
 class Union : public Statement {
 public:
-    Union(std::unique_ptr<Select> lhs, std::unique_ptr<Select> rhs, bool distinct)
-        : Statement(lhs->start())
+    Union(ssize_t start, std::unique_ptr<Select> lhs, std::unique_ptr<Select> rhs, bool distinct)
+        : ASTNode(start), Statement(start)
         , m_lhs(std::move(lhs))
         , m_rhs(std::move(rhs))
         , m_distinct(distinct) { }
@@ -95,13 +97,13 @@ private:
 class InsertInto : public Statement {
 public:
     InsertInto(ssize_t start, std::string name, std::vector<std::string> columns, std::vector<std::unique_ptr<Core::AST::Expression>> values)
-        : Statement(start)
+        : ASTNode(start), Statement(start)
         , m_name(std::move(name))
         , m_columns(std::move(columns))
         , m_values(std::move(values)) { }
 
     InsertInto(ssize_t start, std::string name, std::vector<std::string> columns, std::unique_ptr<Core::AST::Select> select)
-        : Statement(start)
+        : ASTNode(start), Statement(start)
         , m_name(std::move(name))
         , m_columns(std::move(columns))
         , m_select(std::move(select)) { }

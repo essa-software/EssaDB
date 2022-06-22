@@ -76,7 +76,7 @@ struct EvaluationContext {
     RowType row_type;
 };
 
-class Expression : public ASTNode {
+class Expression : virtual public ASTNode {
 public:
     explicit Expression(ssize_t start)
         : ASTNode(start) { }
@@ -90,7 +90,7 @@ public:
 class Literal : public Expression {
 public:
     explicit Literal(ssize_t start, Value val)
-        : Expression(start)
+        : ASTNode(start), Expression(start)
         , m_value(std::move(val)) { }
 
     virtual DbErrorOr<Value> evaluate(EvaluationContext&, TupleWithSource const&) const override { return m_value; }
@@ -105,7 +105,7 @@ private:
 class Identifier : public Expression {
 public:
     explicit Identifier(ssize_t start, std::string id, std::optional<std::string> table)
-        : Expression(start)
+        : ASTNode(start), Expression(start)
         , m_id(std::move(id))
         , m_table(std::move(table)) { }
 
@@ -136,7 +136,7 @@ public:
     };
 
     BinaryOperator(std::unique_ptr<Expression> lhs, Operation op, std::unique_ptr<Expression> rhs = nullptr)
-        : Expression(lhs->start())
+        : ASTNode(lhs->start()), Expression(lhs->start())
         , m_lhs(std::move(lhs))
         , m_operation(op)
         , m_rhs(std::move(rhs)) { }
@@ -173,7 +173,7 @@ public:
     };
 
     ArithmeticOperator(std::unique_ptr<Expression> lhs, Operation op, std::unique_ptr<Expression> rhs = nullptr)
-        : Expression(lhs->start())
+        : ASTNode(lhs->start()), Expression(lhs->start())
         , m_lhs(std::move(lhs))
         , m_operation(op)
         , m_rhs(std::move(rhs)) { }
@@ -200,7 +200,7 @@ private:
 class BetweenExpression : public Expression {
 public:
     BetweenExpression(std::unique_ptr<Expression> lhs, std::unique_ptr<Expression> min, std::unique_ptr<Expression> max)
-        : Expression(lhs->start())
+        : ASTNode(lhs->start()), Expression(lhs->start())
         , m_lhs(std::move(lhs))
         , m_min(std::move(min))
         , m_max(std::move(max)) {
@@ -232,7 +232,7 @@ private:
 class InExpression : public Expression {
 public:
     InExpression(std::unique_ptr<Expression> lhs, std::vector<std::unique_ptr<Core::AST::Expression>> args)
-        : Expression(lhs->start())
+        : ASTNode(lhs->start()), Expression(lhs->start())
         , m_lhs(std::move(lhs))
         , m_args(std::move(args)) {
         assert(m_lhs);
@@ -274,7 +274,7 @@ public:
     };
 
     CaseExpression(std::vector<CasePair> cases, std::unique_ptr<Core::AST::Expression> else_value = {})
-        : Expression(cases.front().expr->start())
+        : ASTNode(cases.front().expr->start()), Expression(cases.front().expr->start())
         , m_cases(std::move(cases))
         , m_else_value(std::move(else_value)) { }
 

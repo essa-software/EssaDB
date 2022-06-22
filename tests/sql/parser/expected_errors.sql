@@ -4,13 +4,13 @@ SELECT
 -- error: Expected expression, got 'FROM'
 SELECT FROM test;
 
--- error: Expected expression, got '('
+-- error: Expected expression, got 'EOF'
 SELECT (
 
 -- error: Expected expression, got ')'
 SELECT )
 
--- error: Expected expression, got '('
+-- error: Expected expression, got ')'
 SELECT ()
 
 -- error: Expected identifier in aggregate function, got 'EOF'

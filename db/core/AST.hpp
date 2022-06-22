@@ -25,7 +25,7 @@ class Database;
 
 namespace Db::Core::AST {
 
-class Statement : public ASTNode {
+class Statement : public virtual ASTNode {
 public:
     explicit Statement(ssize_t start)
         : ASTNode(start) { }
@@ -37,7 +37,7 @@ public:
 class DeleteFrom : public Statement {
 public:
     DeleteFrom(ssize_t start, std::string from, std::unique_ptr<Expression> where = {})
-        : Statement(start)
+        : ASTNode(start), Statement(start)
         , m_from(std::move(from))
         , m_where(std::move(where)) { }
 
@@ -56,7 +56,7 @@ public:
     };
 
     Update(ssize_t start, std::string table, std::vector<UpdatePair> to_update)
-        : Statement(start)
+        : ASTNode(start), Statement(start)
         , m_table(table)
         , m_to_update(std::move(to_update)) { }
 
@@ -74,7 +74,7 @@ public:
     };
 
     Import(ssize_t start, Mode mode, std::string filename, std::string table)
-        : Statement(start)
+        : ASTNode(start), Statement(start)
         , m_mode(mode)
         , m_filename(std::move(filename))
         , m_table(std::move(table)) { }
@@ -90,7 +90,7 @@ private:
 class CreateTable : public Statement {
 public:
     CreateTable(ssize_t start, std::string name, std::vector<Column> columns, std::shared_ptr<AST::Expression> check, std::map<std::string, std::shared_ptr<AST::Expression>> check_map)
-        : Statement(start)
+        : ASTNode(start), Statement(start)
         , m_name(std::move(name))
         , m_columns(std::move(columns))
         , m_check(std::move(check))
@@ -108,7 +108,7 @@ private:
 class DropTable : public Statement {
 public:
     DropTable(ssize_t start, std::string name)
-        : Statement(start)
+        : ASTNode(start), Statement(start)
         , m_name(std::move(name)) { }
 
     virtual DbErrorOr<Value> execute(Database&) const override;
@@ -120,7 +120,7 @@ private:
 class TruncateTable : public Statement {
 public:
     TruncateTable(ssize_t start, std::string name)
-        : Statement(start)
+        : ASTNode(start), Statement(start)
         , m_name(std::move(name)) { }
 
     virtual DbErrorOr<Value> execute(Database&) const override;
@@ -134,7 +134,7 @@ public:
     AlterTable(ssize_t start, std::string name, std::vector<Column> to_add, std::vector<Column> to_alter, std::vector<Column> to_drop, 
                               std::shared_ptr<Expression> check_to_add, std::shared_ptr<Expression> check_to_alter, bool check_to_drop,
                               std::vector<std::pair<std::string, std::shared_ptr<Expression>>> constraint_to_add, std::vector<std::pair<std::string, std::shared_ptr<Expression>>> constraint_to_alter, std::vector<std::string> constraint_to_drop)
-        : Statement(start)
+        : ASTNode(start), Statement(start)
         , m_name(std::move(name))
         , m_to_add(std::move(to_add))
         , m_to_alter(std::move(to_alter))

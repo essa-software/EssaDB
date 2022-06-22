@@ -6,7 +6,7 @@ namespace Db::Core::AST {
 class Function : public Expression {
 public:
     explicit Function(size_t start, std::string name, std::vector<std::unique_ptr<Expression>> args)
-        : Expression(start)
+        : ASTNode(start), Expression(start)
         , m_name(std::move(name))
         , m_args(std::move(args)) { }
 
@@ -39,7 +39,7 @@ public:
     };
 
     explicit AggregateFunction(size_t start, Function function, std::string column, std::optional<std::string> over)
-        : Expression(start)
+        : ASTNode(start), Expression(start)
         , m_function(function)
         , m_column(std::move(column))
         , m_over(std::move(over)) { }
