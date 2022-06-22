@@ -226,8 +226,7 @@ DbErrorOr<bool> Value::to_bool() const {
 
 DbErrorOr<ResultSet> Value::to_select_result() const {
     if (m_type != Type::SelectResult) {
-        // TODO: Save location info
-        return DbError { "Value '" + to_debug_string() + "' is not a select result", 0 };
+        return ResultSet::create_single_value(*this);
     }
     return std::get<ResultSet>(*this);
 }
