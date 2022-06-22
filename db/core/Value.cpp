@@ -414,12 +414,13 @@ DbErrorOr<bool> operator==(Value const& lhs, Value const& rhs) {
         return rhs.is_null();
     case Value::Type::Varchar:
         return TRY(lhs.to_string()) == TRY(rhs.to_string());
-    case Value::Type::Time: {
+    case Value::Type::Time:
         return TRY(lhs.to_int()) == TRY(rhs.to_int());
+    case Value::Type::SelectResult: {
+        auto lhs_select_result = TRY(lhs.to_select_result());
+        auto rhs_select_result = TRY(rhs.to_select_result());
+        return lhs_select_result.compare(rhs_select_result);
     }
-    case Value::Type::SelectResult:
-        // FIXME: make it properly
-        return TRY(lhs.to_string()) == TRY(rhs.to_string());
     }
     __builtin_unreachable();
 }

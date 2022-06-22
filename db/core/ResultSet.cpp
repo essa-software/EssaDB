@@ -22,6 +22,19 @@ ResultSet ResultSet::create_single_value(Value value) {
 // See https://stackoverflow.com/questions/23984061/incomplete-type-for-stdvector
 ResultSet::~ResultSet() = default;
 
+DbErrorOr<bool> ResultSet::compare(ResultSet const& other) const {
+    if (m_rows.size() != other.m_rows.size())
+        return false;
+    for (size_t s = 0; s < m_rows.size(); s++) {
+        auto compare = m_rows[s] == other.m_rows[s];
+        if (compare.is_error())
+            return false;
+        if (!compare.release_value())
+            return true;
+    }
+    return true;
+}
+
 bool ResultSet::is_convertible_to_value() const {
     return m_rows.size() == 1 && m_column_names.size() == 1;
 }
