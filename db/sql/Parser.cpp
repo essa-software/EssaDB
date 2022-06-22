@@ -34,6 +34,7 @@ bool Parser::compare_case_insensitive(const std::string& lhs, const std::string&
 }
 
 Core::DbErrorOr<std::unique_ptr<Core::AST::Statement>> Parser::parse_statement() {
+    m_table_aliases.clear();
     auto keyword = m_tokens[m_offset];
     // std::cout << keyword.value << "\n";
     if (keyword.type == Token::Type::KeywordSelect) {
@@ -106,6 +107,56 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Select>> Parser::parse_select() {
     auto start = m_offset;
     m_offset++;
 
+    // FROM
+    // FIXME: make it an expression
+    std::optional<std::string> from_table;
+    size_t jmp_from = 0;
+    while(true){
+        auto from = m_tokens[m_offset++];
+        if (from.type == Token::Type::KeywordFrom) {
+            jmp_from++;
+            while (true) {
+                jmp_from++;
+                auto table = m_tokens[m_offset++];
+
+                if(table.type == Token::Type::Eof)
+                    break;
+                
+                if(!from_table)
+                    from_table = table.value;
+
+                std::optional<std::string> alias;
+
+                if (m_tokens[m_offset].type == Token::Type::KeywordAlias) {
+                    m_offset++;
+                    jmp_from += 2;
+                    auto alias_token = m_tokens[m_offset++];
+
+                    if(table.type != Token::Type::Identifier)
+                        expected("Expected alias name after 'AS'", alias_token, m_offset - 1);
+                    alias = alias_token.value;
+                }
+                
+                if(alias){
+                    if(m_table_aliases.find(*alias) != m_table_aliases.end())
+                        return Core::DbError {"Table with alias '" + *alias + "' already exists!", m_offset - 1};
+                    m_table_aliases.insert({*alias, table.value});
+                }
+
+                auto comma = m_tokens[m_offset];
+                if (comma.type != Token::Type::Comma)
+                    break;
+                m_offset++;
+            }
+
+            break;
+        }else if(from.type == Token::Type::Eof){
+            break;
+        }
+    }
+
+    m_offset = start + 1;
+
     bool distinct = false;
 
     if (m_tokens[m_offset].type == Token::Type::KeywordDistinct) {
@@ -171,15 +222,7 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Select>> Parser::parse_select() {
         select_into = table.value;
     }
 
-    // FROM
-    std::optional<std::string> from_table;
-    auto from = m_tokens[m_offset++];
-    if (from.type == Token::Type::KeywordFrom) {
-        auto from_token = m_tokens[m_offset++];
-        if (from_token.type != Token::Type::Identifier)
-            return expected("table name after 'FROM'", from_token, m_offset - 1);
-        from_table = from_token.value;
-    }
+    m_offset += jmp_from;
 
     // WHERE
     std::unique_ptr<Core::AST::Expression> where;
