@@ -1,5 +1,7 @@
 ## Coding Style
 
+We want to keep the EssaDB engine source code as clean and readable as possible. We take some patterns from [SerenityOS AK](https://github.com/SerenityOS/serenity/tree/master/AK), like `TRY()` and `is<T>()` dynamic cast helper.
+
 ### Low-level Formatting
 - Format code according to the `.clang-format` file placed in a project root (you can press `Ctrl+Shift+I` if you use VS Code to format code automatically)
 
