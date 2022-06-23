@@ -137,7 +137,7 @@ DbErrorOr<Value> InsertInto::execute(Database& db) const {
     RowWithColumnNames::MapType map;
     EvaluationContext context { .columns = {}, .table = table, .db = &db, .row_type = EvaluationContext::RowType::FromTable };
     if (m_select) {
-        auto result = TRY(TRY(m_select.value()->execute(db)).to_select_result());
+        auto result = TRY(TRY(m_select.value()->evaluate(context, {})).to_select_result());
 
         if (m_columns.size() != result.column_names().size())
             return DbError { "Values doesn't have corresponding columns", start() };

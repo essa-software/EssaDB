@@ -94,27 +94,4 @@ private:
     bool m_distinct;
 };
 
-class InsertInto : public Statement {
-public:
-    InsertInto(ssize_t start, std::string name, std::vector<std::string> columns, std::vector<std::unique_ptr<Core::AST::Expression>> values)
-        : ASTNode(start), Statement(start)
-        , m_name(std::move(name))
-        , m_columns(std::move(columns))
-        , m_values(std::move(values)) { }
-
-    InsertInto(ssize_t start, std::string name, std::vector<std::string> columns, std::unique_ptr<Core::AST::Select> select)
-        : ASTNode(start), Statement(start)
-        , m_name(std::move(name))
-        , m_columns(std::move(columns))
-        , m_select(std::move(select)) { }
-
-    virtual DbErrorOr<Value> execute(Database&) const override;
-
-private:
-    std::string m_name;
-    std::vector<std::string> m_columns;
-    std::vector<std::unique_ptr<Core::AST::Expression>> m_values;
-    std::optional<std::unique_ptr<Core::AST::Select>> m_select;
-};
-
 }
