@@ -7,79 +7,79 @@ namespace Db::Sql {
 
 struct Token {
     enum class Type {
-        KeywordSelect,
-        KeywordFrom,
-        KeywordTop,
-        KeywordCreate,
-        KeywordTable,
-        KeywordAlias,
-        KeywordOrder,
-        KeywordBy,
-        KeywordWhere,
-        KeywordBetween,
-        KeywordInsert,
-        KeywordInto,
-        KeywordValues,
-        KeywordDrop,
-        KeywordTruncate,
-        KeywordAlter,
         KeywordAdd,
+        KeywordAlias,
+        KeywordAll,
+        KeywordAlter,
+        KeywordBetween,
+        KeywordBy,
+        KeywordCase,
+        KeywordCheck,
         KeywordColumn,
-        KeywordDistinct,
+        KeywordConstraint,
+        KeywordCreate,
+        KeywordDefault,
         KeywordDelete,
-        KeywordIn,
+        KeywordDistinct,
+        KeywordDrop,
+        KeywordElse,
+        KeywordEnd,
+        KeywordFrom,
         KeywordGroup,
         KeywordHaving,
-        KeywordCase,
-        KeywordWhen,
-        KeywordThen,
-        KeywordEnd,
-        KeywordElse,
-        KeywordIs,
-        KeywordUpdate,
-        KeywordSet,
-        KeywordUnion,
-        KeywordAll,
         KeywordImport,
-        KeywordUnique,
-        KeywordDefault,
-        KeywordCheck,
-        KeywordConstraint,
-        KeywordPrimary,
+        KeywordIn,
+        KeywordInsert,
+        KeywordInto,
+        KeywordIs,
         KeywordKey,
-        KeywordPartition,
+        KeywordOrder,
         KeywordOver,
+        KeywordPartition,
+        KeywordPrimary,
+        KeywordSelect,
+        KeywordSet,
+        KeywordTable,
+        KeywordThen,
+        KeywordTop,
+        KeywordTruncate,
+        KeywordUnion,
+        KeywordUnique,
+        KeywordUpdate,
+        KeywordValues,
+        KeywordWhen,
+        KeywordWhere,
 
-        OrderByParam,
+        Asterisk,
+        Bool,
+        Comma,
+        Date,
+        Exclamation,
+        Float,
         Identifier,
         Int,
-        Float,
-        String,
-        Bool,
-        Date,
         Null,
-        Asterisk,
-        Comma,
-        ParenOpen,
+        OrderByParam,
         ParenClose,
-        Semicolon,
-        Exclamation,
+        ParenOpen,
         Period,
+        Semicolon,
+        String,
 
         OpEqual,    // =
-        OpNotEqual, // !=
-        OpLess,     // <
         OpGreater,  // >
+        OpLess,     // <
+        OpNotEqual, // !=
 
-        OpAdd,      // +
-        OpSub,      // -
-        OpMul,      // *
-        OpDiv,      // /
+        OpAdd, // +
+        OpSub, // -
+        OpMul, // *
+        OpDiv, // /
 
-        OpAnd,
-        OpOr,
-        OpNot,
-        OpLike,
+        OpAnd,  // &&
+        OpOr,   // ||
+        OpNot,  // !
+        OpLike, // LIKE
 
         Eof,
         Garbage
