@@ -22,7 +22,7 @@ public:
     bool static compare_case_insensitive(std::string const& lhs, std::string const& rhs);
 
 private:
-    Core::DbErrorOr<std::unique_ptr<Core::AST::Select>> parse_select();
+    Core::DbErrorOr<Core::AST::Select> parse_select();
     Core::DbErrorOr<std::unique_ptr<Core::AST::CreateTable>> parse_create_table();
     Core::DbErrorOr<std::unique_ptr<Core::AST::DropTable>> parse_drop_table();
     Core::DbErrorOr<std::unique_ptr<Core::AST::TruncateTable>> parse_truncate_table();
@@ -39,7 +39,7 @@ private:
         std::unique_ptr<Core::AST::Expression> max;
 
         BetweenRange(std::unique_ptr<Core::AST::Expression> min, std::unique_ptr<Core::AST::Expression> max)
-            : ASTNode(min->start()), Expression(min->start())
+            : Expression(min->start())
             , min(std::move(min))
             , max(std::move(max)) { }
 
@@ -51,7 +51,7 @@ private:
         std::vector<std::unique_ptr<Core::AST::Expression>> args;
 
         InArgs(std::vector<std::unique_ptr<Core::AST::Expression>> arg_list)
-            : ASTNode(arg_list.front()->start()), Expression(arg_list.front()->start())
+            : Expression(arg_list.front()->start())
             , args(std::move(arg_list)) { }
 
         virtual Core::DbErrorOr<Core::Value> evaluate(Core::AST::EvaluationContext&, Core::AST::TupleWithSource const&) const override { return Core::Value(); }

@@ -5,8 +5,6 @@
 #include "Table.hpp"
 #include "Tuple.hpp"
 #include "Value.hpp"
-#include "db/core/Column.hpp"
-#include "db/core/DbError.hpp"
 
 #include <iostream>
 #include <map>
@@ -25,7 +23,7 @@ class Database;
 
 namespace Db::Core::AST {
 
-class Statement : public virtual ASTNode {
+class Statement : public ASTNode {
 public:
     explicit Statement(ssize_t start)
         : ASTNode(start) { }
@@ -37,7 +35,7 @@ public:
 class DeleteFrom : public Statement {
 public:
     DeleteFrom(ssize_t start, std::string from, std::unique_ptr<Expression> where = {})
-        : ASTNode(start), Statement(start)
+        : Statement(start)
         , m_from(std::move(from))
         , m_where(std::move(where)) { }
 
@@ -56,7 +54,7 @@ public:
     };
 
     Update(ssize_t start, std::string table, std::vector<UpdatePair> to_update)
-        : ASTNode(start), Statement(start)
+        : Statement(start)
         , m_table(table)
         , m_to_update(std::move(to_update)) { }
 
@@ -74,7 +72,7 @@ public:
     };
 
     Import(ssize_t start, Mode mode, std::string filename, std::string table)
-        : ASTNode(start), Statement(start)
+        : Statement(start)
         , m_mode(mode)
         , m_filename(std::move(filename))
         , m_table(std::move(table)) { }
@@ -90,7 +88,7 @@ private:
 class CreateTable : public Statement {
 public:
     CreateTable(ssize_t start, std::string name, std::vector<Column> columns, std::shared_ptr<AST::Expression> check, std::map<std::string, std::shared_ptr<AST::Expression>> check_map)
-        : ASTNode(start), Statement(start)
+        : Statement(start)
         , m_name(std::move(name))
         , m_columns(std::move(columns))
         , m_check(std::move(check))
@@ -108,7 +106,7 @@ private:
 class DropTable : public Statement {
 public:
     DropTable(ssize_t start, std::string name)
-        : ASTNode(start), Statement(start)
+        : Statement(start)
         , m_name(std::move(name)) { }
 
     virtual DbErrorOr<Value> execute(Database&) const override;
@@ -120,7 +118,7 @@ private:
 class TruncateTable : public Statement {
 public:
     TruncateTable(ssize_t start, std::string name)
-        : ASTNode(start), Statement(start)
+        : Statement(start)
         , m_name(std::move(name)) { }
 
     virtual DbErrorOr<Value> execute(Database&) const override;
@@ -131,10 +129,10 @@ private:
 
 class AlterTable : public Statement {
 public:
-    AlterTable(ssize_t start, std::string name, std::vector<Column> to_add, std::vector<Column> to_alter, std::vector<Column> to_drop, 
-                              std::shared_ptr<Expression> check_to_add, std::shared_ptr<Expression> check_to_alter, bool check_to_drop,
-                              std::vector<std::pair<std::string, std::shared_ptr<Expression>>> constraint_to_add, std::vector<std::pair<std::string, std::shared_ptr<Expression>>> constraint_to_alter, std::vector<std::string> constraint_to_drop)
-        : ASTNode(start), Statement(start)
+    AlterTable(ssize_t start, std::string name, std::vector<Column> to_add, std::vector<Column> to_alter, std::vector<Column> to_drop,
+        std::shared_ptr<Expression> check_to_add, std::shared_ptr<Expression> check_to_alter, bool check_to_drop,
+        std::vector<std::pair<std::string, std::shared_ptr<Expression>>> constraint_to_add, std::vector<std::pair<std::string, std::shared_ptr<Expression>>> constraint_to_alter, std::vector<std::string> constraint_to_drop)
+        : Statement(start)
         , m_name(std::move(name))
         , m_to_add(std::move(to_add))
         , m_to_alter(std::move(to_alter))
@@ -144,7 +142,7 @@ public:
         , m_check_to_drop(check_to_drop)
         , m_constraint_to_add(std::move(constraint_to_add))
         , m_constraint_to_alter(std::move(constraint_to_alter))
-        , m_constraint_to_drop(std::move(constraint_to_drop)){}
+        , m_constraint_to_drop(std::move(constraint_to_drop)) { }
 
     virtual DbErrorOr<Value> execute(Database&) const override;
 
@@ -159,29 +157,6 @@ private:
     std::vector<std::pair<std::string, std::shared_ptr<Expression>>> m_constraint_to_add;
     std::vector<std::pair<std::string, std::shared_ptr<Expression>>> m_constraint_to_alter;
     std::vector<std::string> m_constraint_to_drop;
-};
-
-class InsertInto : public Statement {
-public:
-    InsertInto(ssize_t start, std::string name, std::vector<std::string> columns, std::vector<std::unique_ptr<Core::AST::Expression>> values)
-        : ASTNode(start), Statement(start)
-        , m_name(std::move(name))
-        , m_columns(std::move(columns))
-        , m_values(std::move(values)) { }
-
-    InsertInto(ssize_t start, std::string name, std::vector<std::string> columns, std::unique_ptr<Core::AST::Expression> select)
-        : ASTNode(start), Statement(start)
-        , m_name(std::move(name))
-        , m_columns(std::move(columns))
-        , m_select(std::move(select)) { }
-
-    virtual DbErrorOr<Value> execute(Database&) const override;
-
-private:
-    std::string m_name;
-    std::vector<std::string> m_columns;
-    std::vector<std::unique_ptr<Core::AST::Expression>> m_values;
-    std::optional<std::unique_ptr<Core::AST::Expression>> m_select;
 };
 
 }
