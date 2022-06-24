@@ -49,152 +49,73 @@ std::vector<Token> Lexer::lex() {
         auto start = m_in.tellg();
         if (isalpha(next)) {
             auto id = consume_identifier();
-            if (Db::Sql::Parser::compare_case_insensitive(id, "FROM")) {
-                tokens.push_back(Token { .type = Token::Type::KeywordFrom, .value = "FROM", .start = start });
+
+            std::vector<std::pair<std::string, Token::Type>> keyword_to_token_type = {
+                { "ADD", Token::Type::KeywordAdd },
+                { "ALL", Token::Type::KeywordAll },
+                { "ALTER", Token::Type::KeywordAlter },
+                { "AND", Token::Type::KeywordAnd },
+                { "AS", Token::Type::KeywordAs },
+                { "BETWEEN", Token::Type::KeywordBetween },
+                { "BY", Token::Type::KeywordBy },
+                { "CASE", Token::Type::KeywordCase },
+                { "CHECK", Token::Type::KeywordCheck },
+                { "COLUMN", Token::Type::KeywordColumn },
+                { "CONSTRAINT", Token::Type::KeywordConstraint },
+                { "CREATE", Token::Type::KeywordCreate },
+                { "DEFAULT", Token::Type::KeywordDefault },
+                { "DELETE", Token::Type::KeywordDelete },
+                { "DISTINCT", Token::Type::KeywordDistinct },
+                { "DROP", Token::Type::KeywordDrop },
+                { "ELSE", Token::Type::KeywordElse },
+                { "END", Token::Type::KeywordEnd },
+                { "FROM", Token::Type::KeywordFrom },
+                { "GROUP", Token::Type::KeywordGroup },
+                { "HAVING", Token::Type::KeywordHaving },
+                { "IMPORT", Token::Type::KeywordImport },
+                { "INSERT", Token::Type::KeywordInsert },
+                { "IN", Token::Type::KeywordIn },
+                { "INTO", Token::Type::KeywordInto },
+                { "KEY", Token::Type::KeywordKey },
+                { "ORDER", Token::Type::KeywordOrder },
+                { "OR", Token::Type::KeywordOr },
+                { "OVER", Token::Type::KeywordOver },
+                { "PARTITION", Token::Type::KeywordPartition },
+                { "PRIMARY", Token::Type::KeywordPrimary },
+                { "SELECT", Token::Type::KeywordSelect },
+                { "SET", Token::Type::KeywordSet },
+                { "TABLE", Token::Type::KeywordTable },
+                { "THEN", Token::Type::KeywordThen },
+                { "TOP", Token::Type::KeywordTop },
+                { "TRUNCATE", Token::Type::KeywordTruncate },
+                { "UNION", Token::Type::KeywordUnion },
+                { "UNIQUE", Token::Type::KeywordUnique },
+                { "UPDATE", Token::Type::KeywordUpdate },
+                { "VALUES", Token::Type::KeywordValues },
+                { "WHEN", Token::Type::KeywordWhen },
+                { "WHERE", Token::Type::KeywordWhere },
+                { "NOT", Token::Type::KeywordNot },
+                { "LIKE", Token::Type::KeywordLike },
+                { "IS", Token::Type::KeywordIs },
+                { "NULL", Token::Type::KeywordNull },
+            };
+
+            bool found = false;
+            for (auto const& pair : keyword_to_token_type) {
+                if (Parser::compare_case_insensitive(pair.first, id)) {
+                    tokens.push_back(Token { .type = pair.second, .value = pair.first, .start = start });
+                    found = true;
+                    break;
+                }
             }
-            else if (Db::Sql::Parser::compare_case_insensitive(id, "SELECT")) {
-                tokens.push_back(Token { .type = Token::Type::KeywordSelect, .value = "SELECT", .start = start });
+
+            if (found) {
             }
-            else if (Db::Sql::Parser::compare_case_insensitive(id, "CREATE")) {
-                tokens.push_back(Token { .type = Token::Type::KeywordCreate, .value = "CREATE", .start = start });
-            }
-            else if (Db::Sql::Parser::compare_case_insensitive(id, "TABLE")) {
-                tokens.push_back(Token { .type = Token::Type::KeywordTable, .value = "TABLE", .start = start });
-            }
-            else if (Db::Sql::Parser::compare_case_insensitive(id, "AS")) {
-                tokens.push_back(Token { .type = Token::Type::KeywordAs, .value = "AS", .start = start });
-            }
-            else if (Db::Sql::Parser::compare_case_insensitive(id, "TOP")) {
-                tokens.push_back(Token { .type = Token::Type::KeywordTop, .value = "TOP", .start = start });
-            }
-            else if (Db::Sql::Parser::compare_case_insensitive(id, "BY")) {
-                tokens.push_back(Token { .type = Token::Type::KeywordBy, .value = "BY", .start = start });
-            }
-            else if (Db::Sql::Parser::compare_case_insensitive(id, "ORDER")) {
-                tokens.push_back(Token { .type = Token::Type::KeywordOrder, .value = "ORDER", .start = start });
-            }
-            else if (Db::Sql::Parser::compare_case_insensitive(id, "GROUP")) {
-                tokens.push_back(Token { .type = Token::Type::KeywordGroup, .value = "GROUP", .start = start });
-            }
-            else if (Db::Sql::Parser::compare_case_insensitive(id, "PARTITION")) {
-                tokens.push_back(Token { .type = Token::Type::KeywordPartition, .value = "PARTITION", .start = start });
-            }
-            else if (Db::Sql::Parser::compare_case_insensitive(id, "OVER")) {
-                tokens.push_back(Token { .type = Token::Type::KeywordOver, .value = "OVER", .start = start });
-            }
-            else if (Db::Sql::Parser::compare_case_insensitive(id, "WHERE")) {
-                tokens.push_back(Token { .type = Token::Type::KeywordWhere, .value = "WHERE", .start = start });
-            }
-            else if (Db::Sql::Parser::compare_case_insensitive(id, "HAVING")) {
-                tokens.push_back(Token { .type = Token::Type::KeywordHaving, .value = "HAVING", .start = start });
-            }
-            else if (Db::Sql::Parser::compare_case_insensitive(id, "BETWEEN")) {
-                tokens.push_back(Token { .type = Token::Type::KeywordBetween, .value = "BETWEEN", .start = start });
-            }
-            else if (Db::Sql::Parser::compare_case_insensitive(id, "IN")) {
-                tokens.push_back(Token { .type = Token::Type::KeywordIn, .value = "IN", .start = start });
-            }
-            else if (Db::Sql::Parser::compare_case_insensitive(id, "IMPORT")) {
-                tokens.push_back(Token { .type = Token::Type::KeywordImport, .value = "IMPORT", .start = start });
-            }
-            else if (Db::Sql::Parser::compare_case_insensitive(id, "INSERT")) {
-                tokens.push_back(Token { .type = Token::Type::KeywordInsert, .value = "INSERT", .start = start });
-            }
-            else if (Db::Sql::Parser::compare_case_insensitive(id, "INTO")) {
-                tokens.push_back(Token { .type = Token::Type::KeywordInto, .value = "INTO", .start = start });
-            }
-            else if (Db::Sql::Parser::compare_case_insensitive(id, "VALUES")) {
-                tokens.push_back(Token { .type = Token::Type::KeywordValues, .value = "VALUES", .start = start });
-            }
-            else if (Db::Sql::Parser::compare_case_insensitive(id, "DROP")) {
-                tokens.push_back(Token { .type = Token::Type::KeywordDrop, .value = "DROP", .start = start });
-            }
-            else if (Db::Sql::Parser::compare_case_insensitive(id, "TRUNCATE")) {
-                tokens.push_back(Token { .type = Token::Type::KeywordTruncate, .value = "TRUNCATE", .start = start });
-            }
-            else if (Db::Sql::Parser::compare_case_insensitive(id, "ALTER")) {
-                tokens.push_back(Token { .type = Token::Type::KeywordAlter, .value = "ALTER", .start = start });
-            }
-            else if (Db::Sql::Parser::compare_case_insensitive(id, "ADD")) {
-                tokens.push_back(Token { .type = Token::Type::KeywordAdd, .value = "ADD", .start = start });
-            }
-            else if (Db::Sql::Parser::compare_case_insensitive(id, "SET")) {
-                tokens.push_back(Token { .type = Token::Type::KeywordSet, .value = "SET", .start = start });
-            }
-            else if (Db::Sql::Parser::compare_case_insensitive(id, "COLUMN")) {
-                tokens.push_back(Token { .type = Token::Type::KeywordColumn, .value = "COLUMN", .start = start });
-            }
-            else if (Db::Sql::Parser::compare_case_insensitive(id, "DISTINCT")) {
-                tokens.push_back(Token { .type = Token::Type::KeywordDistinct, .value = "DISTINCT", .start = start });
-            }
-            else if (Db::Sql::Parser::compare_case_insensitive(id, "DELETE")) {
-                tokens.push_back(Token { .type = Token::Type::KeywordDelete, .value = "DELETE", .start = start });
-            }
-            else if (Db::Sql::Parser::compare_case_insensitive(id, "UPDATE")) {
-                tokens.push_back(Token { .type = Token::Type::KeywordUpdate, .value = "UPDATE", .start = start });
-            }
-            else if (Db::Sql::Parser::compare_case_insensitive(id, "CASE")) {
-                tokens.push_back(Token { .type = Token::Type::KeywordCase, .value = "CASE", .start = start });
-            }
-            else if (Db::Sql::Parser::compare_case_insensitive(id, "ELSE")) {
-                tokens.push_back(Token { .type = Token::Type::KeywordElse, .value = "ELSE", .start = start });
-            }
-            else if (Db::Sql::Parser::compare_case_insensitive(id, "WHEN")) {
-                tokens.push_back(Token { .type = Token::Type::KeywordWhen, .value = "WHEN", .start = start });
-            }
-            else if (Db::Sql::Parser::compare_case_insensitive(id, "THEN")) {
-                tokens.push_back(Token { .type = Token::Type::KeywordThen, .value = "THEN", .start = start });
-            }
-            else if (Db::Sql::Parser::compare_case_insensitive(id, "END")) {
-                tokens.push_back(Token { .type = Token::Type::KeywordEnd, .value = "END", .start = start });
-            }
-            else if (Db::Sql::Parser::compare_case_insensitive(id, "UNION")) {
-                tokens.push_back(Token { .type = Token::Type::KeywordUnion, .value = "UNION", .start = start });
-            }
-            else if (Db::Sql::Parser::compare_case_insensitive(id, "UNIQUE")) {
-                tokens.push_back(Token { .type = Token::Type::KeywordUnique, .value = "UNIQUE", .start = start });
-            }
-            else if (Db::Sql::Parser::compare_case_insensitive(id, "DEFAULT")) {
-                tokens.push_back(Token { .type = Token::Type::KeywordDefault, .value = "DEFAULT", .start = start });
-            }
-            else if (Db::Sql::Parser::compare_case_insensitive(id, "CHECK")) {
-                tokens.push_back(Token { .type = Token::Type::KeywordCheck, .value = "CHECK", .start = start });
-            }
-            else if (Db::Sql::Parser::compare_case_insensitive(id, "CONSTRAINT")) {
-                tokens.push_back(Token { .type = Token::Type::KeywordConstraint, .value = "CONSTRAINT", .start = start });
-            }
-            else if (Db::Sql::Parser::compare_case_insensitive(id, "PRIMARY")) {
-                tokens.push_back(Token { .type = Token::Type::KeywordPrimary, .value = "PRIMARY", .start = start });
-            }
-            else if (Db::Sql::Parser::compare_case_insensitive(id, "KEY")) {
-                tokens.push_back(Token { .type = Token::Type::KeywordKey, .value = "KEY", .start = start });
-            }
-            else if (Db::Sql::Parser::compare_case_insensitive(id, "ALL")) {
-                tokens.push_back(Token { .type = Token::Type::KeywordAll, .value = "ALL", .start = start });
-            }
-            else if (Db::Sql::Parser::compare_case_insensitive(id, "AND")) {
-                tokens.push_back(Token { .type = Token::Type::OpAnd, .value = "AND", .start = start });
-            }
-            else if (Db::Sql::Parser::compare_case_insensitive(id, "OR")) {
-                tokens.push_back(Token { .type = Token::Type::OpOr, .value = "OR", .start = start });
-            }
-            else if (Db::Sql::Parser::compare_case_insensitive(id, "NOT")) {
-                tokens.push_back(Token { .type = Token::Type::OpNot, .value = "NOT", .start = start });
-            }
-            else if (Db::Sql::Parser::compare_case_insensitive(id, "LIKE")) {
-                tokens.push_back(Token { .type = Token::Type::OpLike, .value = "LIKE", .start = start });
+            else if (Db::Sql::Parser::compare_case_insensitive(id, "true") || Db::Sql::Parser::compare_case_insensitive(id, "false")) {
+                tokens.push_back(Token { .type = Token::Type::Bool, .value = id, .start = start });
             }
             else if (Db::Sql::Parser::compare_case_insensitive(id, "ASC") || Db::Sql::Parser::compare_case_insensitive(id, "DESC")) {
                 tokens.push_back(Token { .type = Token::Type::OrderByParam, .value = id, .start = start });
-            }
-            else if (Db::Sql::Parser::compare_case_insensitive(id, "IS")) {
-                tokens.push_back(Token { .type = Token::Type::KeywordIs, .value = "IS", .start = start });
-            }
-            else if (Db::Sql::Parser::compare_case_insensitive(id, "NULL")) {
-                tokens.push_back(Token { .type = Token::Type::Null, .value = "null", .start = start });
-            }
-            else if (id == "true" || id == "false") {
-                tokens.push_back(Token { .type = Token::Type::Bool, .value = id, .start = start });
             }
             else {
                 tokens.push_back(Token { .type = Token::Type::Identifier, .value = id, .start = start });

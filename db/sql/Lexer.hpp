@@ -10,6 +10,7 @@ struct Token {
         KeywordAdd,
         KeywordAll,
         KeywordAlter,
+        KeywordAnd,
         KeywordAs,
         KeywordBetween,
         KeywordBy,
@@ -33,6 +34,10 @@ struct Token {
         KeywordInto,
         KeywordIs,
         KeywordKey,
+        KeywordLike,
+        KeywordNot,
+        KeywordNull,
+        KeywordOr,
         KeywordOrder,
         KeywordOver,
         KeywordPartition,
@@ -58,7 +63,6 @@ struct Token {
         Float,
         Identifier,
         Int,
-        Null,
         OrderByParam,
         ParenClose,
         ParenOpen,
@@ -75,11 +79,6 @@ struct Token {
         OpSub, // -
         OpMul, // *
         OpDiv, // /
-
-        OpAnd,  // &&
-        OpOr,   // ||
-        OpNot,  // !
-        OpLike, // LIKE
 
         Eof,
         Garbage
