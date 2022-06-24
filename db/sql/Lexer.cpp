@@ -76,7 +76,11 @@ std::vector<Token> Lexer::lex() {
                 { "INSERT", Token::Type::KeywordInsert },
                 { "IN", Token::Type::KeywordIn },
                 { "INTO", Token::Type::KeywordInto },
+                { "IS", Token::Type::KeywordIs },
                 { "KEY", Token::Type::KeywordKey },
+                { "LIKE", Token::Type::KeywordLike },
+                { "NOT", Token::Type::KeywordNot },
+                { "NULL", Token::Type::KeywordNull },
                 { "ORDER", Token::Type::KeywordOrder },
                 { "OR", Token::Type::KeywordOr },
                 { "OVER", Token::Type::KeywordOver },
@@ -94,10 +98,6 @@ std::vector<Token> Lexer::lex() {
                 { "VALUES", Token::Type::KeywordValues },
                 { "WHEN", Token::Type::KeywordWhen },
                 { "WHERE", Token::Type::KeywordWhere },
-                { "NOT", Token::Type::KeywordNot },
-                { "LIKE", Token::Type::KeywordLike },
-                { "IS", Token::Type::KeywordIs },
-                { "NULL", Token::Type::KeywordNull },
             };
 
             bool found = false;
