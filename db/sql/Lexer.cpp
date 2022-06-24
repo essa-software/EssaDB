@@ -62,7 +62,7 @@ std::vector<Token> Lexer::lex() {
                 tokens.push_back(Token { .type = Token::Type::KeywordTable, .value = "TABLE", .start = start });
             }
             else if (Db::Sql::Parser::compare_case_insensitive(id, "AS")) {
-                tokens.push_back(Token { .type = Token::Type::KeywordAlias, .value = "AS", .start = start });
+                tokens.push_back(Token { .type = Token::Type::KeywordAs, .value = "AS", .start = start });
             }
             else if (Db::Sql::Parser::compare_case_insensitive(id, "TOP")) {
                 tokens.push_back(Token { .type = Token::Type::KeywordTop, .value = "TOP", .start = start });

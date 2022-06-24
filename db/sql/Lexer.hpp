@@ -8,9 +8,9 @@ namespace Db::Sql {
 struct Token {
     enum class Type {
         KeywordAdd,
-        KeywordAlias,
         KeywordAll,
         KeywordAlter,
+        KeywordAs,
         KeywordBetween,
         KeywordBy,
         KeywordCase,

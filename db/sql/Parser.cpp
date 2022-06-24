@@ -140,7 +140,7 @@ Core::DbErrorOr<Core::AST::Select> Parser::parse_select() {
 
                 std::optional<std::string> alias;
 
-                if (m_tokens[m_offset].type == Token::Type::KeywordAlias) {
+                if (m_tokens[m_offset].type == Token::Type::KeywordAs) {
                     m_offset++;
                     jmp_from += 2;
                     auto alias_token = m_tokens[m_offset++];
@@ -207,7 +207,7 @@ Core::DbErrorOr<Core::AST::Select> Parser::parse_select() {
 
             std::optional<std::string> alias;
 
-            if (m_tokens[m_offset].type == Token::Type::KeywordAlias) {
+            if (m_tokens[m_offset].type == Token::Type::KeywordAs) {
                 m_offset++;
                 alias = m_tokens[m_offset++].value;
             }
