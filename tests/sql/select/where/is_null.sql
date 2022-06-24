@@ -1,6 +1,10 @@
 IMPORT CSV 'where.csv' INTO test;
 
--- skip fails with 'test' is not a valid int
+-- output:
+-- | id | number | string | integer |
+-- |  1 |   2137 |   null |      65 |
+-- |  2 |   null |   null |      89 |
+-- |  3 |    420 |   null |     100 |
 SELECT * FROM test WHERE string IS NULL;
 
 -- output:

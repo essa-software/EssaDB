@@ -270,6 +270,33 @@ private:
     std::vector<std::unique_ptr<Core::AST::Expression>> m_args;
 };
 
+class IsExpression : public Expression {
+public:
+    enum class What {
+        Null,
+        NotNull
+    };
+
+    explicit IsExpression(std::unique_ptr<Expression> lhs, What what)
+        : Expression(lhs->start())
+        , m_lhs(std::move(lhs))
+        , m_what(what) { }
+
+    virtual DbErrorOr<Value> evaluate(EvaluationContext& context, TupleWithSource const& row) const override;
+
+    virtual std::string to_string() const override {
+        return m_lhs->to_string() + " IS " + (m_what == What::Null ? "NULL" : "NOT NULL");
+    }
+
+    virtual std::vector<std::string> referenced_columns() const override {
+        return m_lhs->referenced_columns();
+    }
+
+private:
+    std::unique_ptr<Expression> m_lhs;
+    What m_what {};
+};
+
 class CaseExpression : public Expression {
 public:
     struct CasePair {

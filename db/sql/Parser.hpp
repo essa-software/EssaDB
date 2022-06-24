@@ -50,10 +50,18 @@ private:
             : args(std::move(arg_list)) { }
     };
 
+    struct IsArgs {
+        Core::AST::IsExpression::What what {};
+
+        explicit IsArgs(Core::AST::IsExpression::What what)
+            : what(what) { }
+    };
+
     Core::DbErrorOr<Parser::BetweenRange> parse_between_range();                                                                               // (BETWEEN) x AND y
     Core::DbErrorOr<std::unique_ptr<Core::AST::Expression>> parse_operand(std::unique_ptr<Core::AST::Expression> lhs, int min_precedence = 0); // parses operator + rhs
     Core::DbErrorOr<std::unique_ptr<Core::AST::Expression>> parse_function(std::string name);
     Core::DbErrorOr<Parser::InArgs> parse_in();
+    Core::DbErrorOr<Parser::IsArgs> parse_is();
     Core::DbErrorOr<std::unique_ptr<Core::AST::Identifier>> parse_identifier();
     Core::DbErrorOr<std::unique_ptr<Core::AST::Literal>> parse_literal();
     Core::DbErrorOr<Core::Column> parse_column();
