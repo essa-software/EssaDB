@@ -1,25 +1,37 @@
 #include "Expression.hpp"
-#include "Table.hpp"
 #include "Database.hpp"
+#include "Table.hpp"
 
 namespace Db::Core::AST {
+
+DbErrorOr<Value> Expression::evaluate_and_require_single_value(EvaluationContext& context, TupleWithSource const& row, std::string run_from) const {
+    auto result = TRY(evaluate(context, row));
+    if (result.type() != Value::Type::SelectResult)
+        return result;
+    auto select_result = TRY(result.to_select_result());
+    if (!select_result.is_convertible_to_value())
+        return DbError { "Expression result must contain 1 row and 1 column " + (run_from.empty() ? "here" : "in " + run_from), start() };
+    return select_result.as_value();
+}
 
 DbErrorOr<Value> Identifier::evaluate(EvaluationContext& context, TupleWithSource const& row) const {
     if (context.row_type == EvaluationContext::RowType::FromTable) {
         size_t index = 0;
-        if(m_table){
+        if (m_table) {
             auto table = TRY(context.db->table(*m_table));
 
             auto column = table->get_column(m_id);
             if (!column)
                 return DbError { "No such column: " + m_id, start() };
             index = column->index;
-        }else if (context.table) {  
+        }
+        else if (context.table) {
             auto column = context.table->get_column(m_id);
             if (!column)
                 return DbError { "No such column: " + m_id, start() };
             index = column->index;
-        }else {
+        }
+        else {
             return DbError { "You need a table to resolve identifiers", start() };
         }
         return row.tuple.value(index);

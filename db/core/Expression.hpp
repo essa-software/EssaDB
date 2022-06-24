@@ -9,8 +9,8 @@
 #include <sys/types.h>
 
 namespace Db::Core {
-    class Table;
-    class Database;
+class Table;
+class Database;
 }
 
 namespace Db::Core::AST {
@@ -68,7 +68,7 @@ private:
 struct EvaluationContext {
     SelectColumns const& columns;
     Table const* table = nullptr;
-    Database* db;
+    Database* db = nullptr;
     std::optional<std::span<Tuple const>> row_group {};
     enum class RowType {
         FromTable,
@@ -86,6 +86,9 @@ public:
     virtual DbErrorOr<Value> evaluate(EvaluationContext&, TupleWithSource const&) const = 0;
     virtual std::string to_string() const = 0;
     virtual std::vector<std::string> referenced_columns() const { return {}; }
+
+    // run_from will be added to error message.
+    DbErrorOr<Value> evaluate_and_require_single_value(EvaluationContext&, TupleWithSource const&, std::string run_from = "") const;
 };
 
 class Literal : public Expression {

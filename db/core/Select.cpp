@@ -45,7 +45,7 @@ DbErrorOr<ResultSet> Select::execute(Database& db) const {
         else {
             std::vector<Value> values;
             for (auto const& column : m_options.columns.columns()) {
-                values.push_back(TRY(column.column->evaluate(context, {})));
+                values.push_back(TRY(column.column->evaluate_and_require_single_value(context, {}, "column value")));
             }
             return std::vector<TupleWithSource> { { .tuple = Tuple { values }, .source = {} } };
         }
@@ -148,7 +148,7 @@ DbErrorOr<std::vector<TupleWithSource>> Select::collect_rows(EvaluationContext& 
     auto should_include_row = [&](Tuple const& row) -> DbErrorOr<bool> {
         if (!m_options.where)
             return true;
-        return TRY(m_options.where->evaluate(context, TupleWithSource { .tuple = row, .source = {} })).to_bool();
+        return TRY(m_options.where->evaluate_and_require_single_value(context, TupleWithSource { .tuple = row, .source = {} }, "WHERE clause")).to_bool();
     };
 
     // Collect all rows that should be included (applying WHERE and GROUP BY)
@@ -196,7 +196,7 @@ DbErrorOr<std::vector<TupleWithSource>> Select::collect_rows(EvaluationContext& 
         }
     }
 
-    if(m_options.group_by->type == GroupBy::GroupOrPartition::PARTITION)
+    if (m_options.group_by->type == GroupBy::GroupOrPartition::PARTITION)
         should_group = false;
 
     // Special-case for empty sets
@@ -216,7 +216,7 @@ DbErrorOr<std::vector<TupleWithSource>> Select::collect_rows(EvaluationContext& 
         Tuple dummy_row { values };
         context.row_group = std::span { &dummy_row, 1 };
         for (auto const& column : m_options.columns.columns()) {
-            TRY(column.column->evaluate(context, TupleWithSource { .tuple = dummy_row, .source = {} }));
+            TRY(column.column->evaluate_and_require_single_value(context, TupleWithSource { .tuple = dummy_row, .source = {} }, "column"));
         }
     }
 
@@ -229,7 +229,7 @@ DbErrorOr<std::vector<TupleWithSource>> Select::collect_rows(EvaluationContext& 
         auto should_include_group = [&](EvaluationContext& context, TupleWithSource const& row) -> DbErrorOr<bool> {
             if (!m_options.having)
                 return true;
-            return TRY(m_options.having->evaluate(context, row)).to_bool();
+            return TRY(m_options.having->evaluate_and_require_single_value(context, row, "HAVING clause")).to_bool();
         };
 
         auto is_in_group_by = [&](SelectColumns::Column const& column) {
@@ -252,7 +252,7 @@ DbErrorOr<std::vector<TupleWithSource>> Select::collect_rows(EvaluationContext& 
                     values.push_back(TRY(aggregate_column->aggregate(context, group.second)));
                 }
                 else if (is_in_group_by(column)) {
-                    values.push_back(TRY(column.column->evaluate(context, { .tuple = group.second[0], .source = {} })));
+                    values.push_back(TRY(column.column->evaluate_and_require_single_value(context, { .tuple = group.second[0], .source = {} }, "column value")));
                 }
                 else {
                     // "All columns must be either aggregate or occur in GROUP BY clause"
@@ -278,7 +278,7 @@ DbErrorOr<std::vector<TupleWithSource>> Select::collect_rows(EvaluationContext& 
                 std::vector<Value> values;
                 context.row_group = group.second;
                 for (auto& column : context.columns.columns()) {
-                    values.push_back(TRY(column.column->evaluate(context, { .tuple = row, .source = row })));
+                    values.push_back(TRY(column.column->evaluate_and_require_single_value(context, { .tuple = row, .source = row }, "column value")));
                 }
                 aggregated_rows.push_back(TupleWithSource { .tuple = { values }, .source = row });
             }
@@ -290,7 +290,7 @@ DbErrorOr<std::vector<TupleWithSource>> Select::collect_rows(EvaluationContext& 
 
 DbErrorOr<Value> SelectExpression::evaluate(EvaluationContext& context, const TupleWithSource&) const {
     return Value::create_select_result(TRY(m_select.execute(*context.db)));
-    }
+}
 
 DbErrorOr<Value> SelectStatement::execute(Database& db) const {
     return Value::create_select_result(TRY(m_select.execute(db)));

@@ -51,7 +51,7 @@ void ResultSet::dump(std::ostream& out) const {
         unsigned long max_width = column.size();
 
         for (auto const& row : m_rows) {
-            max_width = std::max(max_width, row.value(index).to_string().value().size());
+            max_width = std::max(max_width, row.value(index).to_string().release_value_but_fixme_should_propagate_errors().size());
         }
         index++;
 
