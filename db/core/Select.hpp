@@ -1,7 +1,7 @@
 #pragma once
 
-#include "Expression.hpp"
 #include "AST.hpp"
+#include "Expression.hpp"
 #include <memory>
 #include <optional>
 #include <string>
@@ -23,12 +23,12 @@ struct OrderBy {
 };
 
 struct GroupBy {
-    enum class GroupOrPartition{
+    enum class GroupOrPartition {
         GROUP,
         PARTITION
     };
     GroupOrPartition type;
-    
+
     std::vector<std::string> columns;
 
     bool is_valid(std::string const& rhs) const {
@@ -50,7 +50,7 @@ struct Top {
     unsigned value = 100;
 };
 
-class Select : public Statement, public Expression {
+class Select {
 public:
     struct SelectOptions {
         SelectColumns columns;
@@ -64,24 +64,48 @@ public:
         std::optional<std::string> select_into = {};
     };
 
-    Select(ssize_t start, SelectOptions options)
-        : ASTNode(start), Statement(start), Expression(start)
+    Select(size_t start, SelectOptions options)
+        : m_start(start)
         , m_options(std::move(options)) { }
 
-    virtual DbErrorOr<Value> execute(Database&) const override;
-    virtual DbErrorOr<Value> evaluate(EvaluationContext&, TupleWithSource const&) const override;
-    virtual std::string to_string() const override{return "SELECT(TODO)";}
+    DbErrorOr<ResultSet> execute(Database&) const;
 
 private:
     DbErrorOr<std::vector<TupleWithSource>> collect_rows(EvaluationContext&, AbstractTable&) const;
 
+    size_t m_start {};
     SelectOptions m_options;
+};
+
+class SelectExpression : public Expression {
+public:
+    SelectExpression(ssize_t start, Select select)
+        : Expression(start)
+        , m_select(std::move(select)) { }
+
+    virtual DbErrorOr<Value> evaluate(EvaluationContext&, TupleWithSource const&) const override;
+    virtual std::string to_string() const override { return "(SELECT TODO)"; }
+
+private:
+    Select m_select;
+};
+
+class SelectStatement : public Statement {
+public:
+    SelectStatement(ssize_t start, Select select)
+        : Statement(start)
+        , m_select(std::move(select)) { }
+
+    virtual DbErrorOr<Value> execute(Database&) const override;
+
+private:
+    Select m_select;
 };
 
 class Union : public Statement {
 public:
-    Union(ssize_t start, std::unique_ptr<Select> lhs, std::unique_ptr<Select> rhs, bool distinct)
-        : ASTNode(start), Statement(start)
+    Union(ssize_t start, Select lhs, Select rhs, bool distinct)
+        : Statement(start)
         , m_lhs(std::move(lhs))
         , m_rhs(std::move(rhs))
         , m_distinct(distinct) { }
@@ -89,9 +113,32 @@ public:
     virtual DbErrorOr<Value> execute(Database&) const override;
 
 private:
-    std::unique_ptr<Select> m_lhs;
-    std::unique_ptr<Select> m_rhs;
+    Select m_lhs;
+    Select m_rhs;
     bool m_distinct;
+};
+
+class InsertInto : public Statement {
+public:
+    InsertInto(ssize_t start, std::string name, std::vector<std::string> columns, std::vector<std::unique_ptr<Core::AST::Expression>> values)
+        : Statement(start)
+        , m_name(std::move(name))
+        , m_columns(std::move(columns))
+        , m_values(std::move(values)) { }
+
+    InsertInto(ssize_t start, std::string name, std::vector<std::string> columns, Core::AST::Select select)
+        : Statement(start)
+        , m_name(std::move(name))
+        , m_columns(std::move(columns))
+        , m_select(std::move(select)) { }
+
+    virtual DbErrorOr<Value> execute(Database&) const override;
+
+private:
+    std::string m_name;
+    std::vector<std::string> m_columns;
+    std::vector<std::unique_ptr<Core::AST::Expression>> m_values;
+    std::optional<Core::AST::Select> m_select;
 };
 
 }

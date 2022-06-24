@@ -104,16 +104,16 @@ DbErrorOr<Value> AlterTable::execute(Database& db) const {
 
     auto memory_backed_table = dynamic_cast<MemoryBackedTable*>(table);
 
-    if(!memory_backed_table)
+    if (!memory_backed_table)
         return DbError { "Table with invalid type!", 0 };
 
-    if(m_check_to_add)
+    if (m_check_to_add)
         TRY(memory_backed_table->add_check(m_check_to_add));
 
-    if(m_check_to_alter)
+    if (m_check_to_alter)
         TRY(memory_backed_table->alter_check(m_check_to_alter));
 
-    if(m_check_to_drop)
+    if (m_check_to_drop)
         TRY(memory_backed_table->drop_check());
 
     for (const auto& to_add : m_constraint_to_add) {
@@ -137,7 +137,7 @@ DbErrorOr<Value> InsertInto::execute(Database& db) const {
     RowWithColumnNames::MapType map;
     EvaluationContext context { .columns = {}, .table = table, .db = &db, .row_type = EvaluationContext::RowType::FromTable };
     if (m_select) {
-        auto result = TRY(TRY(m_select.value()->evaluate(context, {})).to_select_result());
+        auto result = TRY(m_select.value().execute(db));
 
         if (m_columns.size() != result.column_names().size())
             return DbError { "Values doesn't have corresponding columns", start() };
@@ -164,7 +164,7 @@ DbErrorOr<Value> InsertInto::execute(Database& db) const {
 }
 
 DbErrorOr<Value> Import::execute(Database& db) const {
-    auto& new_table = db.create_table(m_table, {}, std::map<std::string, std::shared_ptr<AST::Expression>>{});
+    auto& new_table = db.create_table(m_table, {}, std::map<std::string, std::shared_ptr<AST::Expression>> {});
     switch (m_mode) {
     case Mode::Csv:
         TRY(new_table.import_from_csv(m_filename));

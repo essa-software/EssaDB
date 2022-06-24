@@ -7,7 +7,7 @@
 
 namespace Db::Core::AST {
 
-DbErrorOr<Value> Select::execute(Database& db) const {
+DbErrorOr<ResultSet> Select::execute(Database& db) const {
     // Comments specify SQL Conceptional Evaluation:
     // https://docs.microsoft.com/en-us/sql/t-sql/queries/select-transact-sql#logical-processing-order-of-the-select-statement
     // FROM
@@ -21,11 +21,11 @@ DbErrorOr<Value> Select::execute(Database& db) const {
     SelectColumns const& columns = *TRY([this, table, &select_all_columns]() -> DbErrorOr<SelectColumns const*> {
         if (m_options.columns.select_all()) {
             if (!table) {
-                return DbError { "You need a table to do SELECT *", start() };
+                return DbError { "You need a table to do SELECT *", m_start };
             }
             std::vector<SelectColumns::Column> all_columns;
             for (auto const& column : table->columns()) {
-                all_columns.push_back(SelectColumns::Column { .column = std::make_unique<Identifier>(start() + 1, column.name(), std::optional<std::string>{}) });
+                all_columns.push_back(SelectColumns::Column { .column = std::make_unique<Identifier>(m_start + 1, column.name(), std::optional<std::string> {}) });
             }
             select_all_columns = SelectColumns { std::move(all_columns) };
             return &select_all_columns;
@@ -141,7 +141,7 @@ DbErrorOr<Value> Select::execute(Database& db) const {
             TRY(db.drop_table(*m_options.select_into));
         TRY(db.create_table_from_query(std::move(result), *m_options.select_into));
     }
-    return Value::create_select_result(std::move(result));
+    return result;
 }
 
 DbErrorOr<std::vector<TupleWithSource>> Select::collect_rows(EvaluationContext& context, AbstractTable& table) const {
@@ -169,10 +169,10 @@ DbErrorOr<std::vector<TupleWithSource>> Select::collect_rows(EvaluationContext& 
                 auto column = table.get_column(column_name);
                 if (!column) {
                     // TODO: Store source location info
-                    if(m_options.group_by->type == GroupBy::GroupOrPartition::GROUP)
-                        return DbError { "Nonexistent column used in GROUP BY: '" + column_name + "'", start() };
-                    else if(m_options.group_by->type == GroupBy::GroupOrPartition::PARTITION)
-                        return DbError { "Nonexistent column used in PARTITION BY: '" + column_name + "'", start() };
+                    if (m_options.group_by->type == GroupBy::GroupOrPartition::GROUP)
+                        return DbError { "Nonexistent column used in GROUP BY: '" + column_name + "'", m_start };
+                    else if (m_options.group_by->type == GroupBy::GroupOrPartition::PARTITION)
+                        return DbError { "Nonexistent column used in PARTITION BY: '" + column_name + "'", m_start };
                 }
                 group_key.push_back(row.value(column->index));
             }
@@ -288,24 +288,24 @@ DbErrorOr<std::vector<TupleWithSource>> Select::collect_rows(EvaluationContext& 
     return aggregated_rows;
 }
 
-DbErrorOr<Value> Select::evaluate(EvaluationContext& context, const TupleWithSource& row) const{
-    for(const auto& val : row.tuple){
-        val.null();
+DbErrorOr<Value> SelectExpression::evaluate(EvaluationContext& context, const TupleWithSource&) const {
+    return Value::create_select_result(TRY(m_select.execute(*context.db)));
     }
 
-    return TRY(execute(*context.db));
+DbErrorOr<Value> SelectStatement::execute(Database& db) const {
+    return Value::create_select_result(TRY(m_select.execute(db)));
 }
 
 DbErrorOr<Value> Union::execute(Database& db) const {
-    auto lhs = TRY(TRY(m_lhs->execute(db)).to_select_result());
-    auto rhs = TRY(TRY(m_rhs->execute(db)).to_select_result());
+    auto lhs = TRY(m_lhs.execute(db));
+    auto rhs = TRY(m_rhs.execute(db));
 
     if (lhs.column_names().size() != rhs.column_names().size())
-        return DbError { "Querries with different column count", 0 };
+        return DbError { "Queries with different column count", 0 };
 
     for (size_t i = 0; i < lhs.column_names().size(); i++) {
         if (lhs.column_names()[i] != rhs.column_names()[i])
-            return DbError { "Querries with different column set", 0 };
+            return DbError { "Queries with different column set", 0 };
     }
 
     std::vector<Tuple> rows;
