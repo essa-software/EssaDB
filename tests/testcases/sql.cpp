@@ -109,7 +109,9 @@ std::map<std::string, TestFunc> get_tests() {
     for (auto file_it : directory) {
         // std::cout << "file: " << file_it << std::endl;
 
-        auto test_func = [file_it, tests_dir]() -> Db::Core::DbErrorOr<void> {
+        auto test_name = file_it.path().lexically_relative(tests_dir);
+
+        auto test_func = [file_it, tests_dir, test_name]() -> Db::Core::DbErrorOr<void> {
             const auto cwd = tests_dir / file_it.path().parent_path();
             // std::cout << "chdir " << cwd << std::endl;
             std::filesystem::current_path(cwd);
@@ -205,6 +207,7 @@ std::map<std::string, TestFunc> get_tests() {
             Db::Core::Database db;
 
             bool success = true;
+            std::cout << "\e[1mTEST\e[m " << test_name.string() << std::endl;
             for (auto const& statement : statements) {
                 if (statement.skip) {
                     std::cout << " [*] Skipped: " << statement.statement << std::endl;
@@ -219,7 +222,7 @@ std::map<std::string, TestFunc> get_tests() {
 
         if (file_it.path().extension() == ".sql") {
             // std::cout << file_it << std::endl;
-            tests.insert({ file_it.path().lexically_relative(tests_dir), test_func });
+            tests.insert({ test_name, test_func });
         }
     }
     return tests;
