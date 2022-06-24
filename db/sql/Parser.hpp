@@ -1,14 +1,14 @@
 #pragma once
 
-#include <db/core/AST.hpp>
-#include <db/core/Function.hpp>
-
 #include "Lexer.hpp"
-#include "db/core/Column.hpp"
-#include "db/core/Database.hpp"
-#include "db/core/DbError.hpp"
-#include "db/core/Expression.hpp"
-#include "db/core/Select.hpp"
+
+#include <db/core/AST.hpp>
+#include <db/core/Column.hpp>
+#include <db/core/Database.hpp>
+#include <db/core/DbError.hpp>
+#include <db/core/Expression.hpp>
+#include <db/core/Function.hpp>
+#include <db/core/Select.hpp>
 
 namespace Db::Sql {
 
@@ -34,34 +34,26 @@ private:
     Core::DbErrorOr<std::unique_ptr<Core::AST::Expression>> parse_expression(int min_precedence = 0);
     Core::DbErrorOr<Core::AST::ExpressionOrIndex> parse_expression_or_index();
 
-    struct BetweenRange : public Core::AST::Expression {
+    struct BetweenRange {
         std::unique_ptr<Core::AST::Expression> min;
         std::unique_ptr<Core::AST::Expression> max;
 
         BetweenRange(std::unique_ptr<Core::AST::Expression> min, std::unique_ptr<Core::AST::Expression> max)
-            : Expression(min->start())
-            , min(std::move(min))
+            : min(std::move(min))
             , max(std::move(max)) { }
-
-        virtual Core::DbErrorOr<Core::Value> evaluate(Core::AST::EvaluationContext&, Core::AST::TupleWithSource const&) const override { return Core::Value(); }
-        virtual std::string to_string() const override { return "BetweenRange(min,max)"; }
     };
 
-    struct InArgs : public Core::AST::Expression {
+    struct InArgs {
         std::vector<std::unique_ptr<Core::AST::Expression>> args;
 
         InArgs(std::vector<std::unique_ptr<Core::AST::Expression>> arg_list)
-            : Expression(arg_list.front()->start())
-            , args(std::move(arg_list)) { }
-
-        virtual Core::DbErrorOr<Core::Value> evaluate(Core::AST::EvaluationContext&, Core::AST::TupleWithSource const&) const override { return Core::Value(); }
-        virtual std::string to_string() const override { return "InArgs(args)"; }
+            : args(std::move(arg_list)) { }
     };
 
-    Core::DbErrorOr<std::unique_ptr<Parser::BetweenRange>> parse_between_range();                                                              // (BETWEEN) x AND y
+    Core::DbErrorOr<Parser::BetweenRange> parse_between_range();                                                                               // (BETWEEN) x AND y
     Core::DbErrorOr<std::unique_ptr<Core::AST::Expression>> parse_operand(std::unique_ptr<Core::AST::Expression> lhs, int min_precedence = 0); // parses operator + rhs
     Core::DbErrorOr<std::unique_ptr<Core::AST::Expression>> parse_function(std::string name);
-    Core::DbErrorOr<std::unique_ptr<Parser::InArgs>> parse_in();
+    Core::DbErrorOr<Parser::InArgs> parse_in();
     Core::DbErrorOr<std::unique_ptr<Core::AST::Identifier>> parse_identifier();
     Core::DbErrorOr<std::unique_ptr<Core::AST::Literal>> parse_literal();
     Core::DbErrorOr<Core::Column> parse_column();
