@@ -1,14 +1,14 @@
 #include "Parser.hpp"
-#include "db/core/Column.hpp"
-#include "db/core/DbError.hpp"
-#include "db/core/Expression.hpp"
-#include "db/core/Function.hpp"
-#include "db/core/Select.hpp"
-#include "db/core/Table.hpp"
-#include "db/core/Value.hpp"
-#include "db/sql/Lexer.hpp"
 
 #include <db/core/AST.hpp>
+#include <db/core/Column.hpp>
+#include <db/core/DbError.hpp>
+#include <db/core/Expression.hpp>
+#include <db/core/Function.hpp>
+#include <db/core/Select.hpp>
+#include <db/core/Table.hpp>
+#include <db/core/Value.hpp>
+#include <db/sql/Lexer.hpp>
 
 #include <iostream>
 #include <memory>
@@ -971,7 +971,7 @@ static int operator_precedence(Token::Type op) {
     }
 }
 
-Core::DbErrorOr<std::unique_ptr<Parser::BetweenRange>> Parser::parse_between_range() {
+Core::DbErrorOr<Parser::BetweenRange> Parser::parse_between_range() {
     auto min = TRY(parse_expression(operator_precedence(Token::Type::KeywordBetween) + 1));
 
     if (m_tokens[m_offset++].type != Token::Type::OpAnd)
@@ -979,7 +979,7 @@ Core::DbErrorOr<std::unique_ptr<Parser::BetweenRange>> Parser::parse_between_ran
 
     auto max = TRY(parse_expression(operator_precedence(Token::Type::KeywordBetween) + 1));
 
-    return std::make_unique<BetweenRange>(std::move(min), std::move(max));
+    return Parser::BetweenRange { std::move(min), std::move(max) };
 }
 
 static bool is_binary_operator(Token::Type op) {
@@ -1086,14 +1086,16 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Expression>> Parser::parse_operand(st
         //  only the "y" is used as rhs for recursive parse_operand. The "x" operand is handled
         //  entirely by BETWEEN.
         auto current_precedence = operator_precedence(current_operator);
-        std::unique_ptr<Core::AST::Expression> rhs;
 
-        if (current_operator == Token::Type::KeywordBetween)
-            rhs = TRY(parse_between_range());
-        else if (current_operator == Token::Type::KeywordIn)
-            rhs = TRY(parse_in());
-        else
-            rhs = TRY(parse_expression(current_precedence));
+        using Variant = std::variant<BetweenRange, InArgs, std::unique_ptr<Core::AST::Expression>>;
+
+        Variant rhs = TRY([&]() -> Core::DbErrorOr<Variant> {
+            if (current_operator == Token::Type::KeywordBetween)
+                return TRY(parse_between_range());
+            if (current_operator == Token::Type::KeywordIn)
+                return TRY(parse_in());
+            return TRY(parse_expression(current_precedence));
+        }());
         // std::cout << "3. " << m_offset << ": " << m_tokens[m_offset].value << std::endl;
 
         auto next_operator = peek_operator();
@@ -1102,34 +1104,38 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Expression>> Parser::parse_operand(st
 
         if (current_precedence > next_precedence) {
             if (current_operator == Token::Type::KeywordBetween) {
-                auto& rhs_between_range = static_cast<BetweenRange&>(*rhs);
+                auto rhs_between_range = std::move(std::get<BetweenRange>(rhs));
                 lhs = std::make_unique<Core::AST::BetweenExpression>(std::move(lhs), std::move(rhs_between_range.min), std::move(rhs_between_range.max));
             }
             else if (current_operator == Token::Type::KeywordIn) {
-                auto& rhs_in_args = static_cast<InArgs&>(*rhs);
+                auto rhs_in_args = std::move(std::get<InArgs>(rhs));
                 lhs = std::make_unique<Core::AST::InExpression>(std::move(lhs), std::move(rhs_in_args.args));
             }
             else if (is_binary_operator(current_operator)) {
-                lhs = std::make_unique<Core::AST::BinaryOperator>(std::move(lhs), token_type_to_binary_operation(current_operator), std::move(rhs));
+                lhs = std::make_unique<Core::AST::BinaryOperator>(std::move(lhs), token_type_to_binary_operation(current_operator),
+                    std::move(std::get<std::unique_ptr<Core::AST::Expression>>(rhs)));
             }
             else if (is_arithmetic_operator(current_operator)) {
-                lhs = std::make_unique<Core::AST::ArithmeticOperator>(std::move(lhs), token_type_to_arithmetic_operation(current_operator), std::move(rhs));
+                lhs = std::make_unique<Core::AST::ArithmeticOperator>(std::move(lhs), token_type_to_arithmetic_operation(current_operator),
+                    std::move(std::get<std::unique_ptr<Core::AST::Expression>>(rhs)));
             }
         }
         else {
             if (current_operator == Token::Type::KeywordBetween) {
-                auto& rhs_between_range = static_cast<BetweenRange&>(*rhs);
+                auto rhs_between_range = std::move(std::get<BetweenRange>(rhs));
                 lhs = std::make_unique<Core::AST::BetweenExpression>(std::move(lhs), std::move(rhs_between_range.min), TRY(parse_operand(std::move(rhs_between_range.max))));
             }
             else if (current_operator == Token::Type::KeywordIn) {
-                auto& rhs_in_args = static_cast<InArgs&>(*rhs);
+                auto rhs_in_args = std::move(std::get<InArgs>(rhs));
                 lhs = std::make_unique<Core::AST::InExpression>(std::move(lhs), std::move(rhs_in_args.args));
             }
             else if (is_binary_operator(current_operator)) {
-                lhs = std::make_unique<Core::AST::BinaryOperator>(std::move(lhs), token_type_to_binary_operation(current_operator), TRY(parse_operand(std::move(rhs))));
+                lhs = std::make_unique<Core::AST::BinaryOperator>(std::move(lhs), token_type_to_binary_operation(current_operator),
+                    TRY(parse_operand(std::move(std::get<std::unique_ptr<Core::AST::Expression>>(rhs)))));
             }
             else if (is_arithmetic_operator(current_operator)) {
-                lhs = std::make_unique<Core::AST::ArithmeticOperator>(std::move(lhs), token_type_to_arithmetic_operation(current_operator), TRY(parse_operand(std::move(rhs))));
+                lhs = std::make_unique<Core::AST::ArithmeticOperator>(std::move(lhs), token_type_to_arithmetic_operation(current_operator),
+                    TRY(parse_operand(std::move(std::get<std::unique_ptr<Core::AST::Expression>>(rhs)))));
             }
         }
     }
@@ -1209,7 +1215,7 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Expression>> Parser::parse_function(s
     return std::make_unique<Core::AST::Function>(start, std::move(name), std::move(args));
 }
 
-Core::DbErrorOr<std::unique_ptr<Parser::InArgs>> Parser::parse_in() {
+Core::DbErrorOr<Parser::InArgs> Parser::parse_in() {
     std::vector<std::unique_ptr<Core::AST::Expression>> args;
     auto paren_open = m_tokens[m_offset++];
 
@@ -1229,7 +1235,7 @@ Core::DbErrorOr<std::unique_ptr<Parser::InArgs>> Parser::parse_in() {
         }
         m_offset++;
     }
-    return std::make_unique<Parser::InArgs>(std::move(args));
+    return { std::move(args) };
 }
 
 Core::DbErrorOr<std::unique_ptr<Core::AST::Identifier>> Parser::parse_identifier() {
