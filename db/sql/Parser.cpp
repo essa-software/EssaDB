@@ -361,7 +361,7 @@ static bool is_literal(Token::Type token) {
     case Token::Type::String:
     case Token::Type::Bool:
     case Token::Type::Date:
-    case Token::Type::Null:
+    case Token::Type::KeywordNull:
         return true;
     default:
         return false;
@@ -487,7 +487,7 @@ Core::DbErrorOr<Core::Column> Parser::parse_column() {
     while (true) {
         auto param = m_tokens[m_offset];
         if (param.type != Token::Type::Identifier
-            && param.type != Token::Type::OpNot
+            && param.type != Token::Type::KeywordNot
             && param.type != Token::Type::KeywordDefault
             && param.type != Token::Type::KeywordUnique
             && param.type != Token::Type::KeywordPrimary)
@@ -501,8 +501,8 @@ Core::DbErrorOr<Core::Column> Parser::parse_column() {
 
             unique = true;
         }
-        else if (param.type == Token::Type::OpNot) {
-            if (m_tokens[m_offset].type != Token::Type::Null)
+        else if (param.type == Token::Type::KeywordNot) {
+            if (m_tokens[m_offset].type != Token::Type::KeywordNull)
                 return Core::DbError { "Expected 'NULL' after 'NOT'", m_offset };
             m_offset++;
 
@@ -937,7 +937,7 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Literal>> Parser::parse_literal() {
         m_offset++;
         return std::make_unique<Core::AST::Literal>(start, Core::Value::create_time(token.value, Util::Clock::Format::NO_CLOCK_AMERICAN));
     }
-    else if (token.type == Token::Type::Null) {
+    else if (token.type == Token::Type::KeywordNull) {
         m_offset++;
         return std::make_unique<Core::AST::Literal>(start, Core::Value::null());
     }
@@ -948,18 +948,18 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Literal>> Parser::parse_literal() {
 static int operator_precedence(Token::Type op) {
     switch (op) {
     case Token::Type::KeywordIs:
+    case Token::Type::KeywordLike:
     case Token::Type::OpEqual:
     case Token::Type::OpNotEqual:
     case Token::Type::OpGreater:
     case Token::Type::OpLess:
-    case Token::Type::OpLike:
         return 500;
     case Token::Type::KeywordBetween:
     case Token::Type::KeywordIn:
         return 200;
-    case Token::Type::OpAnd:
+    case Token::Type::KeywordAnd:
         return 150;
-    case Token::Type::OpOr:
+    case Token::Type::KeywordOr:
         return 100;
     case Token::Type::OpMul:
     case Token::Type::OpDiv:
@@ -975,7 +975,7 @@ static int operator_precedence(Token::Type op) {
 Core::DbErrorOr<Parser::BetweenRange> Parser::parse_between_range() {
     auto min = TRY(parse_expression(operator_precedence(Token::Type::KeywordBetween) + 1));
 
-    if (m_tokens[m_offset++].type != Token::Type::OpAnd)
+    if (m_tokens[m_offset++].type != Token::Type::KeywordAnd)
         return expected("'AND' in 'BETWEEN'", m_tokens[m_offset], m_offset - 1);
 
     auto max = TRY(parse_expression(operator_precedence(Token::Type::KeywordBetween) + 1));
@@ -985,16 +985,16 @@ Core::DbErrorOr<Parser::BetweenRange> Parser::parse_between_range() {
 
 static bool is_binary_operator(Token::Type op) {
     switch (op) {
+    case Token::Type::KeywordAnd:
+    case Token::Type::KeywordOr:
     case Token::Type::KeywordBetween:
     case Token::Type::KeywordIn:
     case Token::Type::KeywordIs:
+    case Token::Type::KeywordLike:
     case Token::Type::OpEqual:
     case Token::Type::OpNotEqual:
     case Token::Type::OpGreater:
     case Token::Type::OpLess:
-    case Token::Type::OpLike:
-    case Token::Type::OpAnd:
-    case Token::Type::OpOr:
         return true;
     default:
         return false;
@@ -1030,13 +1030,13 @@ static Core::AST::BinaryOperator::Operation token_type_to_binary_operation(Token
     case Token::Type::OpNotEqual:
         return Core::AST::BinaryOperator::Operation::NotEqual;
         break;
-    case Token::Type::OpLike:
+    case Token::Type::KeywordLike:
         return Core::AST::BinaryOperator::Operation::Like;
         break;
-    case Token::Type::OpAnd:
+    case Token::Type::KeywordAnd:
         return Core::AST::BinaryOperator::Operation::And;
         break;
-    case Token::Type::OpOr:
+    case Token::Type::KeywordOr:
         return Core::AST::BinaryOperator::Operation::Or;
         break;
     default:
@@ -1251,12 +1251,12 @@ Core::DbErrorOr<Parser::InArgs> Parser::parse_in() {
 
 Core::DbErrorOr<Parser::IsArgs> Parser::parse_is() {
     auto token = m_tokens[m_offset++];
-    if (token.type == Token::Type::Null) {
+    if (token.type == Token::Type::KeywordNull) {
         return Parser::IsArgs { Core::AST::IsExpression::What::Null };
     }
-    if (token.type == Token::Type::OpNot) {
+    if (token.type == Token::Type::KeywordNot) {
         token = m_tokens[m_offset++];
-        if (token.type == Token::Type::Null)
+        if (token.type == Token::Type::KeywordNull)
             return Parser::IsArgs { Core::AST::IsExpression::What::NotNull };
         return expected("'NULL' after 'IS NOT'", token, m_offset - 1);
     }
