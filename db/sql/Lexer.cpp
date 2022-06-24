@@ -23,13 +23,13 @@ std::vector<Token> Lexer::lex() {
 
         bool has_decimal = 0;
 
-        if(m_in.peek() == '-')
+        if (m_in.peek() == '-')
             s += m_in.get();
 
         while (isdigit(m_in.peek()) || m_in.peek() == '.') {
             char c = m_in.get();
-            if(c == '.'){
-                if(has_decimal)
+            if (c == '.') {
+                if (has_decimal)
                     break;
                 has_decimal = 1;
             }
@@ -179,10 +179,7 @@ std::vector<Token> Lexer::lex() {
                 tokens.push_back(Token { .type = Token::Type::OpOr, .value = "OR", .start = start });
             }
             else if (Db::Sql::Parser::compare_case_insensitive(id, "NOT")) {
-                if(tokens.back().type == Token::Type::KeywordIs)
-                    tokens.back() = Token { .type = Token::Type::OpNotEqual, .value = "IS NOT", .start = start };
-                else
-                    tokens.push_back(Token { .type = Token::Type::OpNot, .value = "NOT", .start = start });
+                tokens.push_back(Token { .type = Token::Type::OpNot, .value = "NOT", .start = start });
             }
             else if (Db::Sql::Parser::compare_case_insensitive(id, "LIKE")) {
                 tokens.push_back(Token { .type = Token::Type::OpLike, .value = "LIKE", .start = start });
@@ -209,17 +206,18 @@ std::vector<Token> Lexer::lex() {
         else if (std::isdigit(next) || next == '.' || next == '-') {
             auto number = consume_number();
 
-            if(number == "."){
+            if (number == ".") {
                 tokens.push_back(Token { .type = Token::Type::Period, .value = ".", .start = start });
                 continue;
-            }else if(number == "-"){
+            }
+            else if (number == "-") {
                 tokens.push_back(Token { .type = Token::Type::OpSub, .value = "-", .start = start });
                 continue;
             }
 
             Token::Type type = Token::Type::Int;
 
-            if(number.find(".") != std::string::npos){
+            if (number.find(".") != std::string::npos) {
                 type = Token::Type::Float;
             }
 

@@ -206,6 +206,17 @@ DbErrorOr<Value> InExpression::evaluate(EvaluationContext& context, TupleWithSou
     return Value::create_bool(false);
 }
 
+DbErrorOr<Value> IsExpression::evaluate(EvaluationContext& context, TupleWithSource const& row) const {
+    auto lhs = TRY(m_lhs->evaluate(context, row));
+    switch (m_what) {
+    case What::Null:
+        return Value::create_bool(lhs.is_null());
+    case What::NotNull:
+        return Value::create_bool(!lhs.is_null());
+    }
+    __builtin_unreachable();
+}
+
 DbErrorOr<Value> CaseExpression::evaluate(EvaluationContext& context, TupleWithSource const& row) const {
     for (const auto& case_expression : m_cases) {
         if (TRY(TRY(case_expression.expr->evaluate(context, row)).to_bool()))

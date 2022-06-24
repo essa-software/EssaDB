@@ -947,6 +947,7 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Literal>> Parser::parse_literal() {
 
 static int operator_precedence(Token::Type op) {
     switch (op) {
+    case Token::Type::KeywordIs:
     case Token::Type::OpEqual:
     case Token::Type::OpNotEqual:
     case Token::Type::OpGreater:
@@ -984,13 +985,14 @@ Core::DbErrorOr<Parser::BetweenRange> Parser::parse_between_range() {
 
 static bool is_binary_operator(Token::Type op) {
     switch (op) {
+    case Token::Type::KeywordBetween:
+    case Token::Type::KeywordIn:
+    case Token::Type::KeywordIs:
     case Token::Type::OpEqual:
     case Token::Type::OpNotEqual:
     case Token::Type::OpGreater:
     case Token::Type::OpLess:
     case Token::Type::OpLike:
-    case Token::Type::KeywordBetween:
-    case Token::Type::KeywordIn:
     case Token::Type::OpAnd:
     case Token::Type::OpOr:
         return true;
@@ -1015,7 +1017,6 @@ static bool is_arithmetic_operator(Token::Type op) {
 static Core::AST::BinaryOperator::Operation token_type_to_binary_operation(Token::Type op) {
     switch (op) {
     case Token::Type::OpEqual:
-    case Token::Type::KeywordIs:
         return Core::AST::BinaryOperator::Operation::Equal;
         break;
     case Token::Type::OpLess:
@@ -1087,13 +1088,15 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Expression>> Parser::parse_operand(st
         //  entirely by BETWEEN.
         auto current_precedence = operator_precedence(current_operator);
 
-        using Variant = std::variant<BetweenRange, InArgs, std::unique_ptr<Core::AST::Expression>>;
+        using Variant = std::variant<BetweenRange, InArgs, IsArgs, std::unique_ptr<Core::AST::Expression>>;
 
         Variant rhs = TRY([&]() -> Core::DbErrorOr<Variant> {
             if (current_operator == Token::Type::KeywordBetween)
                 return TRY(parse_between_range());
             if (current_operator == Token::Type::KeywordIn)
                 return TRY(parse_in());
+            if (current_operator == Token::Type::KeywordIs)
+                return TRY(parse_is());
             return TRY(parse_expression(current_precedence));
         }());
         // std::cout << "3. " << m_offset << ": " << m_tokens[m_offset].value << std::endl;
@@ -1110,6 +1113,10 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Expression>> Parser::parse_operand(st
             else if (current_operator == Token::Type::KeywordIn) {
                 auto rhs_in_args = std::move(std::get<InArgs>(rhs));
                 lhs = std::make_unique<Core::AST::InExpression>(std::move(lhs), std::move(rhs_in_args.args));
+            }
+            else if (current_operator == Token::Type::KeywordIs) {
+                auto rhs_is_args = std::move(std::get<IsArgs>(rhs));
+                lhs = std::make_unique<Core::AST::IsExpression>(std::move(lhs), rhs_is_args.what);
             }
             else if (is_binary_operator(current_operator)) {
                 lhs = std::make_unique<Core::AST::BinaryOperator>(std::move(lhs), token_type_to_binary_operation(current_operator),
@@ -1128,6 +1135,10 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Expression>> Parser::parse_operand(st
             else if (current_operator == Token::Type::KeywordIn) {
                 auto rhs_in_args = std::move(std::get<InArgs>(rhs));
                 lhs = std::make_unique<Core::AST::InExpression>(std::move(lhs), std::move(rhs_in_args.args));
+            }
+            else if (current_operator == Token::Type::KeywordIs) {
+                auto rhs_is_args = std::move(std::get<IsArgs>(rhs));
+                lhs = std::make_unique<Core::AST::IsExpression>(std::move(lhs), rhs_is_args.what);
             }
             else if (is_binary_operator(current_operator)) {
                 lhs = std::make_unique<Core::AST::BinaryOperator>(std::move(lhs), token_type_to_binary_operation(current_operator),
@@ -1236,6 +1247,20 @@ Core::DbErrorOr<Parser::InArgs> Parser::parse_in() {
         m_offset++;
     }
     return { std::move(args) };
+}
+
+Core::DbErrorOr<Parser::IsArgs> Parser::parse_is() {
+    auto token = m_tokens[m_offset++];
+    if (token.type == Token::Type::Null) {
+        return Parser::IsArgs { Core::AST::IsExpression::What::Null };
+    }
+    if (token.type == Token::Type::OpNot) {
+        token = m_tokens[m_offset++];
+        if (token.type == Token::Type::Null)
+            return Parser::IsArgs { Core::AST::IsExpression::What::NotNull };
+        return expected("'NULL' after 'IS NOT'", token, m_offset - 1);
+    }
+    return expected("'NULL' or 'NOT NULL' after 'IS'", token, m_offset - 1);
 }
 
 Core::DbErrorOr<std::unique_ptr<Core::AST::Identifier>> Parser::parse_identifier() {
