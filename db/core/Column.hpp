@@ -7,6 +7,7 @@
 #include <string>
 
 namespace Db::Core {
+    class Table;
 
 class Column {
 public:
@@ -22,10 +23,14 @@ public:
 
     void set_type(Value::Type type) { m_type = type; }
 
+    Table* const& original_table() const { return m_original_table; }
+    void set_table(Table* table) { m_original_table = table; }
+
     std::string to_string() const { return m_name; }
 
 private:
     std::string m_name;
+    Table* m_original_table = nullptr;
     Value::Type m_type {};
     bool m_auto_increment {};
     bool m_unique {};

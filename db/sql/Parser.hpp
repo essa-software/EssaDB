@@ -9,6 +9,7 @@
 #include <db/core/Expression.hpp>
 #include <db/core/Function.hpp>
 #include <db/core/Select.hpp>
+#include <memory>
 
 namespace Db::Sql {
 
@@ -65,6 +66,8 @@ private:
     Core::DbErrorOr<std::unique_ptr<Core::AST::Identifier>> parse_identifier();
     Core::DbErrorOr<std::unique_ptr<Core::AST::Literal>> parse_literal();
     Core::DbErrorOr<Core::Column> parse_column();
+    Core::DbErrorOr<std::unique_ptr<Core::AST::TableExpression>> parse_table_expression();
+    Core::DbErrorOr<std::unique_ptr<Core::AST::TableIdentifier>> parse_table_identifier();
 
     std::vector<Token> const& m_tokens;
     std::vector<std::pair<std::string, std::string>> m_table_aliases;

@@ -7,6 +7,7 @@
 #include <optional>
 #include <string>
 #include <sys/types.h>
+#include <vector>
 
 namespace Db::Core {
 class Table;
@@ -17,6 +18,7 @@ namespace Db::Core::AST {
 
 class Expression;
 struct EvaluationContext;
+class Identifier;
 
 class ASTNode {
 public:
@@ -75,6 +77,62 @@ struct EvaluationContext {
         FromResultSet
     };
     RowType row_type;
+};
+
+class TableExpression : public ASTNode {
+public:
+    explicit TableExpression(ssize_t start)
+        : ASTNode(start) { }
+
+    virtual ~TableExpression() = default;
+    virtual DbErrorOr<std::unique_ptr<Table>> evaluate(Database* db) const = 0;
+    virtual std::string to_string() const = 0;
+    virtual std::vector<std::string> referenced_columns() const { return {}; }
+};
+
+class TableIdentifier : public TableExpression {
+public:
+    explicit TableIdentifier(ssize_t start, std::string id)
+        : TableExpression(start)
+        , m_id(id) { }
+
+    virtual DbErrorOr<std::unique_ptr<Table>> evaluate(Database* db) const override;
+    virtual std::string to_string() const override {return m_id;}
+
+private:
+    std::string m_id;
+};
+
+class JoinExpression : public TableExpression {
+public:
+    enum class Type {
+        InnerJoin,
+        LeftJoin,
+        RightJoin,
+        OuterJoin,
+        CrossJoin
+    };
+
+    explicit JoinExpression(ssize_t start,
+        std::unique_ptr<TableIdentifier> lhs,
+        std::unique_ptr<Identifier> on_lhs,
+        Type join_type,
+        std::unique_ptr<TableIdentifier> rhs,
+        std::unique_ptr<Identifier> on_rhs)
+        : TableExpression(start)
+        , m_lhs(std::move(lhs))
+        , m_rhs(std::move(rhs))
+        , m_on_lhs(std::move(on_lhs))
+        , m_on_rhs(std::move(on_rhs))
+        , m_join_type(join_type) { }
+
+    virtual DbErrorOr<std::unique_ptr<Table>> evaluate(Database* db) const override;
+    virtual std::string to_string() const override{return "JoinExpression(TODO)";}
+
+private:
+    std::unique_ptr<TableIdentifier> m_lhs, m_rhs;
+    std::unique_ptr<Identifier> m_on_lhs, m_on_rhs;
+    Type m_join_type;
 };
 
 class Expression : public ASTNode {

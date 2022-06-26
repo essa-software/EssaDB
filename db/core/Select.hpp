@@ -54,7 +54,7 @@ class Select {
 public:
     struct SelectOptions {
         SelectColumns columns;
-        std::optional<std::string> from;
+        std::unique_ptr<TableExpression> from;
         std::unique_ptr<Expression> where = {};
         std::optional<OrderBy> order_by = {};
         std::optional<Top> top = {};
