@@ -22,6 +22,7 @@ public:
     virtual DbErrorOr<void> alter_column(Column) = 0;
     virtual DbErrorOr<void> drop_column(std::string const&) = 0;
     virtual DbErrorOr<void> insert(RowWithColumnNames::MapType) = 0;
+    virtual DbErrorOr<void> insert(Tuple const&) = 0;
     virtual int increment(std::string column) = 0;
 
     void export_to_csv(const std::string& path) const;
@@ -48,7 +49,7 @@ public:
 
     virtual size_t size() const override { return m_rows.size(); }
 
-    std::vector<Tuple> const& raw_rows() const { return m_rows; }
+    virtual std::vector<Tuple> const& raw_rows() const override { return m_rows; }
     std::vector<Tuple>& raw_rows() { return m_rows; }
 
     virtual DbErrorOr<void> truncate() override {
@@ -69,6 +70,7 @@ public:
     DbErrorOr<void> drop_constraint(std::string const& name);
 
     virtual DbErrorOr<void> insert(RowWithColumnNames::MapType) override;
+    virtual DbErrorOr<void> insert(Tuple const&) override;
 
     std::shared_ptr<AST::Expression> const& check_value() const { return m_check; }
     std::map<std::string, std::shared_ptr<AST::Expression>> const& check_map() const { return m_check_constraints; }

@@ -109,8 +109,7 @@ Core::DbErrorOr<Core::AST::Select> Parser::parse_select() {
     m_offset++;
 
     // FROM
-    // FIXME: make it an expression
-    std::optional<std::string> from_table;
+    std::unique_ptr<Core::AST::TableExpression> from_table = {};
     int jmp_from = 0, depth = 0;
     while (m_offset < m_tokens.size()) {
         auto from = m_tokens[m_offset++];
@@ -127,42 +126,8 @@ Core::DbErrorOr<Core::AST::Select> Parser::parse_select() {
             continue;
 
         if (from.type == Token::Type::KeywordFrom) {
-            jmp_from++;
-            while (true) {
-                jmp_from++;
-                auto table = m_tokens[m_offset++];
-
-                if (table.type == Token::Type::Eof)
-                    break;
-
-                if (!from_table)
-                    from_table = table.value;
-
-                std::optional<std::string> alias;
-
-                if (m_tokens[m_offset].type == Token::Type::KeywordAs) {
-                    m_offset++;
-                    jmp_from += 2;
-                    auto alias_token = m_tokens[m_offset++];
-
-                    if (table.type != Token::Type::Identifier)
-                        expected("Expected alias name after 'AS'", alias_token, m_offset - 1);
-                    alias = alias_token.value;
-                }
-
-                if (alias) {
-                    for (const auto& pair : m_table_aliases) {
-                        if (pair.first == *alias)
-                            return Core::DbError { "Table with alias '" + *alias + "' already exists!", m_offset - 1 };
-                    }
-                    m_table_aliases.push_back({ *alias, table.value });
-                }
-
-                auto comma = m_tokens[m_offset];
-                if (comma.type != Token::Type::Comma)
-                    break;
-                m_offset++;
-            }
+            from_table = TRY(parse_table_expression());
+            jmp_from = m_offset;
 
             break;
         }
@@ -238,7 +203,7 @@ Core::DbErrorOr<Core::AST::Select> Parser::parse_select() {
         select_into = table.value;
     }
 
-    m_offset += jmp_from;
+    m_offset = jmp_from;
 
     // WHERE
     std::unique_ptr<Core::AST::Expression> where;
@@ -344,7 +309,7 @@ Core::DbErrorOr<Core::AST::Select> Parser::parse_select() {
     return Core::AST::Select { start,
         Core::AST::Select::SelectOptions {
             .columns = Core::AST::SelectColumns { std::move(columns) },
-            .from = from_table,
+            .from = std::move(from_table),
             .where = std::move(where),
             .order_by = std::move(order),
             .top = std::move(top),
@@ -900,6 +865,10 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Expression>> Parser::parse_expression
     return maybe_operator;
 }
 
+Core::DbErrorOr<std::unique_ptr<Core::AST::TableExpression>> Parser::parse_table_expression(){
+    return TRY(parse_table_identifier());
+}
+
 Core::DbErrorOr<Core::AST::ExpressionOrIndex> Parser::parse_expression_or_index() {
     auto token = m_tokens[m_offset];
     if (token.type == Token::Type::Int) {
@@ -1290,6 +1259,38 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Identifier>> Parser::parse_identifier
     }
 
     return std::make_unique<Core::AST::Identifier>(m_offset - 1, name.value, std::move(table));
+}
+
+Core::DbErrorOr<std::unique_ptr<Core::AST::TableIdentifier>> Parser::parse_table_identifier() {
+    auto name = m_tokens[m_offset++];
+    std::optional<std::string> alias = {};
+
+    if (name.type != Token::Type::Identifier)
+        return expected("identifier", name, m_offset - 1);
+
+    auto alias_token = m_tokens[m_offset];
+    if (alias_token.type == Token::Type::Identifier) {
+        m_offset++;
+        alias = alias_token.value;
+    }else if(alias_token.type == Token::Type::KeywordAs){
+        m_offset++;
+
+        alias_token = m_tokens[m_offset++];
+
+        if (alias_token.type != Token::Type::Identifier) 
+            return expected("identifier", alias_token, m_offset - 1);
+        alias = alias_token.value;
+    }
+
+    if (alias) {
+        for (const auto& pair : m_table_aliases) {
+            if (pair.first == name.value)
+                return Core::DbError { "Alias '" + *alias + "' already exists!", m_offset - 1 };
+        }
+        m_table_aliases.push_back(std::make_pair(*alias, name.value));
+    }
+
+    return std::make_unique<Core::AST::TableIdentifier>(m_offset - 1, name.value);
 }
 
 Core::DbError Parser::expected(std::string what, Token got, size_t offset) {

@@ -37,7 +37,7 @@ SELECT CHAR(a FROM test
 -- error: Expected expression, got 'FROM'
 SELECT CHAR(a, FROM test;
 
--- error: Cannot use aggregate function here
+-- error: Expected identifier, got 'EOF'
 SELECT COUNT(a) FROM
 
 -- error: Expected identifier in aggregate function, got ')'

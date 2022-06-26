@@ -4,6 +4,7 @@
 #include "db/core/DbError.hpp"
 #include "db/core/Function.hpp"
 #include "db/util/Is.hpp"
+#include <memory>
 
 namespace Db::Core::AST {
 
@@ -14,11 +15,11 @@ DbErrorOr<ResultSet> Select::execute(Database& db) const {
     // TODO: ON
     // TODO: JOIN
 
-    auto table = m_options.from ? TRY(db.table(*m_options.from)) : nullptr;
+    std::unique_ptr<Table> table = m_options.from ? TRY(m_options.from->evaluate(&db)) : nullptr;
 
     SelectColumns select_all_columns;
 
-    SelectColumns const& columns = *TRY([this, table, &select_all_columns]() -> DbErrorOr<SelectColumns const*> {
+    SelectColumns const& columns = *TRY([this, table = table.get(), &select_all_columns]() -> DbErrorOr<SelectColumns const*> {
         if (m_options.columns.select_all()) {
             if (!table) {
                 return DbError { "You need a table to do SELECT *", m_start };
@@ -33,7 +34,7 @@ DbErrorOr<ResultSet> Select::execute(Database& db) const {
         return &m_options.columns;
     }());
 
-    EvaluationContext context { .columns = columns, .table = table, .db = &db, .row_type = EvaluationContext::RowType::FromTable };
+    EvaluationContext context { .columns = columns, .table = table.get(), .db = &db, .row_type = EvaluationContext::RowType::FromTable };
 
     auto rows = TRY([&]() -> DbErrorOr<std::vector<TupleWithSource>> {
         if (m_options.from) {

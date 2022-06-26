@@ -98,6 +98,7 @@ public:
     virtual ~AbstractTable() = default;
 
     virtual std::vector<Column> const& columns() const = 0;
+    virtual std::vector<Tuple> const& raw_rows() const = 0;
     virtual AbstractTableRowIterator<true> rows() const = 0;
     virtual AbstractTableRowIterator<false> rows_writable() = 0;
     virtual size_t size() const = 0;
@@ -107,6 +108,7 @@ public:
         Column const& column;
     };
     std::optional<ResolvedColumn> get_column(std::string const& name) const;
+    std::optional<ResolvedColumn> get_column(std::string const& name, Table* table) const;
 };
 
 // An abstract table iterator that iterates over a container

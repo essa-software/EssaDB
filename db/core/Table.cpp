@@ -36,6 +36,8 @@ DbErrorOr<void> MemoryBackedTable::add_column(Column column) {
         // TODO: Save location info
         return DbError { "Duplicate column '" + column.name() + "'", 0 };
     }
+    if(!column.original_table())
+        column.set_table(this);
     m_columns.push_back(std::move(column));
 
     for (auto& row : m_rows) {
@@ -146,6 +148,11 @@ DbErrorOr<void> MemoryBackedTable::drop_constraint(const std::string &name){
 
 DbErrorOr<void> MemoryBackedTable::insert(RowWithColumnNames::MapType map) {
     m_rows.push_back(TRY(RowWithColumnNames::from_map(*this, map)).row());
+    return {};
+}
+
+DbErrorOr<void> MemoryBackedTable::insert(Tuple const& row) {
+    m_rows.push_back(row);
     return {};
 }
 
