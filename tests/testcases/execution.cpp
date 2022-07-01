@@ -69,13 +69,6 @@ DbErrorOr<void> select_top_perc() {
     return {};
 }
 
-DbErrorOr<void> select_distinct() {
-    auto db = TRY(setup_db());
-    auto result = TRY(TRY(Db::Sql::run_query(db, "SELECT DISTINCT * FROM test;")).to_select_result());
-    TRY(expect_equal<size_t>(result.rows().size(), 6, "select result is truncated to specified value"));
-    return {};
-}
-
 DbErrorOr<void> select_with_union() {
     auto db = TRY(setup_db());
     auto result = TRY(TRY(Db::Sql::run_query(db, "SELECT id AS ID, number AS NUM, string AS STR FROM test ORDER BY number ASC UNION SELECT id AS ID, number AS NUM, string AS STR FROM test ORDER BY number DESC")).to_select_result());
@@ -124,7 +117,6 @@ std::map<std::string, TestFunc> get_tests() {
         { "select_order_by_desc", select_order_by_desc },
         { "select_top_number", select_top_number },
         { "select_top_perc", select_top_perc },
-        { "select_distinct", select_distinct },
         { "select_with_aliases", select_with_aliases },
         { "select_aliases_with_square_brackets", select_aliases_with_square_brackets },
         { "select_case", select_case },
