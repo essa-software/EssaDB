@@ -19,11 +19,7 @@ jobs:
       run: |
         git clone https://github.com/essa-software/EssaGUI.git
         cd EssaGUI
-        mkdir build
-        cd build
-        cmake .. -GNinja
-        ninja
-        sudo ninja install
+        ./install.sh
     - name: Generate build system
       run: |
         mkdir build
