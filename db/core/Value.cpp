@@ -3,7 +3,7 @@
 #include "DbError.hpp"
 #include "ResultSet.hpp"
 #include "Tuple.hpp"
-#include "db/util/Clock.hpp"
+#include <EssaUtil/SimulationClock.hpp>
 
 #include <cctype>
 #include <chrono>
@@ -49,7 +49,7 @@ DbErrorOr<Value> Value::from_string(Type type, std::string const& string) {
             return Value::create_bool(false);
         return DbError { "Bool value must be either 'true' or 'false', got '" + string + "'", 0 };
     case Type::Time:
-        return Value::create_time(string, Util::Clock::Format::NO_CLOCK_AMERICAN);
+        return Value::create_time(string, Util::SimulationClock::Format::NO_CLOCK_AMERICAN);
     case Type::SelectResult:
         return DbError { "Internal error: TODO: Parse string into SelectResult", 0 };
     }
@@ -76,14 +76,14 @@ Value Value::create_bool(bool b) {
     return Value { b, Type::Bool };
 }
 
-Value Value::create_time(Util::Clock::time_point t) {
+Value Value::create_time(Util::SimulationClock::time_point t) {
     return Value { t, Type::Time };
 }
 
-Value Value::create_time(std::string time, Util::Clock::Format format) {
+Value Value::create_time(std::string time, Util::SimulationClock::Format format) {
     // FIXME: Add some ate format checking ASAP
     switch (format) {
-    case Util::Clock::Format::NO_CLOCK_AMERICAN: {
+    case Util::SimulationClock::Format::NO_CLOCK_AMERICAN: {
         size_t year = 0, month = 0, day = 0, counter = 0;
         std::string str = "";
 
@@ -110,7 +110,7 @@ Value Value::create_time(std::string time, Util::Clock::Format format) {
 
         if (!str.empty())
             day = std::stoi(str);
-        return Value(Util::Time::create(year, month, day), Type::Time);
+        return Value(Util::SimulationTime::create(year, month, day), Type::Time);
     }
     default:
         return Value::null();
@@ -142,7 +142,7 @@ DbErrorOr<int> Value::to_int() const {
     case Type::Bool:
         return std::get<bool>(*this) ? 1 : 0;
     case Type::Time:
-        return static_cast<int>(std::get<Util::Clock::time_point>(*this).time_since_epoch().count());
+        return static_cast<int>(std::get<Util::SimulationClock::time_point>(*this).time_since_epoch().count());
     case Type::SelectResult: {
         auto select_result = std::get<ResultSet>(*this);
         if (select_result.rows().size() != 1)
@@ -202,8 +202,8 @@ DbErrorOr<std::string> Value::to_string() const {
     case Type::Bool:
         return std::get<bool>(*this) ? "true" : "false";
     case Type::Time: {
-        Util::time_format = Util::Clock::Format::NO_CLOCK_AMERICAN;
-        auto time_point = std::get<Util::Clock::time_point>(*this);
+        Util::SimulationClock::time_format = Util::SimulationClock::Format::NO_CLOCK_AMERICAN;
+        auto time_point = std::get<Util::SimulationClock::time_point>(*this);
         std::ostringstream stream;
         stream << time_point;
         return stream.str();
@@ -284,8 +284,8 @@ DbErrorOr<Value> operator+(Value const& lhs, Value const& rhs) {
         return Value::create_varchar(TRY(lhs.to_string()) + TRY(rhs.to_string()));
     case Value::Type::Time: {
         time_t time = TRY(lhs.to_int()) + TRY(rhs.to_int());
-        Util::Clock::duration dur(time);
-        return Value::create_time(Util::Clock::time_point(dur));
+        Util::SimulationClock::duration dur(time);
+        return Value::create_time(Util::SimulationClock::time_point(dur));
     }
     case Value::Type::SelectResult:
         return DbError { "No matching operator '+' for 'SelectResult' type.", 0 };
@@ -309,8 +309,8 @@ DbErrorOr<Value> operator-(Value const& lhs, Value const& rhs) {
         return DbError { "No matching operator '-' for 'VARCHAR' type.", 0 };
     case Value::Type::Time: {
         time_t time = TRY(lhs.to_int()) - TRY(rhs.to_int());
-        Util::Clock::duration dur(time);
-        return Value::create_time(Util::Clock::time_point(dur));
+        Util::SimulationClock::duration dur(time);
+        return Value::create_time(Util::SimulationClock::time_point(dur));
     }
     case Value::Type::SelectResult:
         return DbError { "No matching operator '-' for 'SelectResult' type.", 0 };

@@ -1,7 +1,6 @@
 #include "setup.hpp"
-#include "db/core/DbError.hpp"
 
-#include <db/util/Error.hpp>
+#include <db/core/DbError.hpp>
 #include <iostream>
 
 using namespace Db::Core;
@@ -31,8 +30,8 @@ int main(int argc, char* argv[]) {
     std::map<std::string, TestFunc> funcs = get_tests();
 
     if (argc == 2) {
-        if (std::string_view{argv[1]} == "list") {
-            for (auto const& func: funcs) {
+        if (std::string_view { argv[1] } == "list") {
+            for (auto const& func : funcs) {
                 std::cout << func.first << std::endl;
             }
             return 0;

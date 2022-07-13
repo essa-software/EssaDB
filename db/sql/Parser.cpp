@@ -865,7 +865,7 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Expression>> Parser::parse_expression
     return maybe_operator;
 }
 
-Core::DbErrorOr<std::unique_ptr<Core::AST::TableExpression>> Parser::parse_table_expression(){
+Core::DbErrorOr<std::unique_ptr<Core::AST::TableExpression>> Parser::parse_table_expression() {
     return TRY(parse_table_identifier());
 }
 
@@ -904,7 +904,7 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Literal>> Parser::parse_literal() {
     }
     else if (token.type == Token::Type::Date) {
         m_offset++;
-        return std::make_unique<Core::AST::Literal>(start, Core::Value::create_time(token.value, Util::Clock::Format::NO_CLOCK_AMERICAN));
+        return std::make_unique<Core::AST::Literal>(start, Core::Value::create_time(token.value, Util::SimulationClock::Format::NO_CLOCK_AMERICAN));
     }
     else if (token.type == Token::Type::KeywordNull) {
         m_offset++;
@@ -1272,12 +1272,13 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::TableIdentifier>> Parser::parse_table
     if (alias_token.type == Token::Type::Identifier) {
         m_offset++;
         alias = alias_token.value;
-    }else if(alias_token.type == Token::Type::KeywordAs){
+    }
+    else if (alias_token.type == Token::Type::KeywordAs) {
         m_offset++;
 
         alias_token = m_tokens[m_offset++];
 
-        if (alias_token.type != Token::Type::Identifier) 
+        if (alias_token.type != Token::Type::Identifier)
             return expected("identifier", alias_token, m_offset - 1);
         alias = alias_token.value;
     }
