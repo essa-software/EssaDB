@@ -19,3 +19,4 @@ add_library(
 )
 
 setup_target(essadb)
+target_link_libraries(essadb PUBLIC essautil)

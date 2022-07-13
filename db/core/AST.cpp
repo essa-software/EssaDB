@@ -9,8 +9,8 @@
 #include "db/core/AbstractTable.hpp"
 #include "db/core/RowWithColumnNames.hpp"
 
+#include <EssaUtil/Is.hpp>
 #include <cctype>
-#include <db/util/Is.hpp>
 #include <iostream>
 #include <memory>
 #include <span>

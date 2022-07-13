@@ -1,6 +1,6 @@
 #pragma once
 
-#include <db/util/Error.hpp>
+#include <EssaUtil/Error.hpp>
 #include <string>
 
 namespace Db::Core {

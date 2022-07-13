@@ -7,7 +7,7 @@
 #include "RowWithColumnNames.hpp"
 #include "db/core/Expression.hpp"
 
-#include <db/util/NonCopyable.hpp>
+#include <EssaUtil/NonCopyable.hpp>
 #include <memory>
 #include <optional>
 #include <set>

@@ -1,8 +1,8 @@
 #pragma once
 
-#include "../util/Clock.hpp"
 #include "DbError.hpp"
 #include "ResultSet.hpp"
+#include <EssaUtil/SimulationClock.hpp>
 
 #include <optional>
 #include <string>
@@ -12,7 +12,7 @@ namespace Db::Core {
 
 class ResultSet;
 
-using ValueBase = std::variant<std::monostate, int, float, std::string, bool, Util::Clock::time_point, ResultSet>;
+using ValueBase = std::variant<std::monostate, int, float, std::string, bool, Util::SimulationClock::time_point, ResultSet>;
 
 class Value : public ValueBase {
 public:
@@ -47,8 +47,8 @@ public:
     static Value create_float(float f);
     static Value create_varchar(std::string s);
     static Value create_bool(bool b);
-    static Value create_time(Util::Clock::time_point clock);
-    static Value create_time(std::string str, Util::Clock::Format format);
+    static Value create_time(Util::SimulationClock::time_point clock);
+    static Value create_time(std::string str, Util::SimulationClock::Format format);
     static Value create_select_result(ResultSet);
 
     DbErrorOr<int> to_int() const;
