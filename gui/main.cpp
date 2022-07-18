@@ -27,8 +27,7 @@ int main() {
 
     Db::Core::Database db;
 
-    run_button->on_click = [&]() {
-        auto query = text_editor->get_content();
+    auto run_sql = [&](Util::UString const& query) {
         console->append_content({ .color = Util::Color { 100, 100, 255 }, .text = "> " + query });
         auto result = Db::Sql::run_query(db, query.encode());
         if (result.is_error()) {
@@ -40,6 +39,9 @@ int main() {
             console->append_content({ .color = Util::Colors::white, .text = Util::UString { oss.str() } });
         }
     };
+
+    run_button->on_click = [&]() { run_sql(text_editor->get_content()); };
+    text_editor->on_enter = [&](Util::UString const& query) { run_sql(query); };
 
     app.run();
     return 0;
