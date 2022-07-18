@@ -7,7 +7,7 @@
 #include <sstream>
 
 int main() {
-    GUI::SFMLWindow window { sf::VideoMode { 500, 500 }, "EssaDB", sf::Style::Default, sf::ContextSettings { 0, 0, 0, 3, 2 } };
+    GUI::Window window { { 500, 500 }, "EssaDB" };
 
     GUI::Application app { window };
 
@@ -32,7 +32,7 @@ int main() {
         console->append_content({ .color = Util::Color { 100, 100, 255 }, .text = "> " + query });
         auto result = Db::Sql::run_query(db, query.encode());
         if (result.is_error()) {
-            console->append_content({ .color = Util::Color::Red, .text = Util::UString { result.release_error().message() } });
+            console->append_content({ .color = Util::Colors::red, .text = Util::UString { result.release_error().message() } });
         }
         else {
             std::ostringstream oss;
