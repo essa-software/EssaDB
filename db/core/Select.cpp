@@ -1,5 +1,6 @@
 #include "Select.hpp"
 #include "Value.hpp"
+#include "db/core/Expression.hpp"
 #include <EssaUtil/Is.hpp>
 #include <db/core/Database.hpp>
 #include <db/core/DbError.hpp>
@@ -189,7 +190,7 @@ DbErrorOr<std::vector<TupleWithSource>> Select::collect_rows(EvaluationContext& 
     }
     else {
         for (auto const& column : context.columns.columns()) {
-            if (Util::is<AggregateFunction>(*column.column)) {
+            if (column.column->contains_aggregate_function()) {
                 should_group = true;
                 break;
             }
@@ -248,8 +249,8 @@ DbErrorOr<std::vector<TupleWithSource>> Select::collect_rows(EvaluationContext& 
             context.row_group = group.second;
             std::vector<Value> values;
             for (auto& column : context.columns.columns()) {
-                if (auto aggregate_column = dynamic_cast<AggregateFunction*>(column.column.get()); aggregate_column) {
-                    values.push_back(TRY(aggregate_column->aggregate(context, group.second)));
+                if (column.column->contains_aggregate_function()) {
+                    values.push_back(TRY(column.column->evaluate(context, {})));
                 }
                 else if (is_in_group_by(column)) {
                     values.push_back(TRY(column.column->evaluate_and_require_single_value(context, { .tuple = group.second[0], .source = {} }, "column value")));

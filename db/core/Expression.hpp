@@ -144,6 +144,7 @@ public:
     virtual DbErrorOr<Value> evaluate(EvaluationContext&, TupleWithSource const&) const = 0;
     virtual std::string to_string() const = 0;
     virtual std::vector<std::string> referenced_columns() const { return {}; }
+    virtual bool contains_aggregate_function() const { return false; }
 
     // run_from will be added to error message.
     DbErrorOr<Value> evaluate_and_require_single_value(EvaluationContext&, TupleWithSource const&, std::string run_from = "") const;
@@ -214,6 +215,7 @@ public:
         lhs_columns.insert(lhs_columns.begin(), rhs_columns.begin(), rhs_columns.end());
         return lhs_columns;
     }
+    virtual bool contains_aggregate_function() const override { return m_lhs->contains_aggregate_function() || m_rhs->contains_aggregate_function(); }
 
 private:
     DbErrorOr<bool> is_true(EvaluationContext&, TupleWithSource const&) const;
@@ -251,6 +253,8 @@ public:
         return lhs_columns;
     }
 
+    virtual bool contains_aggregate_function() const override { return m_lhs->contains_aggregate_function() || m_rhs->contains_aggregate_function(); }
+
 private:
     DbErrorOr<bool> is_true(EvaluationContext&, Tuple const&) const;
 
@@ -284,6 +288,8 @@ public:
         lhs_columns.insert(lhs_columns.end(), max_columns.begin(), max_columns.end());
         return lhs_columns;
     }
+
+    virtual bool contains_aggregate_function() const override { return m_lhs->contains_aggregate_function() || m_min->contains_aggregate_function() || m_max->contains_aggregate_function(); }
 
 private:
     std::unique_ptr<Expression> m_lhs;
@@ -323,6 +329,16 @@ public:
         return lhs_columns;
     }
 
+    virtual bool contains_aggregate_function() const override {
+        if (m_lhs->contains_aggregate_function())
+            return true;
+        for (auto const& arg : m_args) {
+            if (arg->contains_aggregate_function())
+                return true;
+        }
+        return false;
+    }
+
 private:
     std::unique_ptr<Expression> m_lhs;
     std::vector<std::unique_ptr<Core::AST::Expression>> m_args;
@@ -348,6 +364,10 @@ public:
 
     virtual std::vector<std::string> referenced_columns() const override {
         return m_lhs->referenced_columns();
+    }
+
+    virtual bool contains_aggregate_function() const override {
+        return m_lhs->contains_aggregate_function();
     }
 
 private:
@@ -389,6 +409,16 @@ public:
             else_columns.insert(else_columns.end(), expr_columns.begin(), expr_columns.end());
         }
         return else_columns;
+    }
+
+    virtual bool contains_aggregate_function() const override {
+        if (m_else_value->contains_aggregate_function())
+            return true;
+        for (auto const& case_ : m_cases) {
+            if (case_.expr->contains_aggregate_function())
+                return true;
+        }
+        return false;
     }
 
 private:

@@ -50,6 +50,7 @@ public:
     DbErrorOr<Value> aggregate(EvaluationContext&, std::span<Tuple const> rows) const;
 
     virtual std::vector<std::string> referenced_columns() const override { return { m_column }; }
+    virtual bool contains_aggregate_function() const override { return true; }
 
 private:
     Function m_function {};
