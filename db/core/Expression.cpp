@@ -16,125 +16,132 @@ DbErrorOr<Value> Expression::evaluate_and_require_single_value(EvaluationContext
     return select_result.as_value();
 }
 
-DbErrorOr<std::unique_ptr<Table>> TableIdentifier::evaluate(Database *db) const{
+DbErrorOr<std::unique_ptr<Table>> TableIdentifier::evaluate(Database* db) const {
     auto table_ptr = TRY(db->table(m_id));
     MemoryBackedTable table(nullptr, {});
 
-    for(const auto& column : table_ptr->columns()){
+    for (const auto& column : table_ptr->columns()) {
         TRY(table.add_column(column));
     }
 
-    for(const auto& row : table_ptr->raw_rows()){
+    for (const auto& row : table_ptr->raw_rows()) {
         TRY(table.insert(row));
     }
-    
+
     return std::make_unique<MemoryBackedTable>(std::move(table));
 }
 
-DbErrorOr<std::unique_ptr<Table>> JoinExpression::evaluate(Database *db) const{
+DbErrorOr<std::unique_ptr<Table>> JoinExpression::evaluate(Database* db) const {
     MemoryBackedTable table(nullptr, {});
 
     auto lhs = TRY(m_lhs->evaluate(db));
     auto rhs = TRY(m_rhs->evaluate(db));
 
-    for(const auto& column : lhs->columns()){
-        TRY(table.add_column(column));
-    }  
-
-    for(const auto& column : rhs->columns()){
+    for (const auto& column : lhs->columns()) {
         TRY(table.add_column(column));
     }
 
-    EvaluationContext lhs_context{.columns = {}, .table = lhs.get()};
-    EvaluationContext rhs_context{.columns = {}, .table = rhs.get()};
+    for (const auto& column : rhs->columns()) {
+        TRY(table.add_column(column));
+    }
+
+    EvaluationContext lhs_context { .columns = {}, .table = lhs.get() };
+    EvaluationContext rhs_context { .columns = {}, .table = rhs.get() };
 
     std::set<const Tuple*> lhs_markers;
     std::set<const Tuple*> rhs_markers;
 
-    for(const auto& lhs_row : lhs->raw_rows()){
-        auto lhs_value = TRY(m_on_lhs->evaluate(lhs_context, TupleWithSource{.tuple = Tuple{lhs_row}, .source = {}}));
+    for (const auto& lhs_row : lhs->raw_rows()) {
+        auto lhs_value = TRY(m_on_lhs->evaluate(lhs_context, TupleWithSource { .tuple = Tuple { lhs_row }, .source = {} }));
 
-        for(const auto& rhs_row : rhs->raw_rows()){
-            if(lhs_markers.find(&lhs_row) != lhs_markers.end() || rhs_markers.find(&rhs_row) != rhs_markers.end())
+        for (const auto& rhs_row : rhs->raw_rows()) {
+            if (lhs_markers.find(&lhs_row) != lhs_markers.end() || rhs_markers.find(&rhs_row) != rhs_markers.end())
                 continue;
 
-            auto rhs_value = TRY(m_on_rhs->evaluate(rhs_context, TupleWithSource{.tuple = Tuple{rhs_row}, .source = {}}));
+            auto rhs_value = TRY(m_on_rhs->evaluate(rhs_context, TupleWithSource { .tuple = Tuple { rhs_row }, .source = {} }));
             std::vector<Value> new_row;
 
             bool values_matches = lhs_value.type() == rhs_value.type() && TRY(lhs_value == rhs_value);
 
-            if(m_join_type == Type::InnerJoin){
-                if(values_matches){
-                    for(const auto& lhs_val : lhs_row){
+            if (m_join_type == Type::InnerJoin) {
+                if (values_matches) {
+                    for (const auto& lhs_val : lhs_row) {
                         new_row.push_back(lhs_val);
                     }
 
-                    for(const auto& rhs_val : rhs_row){
+                    for (const auto& rhs_val : rhs_row) {
                         new_row.push_back(rhs_val);
                     }
 
                     lhs_markers.insert(&lhs_row);
                     rhs_markers.insert(&rhs_row);
-                }else {
+                }
+                else {
                     continue;
                 }
-            }else if(m_join_type == Type::LeftJoin){
-                for(const auto& lhs_val : lhs_row){
+            }
+            else if (m_join_type == Type::LeftJoin) {
+                for (const auto& lhs_val : lhs_row) {
                     new_row.push_back(lhs_val);
                 }
                 lhs_markers.insert(&lhs_row);
 
-                if(values_matches){
-                    for(const auto& rhs_val : rhs_row){
+                if (values_matches) {
+                    for (const auto& rhs_val : rhs_row) {
                         new_row.push_back(rhs_val);
                     }
                     rhs_markers.insert(&rhs_row);
-                }else {
-                    for(const auto& rhs_val : rhs_row){
+                }
+                else {
+                    for (const auto& rhs_val : rhs_row) {
                         new_row.push_back(rhs_val.null());
                     }
                 }
-            }else if(m_join_type == Type::RightJoin){
-                if(values_matches){
-                    for(const auto& lhs_val : lhs_row){
+            }
+            else if (m_join_type == Type::RightJoin) {
+                if (values_matches) {
+                    for (const auto& lhs_val : lhs_row) {
                         new_row.push_back(lhs_val);
                     }
                     lhs_markers.insert(&lhs_row);
-                }else {
-                    for(const auto& lhs_val : lhs_row){
+                }
+                else {
+                    for (const auto& lhs_val : lhs_row) {
                         new_row.push_back(lhs_val.null());
                     }
                 }
 
-                for(const auto& rhs_val : rhs_row){
+                for (const auto& rhs_val : rhs_row) {
                     new_row.push_back(rhs_val);
                 }
                 rhs_markers.insert(&rhs_row);
-            }else if(m_join_type == Type::OuterJoin){
-                if(lhs_value.type() == rhs_value.type() && TRY(lhs_value == rhs_value)){
-                    for(const auto& lhs_val : lhs_row){
+            }
+            else if (m_join_type == Type::OuterJoin) {
+                if (lhs_value.type() == rhs_value.type() && TRY(lhs_value == rhs_value)) {
+                    for (const auto& lhs_val : lhs_row) {
                         new_row.push_back(lhs_val);
                     }
 
-                    for(const auto& rhs_val : rhs_row){
+                    for (const auto& rhs_val : rhs_row) {
                         new_row.push_back(rhs_val);
                     }
-                }else {
+                }
+                else {
                     continue;
                 }
-            }else{
-                DbError {"Unrecognized JOIN type", 0};
+            }
+            else {
+                DbError { "Unrecognized JOIN type", 0 };
             }
 
-            if(lhs_value.type() != rhs_value.type())
+            if (lhs_value.type() != rhs_value.type())
                 continue;
-            
-            if(TRY(lhs_value != rhs_value))
+
+            if (TRY(lhs_value != rhs_value))
                 continue;
-            
         }
     }
-    
+
     return std::make_unique<MemoryBackedTable>(std::move(table));
 }
 
@@ -142,14 +149,15 @@ DbErrorOr<Value> Identifier::evaluate(EvaluationContext& context, TupleWithSourc
     if (context.row_type == EvaluationContext::RowType::FromTable) {
         size_t index = 0;
         if (context.table) {
-            if(m_table){
+            if (m_table) {
                 auto table = TRY(context.db->table(*m_table));
 
                 auto column = context.table->get_column(m_id, table);
                 if (!column)
                     return DbError { "No such column: " + m_id, start() };
                 index = column->index;
-            }else{
+            }
+            else {
                 auto column = context.table->get_column(m_id);
                 if (!column)
                     return DbError { "No such column: " + m_id, start() };

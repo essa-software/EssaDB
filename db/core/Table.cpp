@@ -36,7 +36,7 @@ DbErrorOr<void> MemoryBackedTable::add_column(Column column) {
         // TODO: Save location info
         return DbError { "Duplicate column '" + column.name() + "'", 0 };
     }
-    if(!column.original_table())
+    if (!column.original_table())
         column.set_table(this);
     m_columns.push_back(std::move(column));
 
@@ -85,62 +85,62 @@ DbErrorOr<void> MemoryBackedTable::drop_column(std::string const& column) {
     return {};
 }
 
-DbErrorOr<void> MemoryBackedTable::add_check(std::shared_ptr<AST::Expression> expr){
-    if(m_check)
-        DbError {"Check already exists", 0};
-    
+DbErrorOr<void> MemoryBackedTable::add_check(std::shared_ptr<AST::Expression> expr) {
+    if (m_check)
+        DbError { "Check already exists", 0 };
+
     m_check = std::move(expr);
 
     return {};
 }
 
-DbErrorOr<void> MemoryBackedTable::alter_check(std::shared_ptr<AST::Expression> expr){
-    if(!m_check)
-        DbError {"No check to alter!", 0};
-    
+DbErrorOr<void> MemoryBackedTable::alter_check(std::shared_ptr<AST::Expression> expr) {
+    if (!m_check)
+        DbError { "No check to alter!", 0 };
+
     m_check = std::move(expr);
 
     return {};
 }
 
-DbErrorOr<void> MemoryBackedTable::drop_check(){
-    if(!m_check)
-        DbError {"No check to drop!", 0};
-    
+DbErrorOr<void> MemoryBackedTable::drop_check() {
+    if (!m_check)
+        DbError { "No check to drop!", 0 };
+
     delete m_check.get();
     m_check = nullptr;
 
     return {};
 }
 
-DbErrorOr<void> MemoryBackedTable::add_constraint(const std::string &name, std::shared_ptr<AST::Expression> expr){
+DbErrorOr<void> MemoryBackedTable::add_constraint(const std::string& name, std::shared_ptr<AST::Expression> expr) {
     auto constraint = m_check_constraints.find(name);
 
-    if(constraint != m_check_constraints.end())
-        DbError {"Constraint with name " + name + " already exists", 0};
-    
-    m_check_constraints.insert({name, std::move(expr)});
+    if (constraint != m_check_constraints.end())
+        DbError { "Constraint with name " + name + " already exists", 0 };
+
+    m_check_constraints.insert({ name, std::move(expr) });
 
     return {};
 }
 
-DbErrorOr<void> MemoryBackedTable::alter_constraint(const std::string &name, std::shared_ptr<AST::Expression> expr){
+DbErrorOr<void> MemoryBackedTable::alter_constraint(const std::string& name, std::shared_ptr<AST::Expression> expr) {
     auto constraint = m_check_constraints.find(name);
 
-    if(constraint == m_check_constraints.end())
-        DbError {"Constraint with name " + name + " not found", 0};
-    
+    if (constraint == m_check_constraints.end())
+        DbError { "Constraint with name " + name + " not found", 0 };
+
     constraint->second = std::move(expr);
 
     return {};
 }
 
-DbErrorOr<void> MemoryBackedTable::drop_constraint(const std::string &name){
+DbErrorOr<void> MemoryBackedTable::drop_constraint(const std::string& name) {
     auto constraint = m_check_constraints.find(name);
 
-    if(constraint == m_check_constraints.end())
-        DbError {"Constraint with name " + name + " not found", 0};
-        
+    if (constraint == m_check_constraints.end())
+        DbError { "Constraint with name " + name + " not found", 0 };
+
     m_check_constraints.erase(name);
 
     return {};
