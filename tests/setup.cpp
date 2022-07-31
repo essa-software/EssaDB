@@ -17,12 +17,12 @@ Db::Core::DbErrorOr<void> expect(bool b, std::string const& message) {
 extern std::map<std::string, TestFunc> get_tests();
 
 bool run_test(std::pair<std::string, TestFunc> const& test) {
+    std::cout << "\r\x1b[2K\e[1m .. \e[m " << test.first << std::flush;
     auto f = test.second();
     if (f.is_error()) {
-        std::cout << "\e[31;1mFAIL\e[m " << test.first << " " << f.release_error().message() << std::endl;
+        std::cout << "\r\x1b[2K\e[31;1mFAIL\e[m " << test.first << " " << f.release_error().message() << std::endl;
         return false;
     }
-    std::cout << "\e[32;1mPASS\e[m " << test.first << std::endl;
     return true;
 }
 
@@ -50,5 +50,6 @@ int main(int argc, char* argv[]) {
         success &= run_test(func);
     }
 
+    std::cout << "\r\x1b[2K";
     return success ? 0 : 1;
 }

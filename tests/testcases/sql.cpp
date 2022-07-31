@@ -66,18 +66,18 @@ bool display_error_if_error(Db::Core::DbErrorOr<Db::Core::Value>&& query_result,
             if (statement.display)
                 std::cout << "Expecting error: \e[31m" << *statement.expected_error << "\e[m" << std::endl;
             if (error.message() != *statement.expected_error) {
-                std::cout << " [FAIL] Incorrect error returned: '" << error.message() << "'" << std::endl;
+                std::cout << "\r\x1b[2K[FAIL] Incorrect error returned: \e[31m" << error.message() << "\e[m" << std::endl;
                 return false;
             }
         }
         else {
-            std::cout << " [FAIL] Expected result, but got error: " << error.message() << std::endl;
+            std::cout << "\r\x1b[2K[FAIL] Expected result, but got error: \e[31m" << error.message() << "\e[m" << std::endl;
             return false;
         }
     }
     else {
         if (statement.expected_error) {
-            std::cout << " [FAIL] Expected error, but got result:" << std::endl;
+            std::cout << "\r\x1b[2K[FAIL] Expected error, but got result:" << std::endl;
             query_result.release_value().repl_dump(std::cout);
             return false;
         }
@@ -85,9 +85,9 @@ bool display_error_if_error(Db::Core::DbErrorOr<Db::Core::Value>&& query_result,
             std::ostringstream output;
             query_result.value().repl_dump(output);
             if (output.str() != *statement.expected_output) {
-                std::cout << " [FAIL] Expected result: " << std::endl;
+                std::cout << "\r\x1b[2K[FAIL] Expected result: " << std::endl;
                 std::cout << *statement.expected_output << std::endl;
-                std::cout << " [FAIL] but got result: " << std::endl;
+                std::cout << "[FAIL] but got result: " << std::endl;
                 std::cout << output.str() << std::endl;
                 return false;
             }
@@ -207,10 +207,9 @@ std::map<std::string, TestFunc> get_tests() {
             Db::Core::Database db;
 
             bool success = true;
-            std::cout << "\e[1mTEST\e[m " << test_name.string() << std::endl;
             for (auto const& statement : statements) {
                 if (statement.skip) {
-                    std::cout << " [*] Skipped: " << statement.statement << std::endl;
+                    std::cout << "\r\x1b[2K[*] Skipped in " << test_name.string() << ": " << statement.statement << std::endl;
                     continue;
                 }
                 success &= display_error_if_error(run_query(db, statement), statement);
