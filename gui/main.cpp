@@ -31,12 +31,12 @@ int main() {
         console->append_content({ .color = Util::Color { 100, 100, 255 }, .text = "> " + query });
         auto result = Db::Sql::run_query(db, query.encode());
         if (result.is_error()) {
-            console->append_content({ .color = Util::Colors::red, .text = Util::UString { result.release_error().message() } });
+            console->append_content({ .color = Util::Colors::Red, .text = Util::UString { result.release_error().message() } });
         }
         else {
             std::ostringstream oss;
             result.release_value().repl_dump(oss);
-            console->append_content({ .color = Util::Colors::white, .text = Util::UString { oss.str() } });
+            console->append_content({ .color = Util::Colors::White, .text = Util::UString { oss.str() } });
         }
     };
 
