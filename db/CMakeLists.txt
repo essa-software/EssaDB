@@ -18,5 +18,5 @@ add_library(
     sql/SQL.cpp
 )
 
-setup_target(essadb)
+essautil_setup_target(essadb)
 target_link_libraries(essadb PUBLIC essautil)
