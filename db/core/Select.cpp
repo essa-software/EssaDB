@@ -43,13 +43,12 @@ DbErrorOr<ResultSet> Select::execute(Database& db) const {
             //       reading everything into memory.
             return collect_rows(context, *table);
         }
-        else {
-            std::vector<Value> values;
-            for (auto const& column : m_options.columns.columns()) {
-                values.push_back(TRY(column.column->evaluate_and_require_single_value(context, {}, "column value")));
-            }
-            return std::vector<TupleWithSource> { { .tuple = Tuple { values }, .source = {} } };
+
+        std::vector<Value> values;
+        for (auto const& column : m_options.columns.columns()) {
+            values.push_back(TRY(column.column->evaluate_and_require_single_value(context, {}, "column value")));
         }
+        return std::vector<TupleWithSource> { { .tuple = Tuple { values }, .source = {} } };
     }());
 
     context.row_type = EvaluationContext::RowType::FromResultSet;
