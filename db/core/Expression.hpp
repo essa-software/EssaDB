@@ -97,7 +97,7 @@ public:
         , m_id(id) { }
 
     virtual DbErrorOr<std::unique_ptr<Table>> evaluate(Database* db) const override;
-    virtual std::string to_string() const override {return m_id;}
+    virtual std::string to_string() const override { return m_id; }
 
 private:
     std::string m_id;
@@ -127,7 +127,7 @@ public:
         , m_join_type(join_type) { }
 
     virtual DbErrorOr<std::unique_ptr<Table>> evaluate(Database* db) const override;
-    virtual std::string to_string() const override{return "JoinExpression(TODO)";}
+    virtual std::string to_string() const override { return "JoinExpression(TODO)"; }
 
 private:
     std::unique_ptr<TableIdentifier> m_lhs, m_rhs;

@@ -44,13 +44,13 @@ DbErrorOr<RowWithColumnNames> RowWithColumnNames::from_map(Table& table, MapType
     AST::SelectColumns const& columns_to_context = *TRY([&table, &select_all_columns]() -> DbErrorOr<AST::SelectColumns const*> {
         std::vector<AST::SelectColumns::Column> all_columns;
         for (auto const& column : table.columns()) {
-            all_columns.push_back(AST::SelectColumns::Column { .column = std::make_unique<AST::Identifier>(0, column.name(), std::optional<std::string>{}) });
+            all_columns.push_back(AST::SelectColumns::Column { .column = std::make_unique<AST::Identifier>(0, column.name(), std::optional<std::string> {}) });
         }
         select_all_columns = AST::SelectColumns { std::move(all_columns) };
         return &select_all_columns;
     }());
-    
-    AST::EvaluationContext context{ .columns = columns_to_context, .table = &table, .row_type = AST::EvaluationContext::RowType::FromTable};
+
+    AST::EvaluationContext context { .columns = columns_to_context, .table = &table, .row_type = AST::EvaluationContext::RowType::FromTable };
 
     // Null check
     for (size_t s = 0; s < row.size(); s++) {
@@ -74,17 +74,17 @@ DbErrorOr<RowWithColumnNames> RowWithColumnNames::from_map(Table& table, MapType
 
     auto memory_backed_table = dynamic_cast<MemoryBackedTable*>(&table);
 
-    if(!memory_backed_table)
+    if (!memory_backed_table)
         return DbError { "Table with invalid type!", 0 };
 
-    if(memory_backed_table->check_value()){
-        if(!TRY(TRY(memory_backed_table->check_value()->evaluate(context, AST::TupleWithSource{.tuple = Tuple{row}, .source = {}})).to_bool()))
+    if (memory_backed_table->check_value()) {
+        if (!TRY(TRY(memory_backed_table->check_value()->evaluate(context, AST::TupleWithSource { .tuple = Tuple { row }, .source = {} })).to_bool()))
             return DbError { "Values doesn't match general check rule specified for this table", 0 };
     }
 
-    for(const auto& expr : memory_backed_table->check_map()){
-        if(!TRY(TRY(expr.second->evaluate(context, AST::TupleWithSource{.tuple = Tuple{row}, .source = {}})).to_bool()))
-            return DbError { "Values doesn't match '" + expr.first +"' check rule specified for this table", 0 };
+    for (const auto& expr : memory_backed_table->check_map()) {
+        if (!TRY(TRY(expr.second->evaluate(context, AST::TupleWithSource { .tuple = Tuple { row }, .source = {} })).to_bool()))
+            return DbError { "Values doesn't match '" + expr.first + "' check rule specified for this table", 0 };
     }
 
     return RowWithColumnNames { Tuple { row }, table };

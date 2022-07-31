@@ -9,7 +9,7 @@ Column::Column(std::string name, Value::Type type, bool ai, bool un, bool nn, st
     , m_auto_increment(ai)
     , m_unique(un)
     , m_not_null(nn)
-    , m_default_value(std::move(def_val)) {}
+    , m_default_value(std::move(def_val)) { }
 
 bool operator<(Tuple const& lhs, Tuple const& rhs) {
     for (size_t s = 0; s < std::max(lhs.value_count(), rhs.value_count()); s++) {

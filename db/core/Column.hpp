@@ -7,7 +7,7 @@
 #include <string>
 
 namespace Db::Core {
-    class Table;
+class Table;
 
 class Column {
 public:
