@@ -77,12 +77,12 @@ DbErrorOr<RowWithColumnNames> RowWithColumnNames::from_map(Table& table, MapType
     if (!memory_backed_table)
         return DbError { "Table with invalid type!", 0 };
 
-    if (memory_backed_table->check_value()) {
-        if (!TRY(TRY(memory_backed_table->check_value()->evaluate(context, AST::TupleWithSource { .tuple = Tuple { row }, .source = {} })).to_bool()))
+    if (memory_backed_table->check()->main_rule()) {
+        if (!TRY(TRY(memory_backed_table->check()->main_rule()->evaluate(context, AST::TupleWithSource { .tuple = Tuple { row }, .source = {} })).to_bool()))
             return DbError { "Values doesn't match general check rule specified for this table", 0 };
     }
 
-    for (const auto& expr : memory_backed_table->check_map()) {
+    for (const auto& expr : memory_backed_table->check()->constraints()) {
         if (!TRY(TRY(expr.second->evaluate(context, AST::TupleWithSource { .tuple = Tuple { row }, .source = {} })).to_bool()))
             return DbError { "Values doesn't match '" + expr.first + "' check rule specified for this table", 0 };
     }

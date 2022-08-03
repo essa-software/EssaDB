@@ -1,6 +1,7 @@
 #include "Expression.hpp"
 #include "Database.hpp"
 #include "Table.hpp"
+#include "db/core/DbError.hpp"
 #include <memory>
 #include <vector>
 
@@ -16,9 +17,84 @@ DbErrorOr<Value> Expression::evaluate_and_require_single_value(EvaluationContext
     return select_result.as_value();
 }
 
+DbErrorOr<Value> Check::evaluate(EvaluationContext &context, const TupleWithSource &row) const{
+    if(TRY(TRY(m_main_check->evaluate(context, row)).to_bool())){
+        return Value::create_bool(false);
+    }
+
+    for(const auto& check : m_constraints){
+        if(TRY(TRY(check.second->evaluate(context, row)).to_bool())){
+            return Value::create_bool(false);
+        }
+    }
+
+    return Value::create_bool(true);
+}
+
+DbErrorOr<void> Check::add_check(std::shared_ptr<AST::Expression> expr) {
+    if (m_main_check)
+        DbError { "Check already exists", 0 };
+
+    m_main_check = std::move(expr);
+
+    return {};
+}
+
+DbErrorOr<void> Check::alter_check(std::shared_ptr<AST::Expression> expr) {
+    if (!m_main_check)
+        DbError { "No check to alter!", 0 };
+
+    m_main_check = std::move(expr);
+
+    return {};
+}
+
+DbErrorOr<void> Check::drop_check() {
+    if (!m_main_check)
+        DbError { "No check to drop!", 0 };
+
+    delete m_main_check.get();
+    m_main_check = nullptr;
+
+    return {};
+}
+
+DbErrorOr<void> Check::add_constraint(const std::string& name, std::shared_ptr<AST::Expression> expr) {
+    auto constraint = m_constraints.find(name);
+
+    if (constraint != m_constraints.end())
+        DbError { "Constraint with name " + name + " already exists", 0 };
+
+    m_constraints.insert({ name, std::move(expr) });
+
+    return {};
+}
+
+DbErrorOr<void> Check::alter_constraint(const std::string& name, std::shared_ptr<AST::Expression> expr) {
+    auto constraint = m_constraints.find(name);
+
+    if (constraint == m_constraints.end())
+        DbError { "Constraint with name " + name + " not found", 0 };
+
+    constraint->second = std::move(expr);
+
+    return {};
+}
+
+DbErrorOr<void> Check::drop_constraint(const std::string& name) {
+    auto constraint = m_constraints.find(name);
+
+    if (constraint == m_constraints.end())
+        DbError { "Constraint with name " + name + " not found", 0 };
+
+    m_constraints.erase(name);
+
+    return {};
+}
+
 DbErrorOr<std::unique_ptr<Table>> TableIdentifier::evaluate(Database* db) const {
     auto table_ptr = TRY(db->table(m_id));
-    MemoryBackedTable table(nullptr, {});
+    MemoryBackedTable table(nullptr);
 
     for (const auto& column : table_ptr->columns()) {
         TRY(table.add_column(column));
@@ -32,114 +108,38 @@ DbErrorOr<std::unique_ptr<Table>> TableIdentifier::evaluate(Database* db) const 
 }
 
 DbErrorOr<std::unique_ptr<Table>> JoinExpression::evaluate(Database* db) const {
-    MemoryBackedTable table(nullptr, {});
+    MemoryBackedTable table(nullptr);
 
     auto lhs = TRY(m_lhs->evaluate(db));
     auto rhs = TRY(m_rhs->evaluate(db));
+    
+    switch (m_join_type) {
+        case Type::InnerJoin:{
 
-    for (const auto& column : lhs->columns()) {
-        TRY(table.add_column(column));
-    }
 
-    for (const auto& column : rhs->columns()) {
-        TRY(table.add_column(column));
-    }
-
-    EvaluationContext lhs_context { .columns = {}, .table = lhs.get() };
-    EvaluationContext rhs_context { .columns = {}, .table = rhs.get() };
-
-    std::set<const Tuple*> lhs_markers;
-    std::set<const Tuple*> rhs_markers;
-
-    for (const auto& lhs_row : lhs->raw_rows()) {
-        auto lhs_value = TRY(m_on_lhs->evaluate(lhs_context, TupleWithSource { .tuple = Tuple { lhs_row }, .source = {} }));
-
-        for (const auto& rhs_row : rhs->raw_rows()) {
-            if (lhs_markers.find(&lhs_row) != lhs_markers.end() || rhs_markers.find(&rhs_row) != rhs_markers.end())
-                continue;
-
-            auto rhs_value = TRY(m_on_rhs->evaluate(rhs_context, TupleWithSource { .tuple = Tuple { rhs_row }, .source = {} }));
-            std::vector<Value> new_row;
-
-            bool values_matches = lhs_value.type() == rhs_value.type() && TRY(lhs_value == rhs_value);
-
-            if (m_join_type == Type::InnerJoin) {
-                if (values_matches) {
-                    for (const auto& lhs_val : lhs_row) {
-                        new_row.push_back(lhs_val);
-                    }
-
-                    for (const auto& rhs_val : rhs_row) {
-                        new_row.push_back(rhs_val);
-                    }
-
-                    lhs_markers.insert(&lhs_row);
-                    rhs_markers.insert(&rhs_row);
-                }
-                else {
-                    continue;
-                }
-            }
-            else if (m_join_type == Type::LeftJoin) {
-                for (const auto& lhs_val : lhs_row) {
-                    new_row.push_back(lhs_val);
-                }
-                lhs_markers.insert(&lhs_row);
-
-                if (values_matches) {
-                    for (const auto& rhs_val : rhs_row) {
-                        new_row.push_back(rhs_val);
-                    }
-                    rhs_markers.insert(&rhs_row);
-                }
-                else {
-                    for (const auto& rhs_val : rhs_row) {
-                        new_row.push_back(rhs_val.null());
-                    }
-                }
-            }
-            else if (m_join_type == Type::RightJoin) {
-                if (values_matches) {
-                    for (const auto& lhs_val : lhs_row) {
-                        new_row.push_back(lhs_val);
-                    }
-                    lhs_markers.insert(&lhs_row);
-                }
-                else {
-                    for (const auto& lhs_val : lhs_row) {
-                        new_row.push_back(lhs_val.null());
-                    }
-                }
-
-                for (const auto& rhs_val : rhs_row) {
-                    new_row.push_back(rhs_val);
-                }
-                rhs_markers.insert(&rhs_row);
-            }
-            else if (m_join_type == Type::OuterJoin) {
-                if (lhs_value.type() == rhs_value.type() && TRY(lhs_value == rhs_value)) {
-                    for (const auto& lhs_val : lhs_row) {
-                        new_row.push_back(lhs_val);
-                    }
-
-                    for (const auto& rhs_val : rhs_row) {
-                        new_row.push_back(rhs_val);
-                    }
-                }
-                else {
-                    continue;
-                }
-            }
-            else {
-                DbError { "Unrecognized JOIN type", 0 };
-            }
-
-            if (lhs_value.type() != rhs_value.type())
-                continue;
-
-            if (TRY(lhs_value != rhs_value))
-                continue;
+            break;
         }
+        
+        case Type::LeftJoin:{
+
+            break;
+        }
+        
+        case Type::RightJoin:{
+
+            break;
+        }
+        
+        case Type::OuterJoin:{
+
+            break;
+        }
+        
+        case Type::CrossJoin:{
+
+            break;
+        }
+        
     }
 
     return std::make_unique<MemoryBackedTable>(std::move(table));

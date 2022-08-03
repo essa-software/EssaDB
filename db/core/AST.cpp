@@ -7,6 +7,7 @@
 #include "Tuple.hpp"
 #include "Value.hpp"
 #include "db/core/AbstractTable.hpp"
+#include "db/core/Expression.hpp"
 #include "db/core/RowWithColumnNames.hpp"
 
 #include <EssaUtil/Is.hpp>
@@ -67,7 +68,7 @@ DbErrorOr<Value> Update::execute(Database& db) const {
 }
 
 DbErrorOr<Value> CreateTable::execute(Database& db) const {
-    auto& table = db.create_table(m_name, m_check, m_check_constraints);
+    auto& table = db.create_table(m_name, m_check);
     for (auto const& column : m_columns) {
         TRY(table.add_column(column));
     }
@@ -107,25 +108,34 @@ DbErrorOr<Value> AlterTable::execute(Database& db) const {
     if (!memory_backed_table)
         return DbError { "Table with invalid type!", 0 };
 
-    if (m_check_to_add)
-        TRY(memory_backed_table->add_check(m_check_to_add));
+    auto check_exists = [&]() -> DbErrorOr<bool>{
+        if(memory_backed_table->check())
+            return true;
+        return DbError {"No check to alter!", 0};
+    };
 
-    if (m_check_to_alter)
-        TRY(memory_backed_table->alter_check(m_check_to_alter));
+    if (m_check_to_add && TRY(check_exists()))
+        TRY(memory_backed_table->check()->add_check(m_check_to_add));
 
-    if (m_check_to_drop)
-        TRY(memory_backed_table->drop_check());
+    if (m_check_to_alter && TRY(check_exists()))
+        TRY(memory_backed_table->check()->alter_check(m_check_to_alter));
+
+    if (m_check_to_drop && TRY(check_exists()))
+        TRY(memory_backed_table->check()->drop_check());
 
     for (const auto& to_add : m_constraint_to_add) {
-        TRY(memory_backed_table->add_constraint(to_add.first, to_add.second));
+        if(TRY(check_exists()))
+            TRY(memory_backed_table->check()->add_constraint(to_add.first, to_add.second));
     }
 
     for (const auto& to_alter : m_constraint_to_alter) {
-        TRY(memory_backed_table->alter_constraint(to_alter.first, to_alter.second));
+        if(TRY(check_exists()))
+            TRY(memory_backed_table->check()->alter_constraint(to_alter.first, to_alter.second));
     }
 
     for (const auto& to_drop : m_constraint_to_drop) {
-        TRY(memory_backed_table->drop_constraint(to_drop));
+        if(TRY(check_exists()))
+            TRY(memory_backed_table->check()->drop_constraint(to_drop));
     }
 
     return { Value::null() };
@@ -164,7 +174,7 @@ DbErrorOr<Value> InsertInto::execute(Database& db) const {
 }
 
 DbErrorOr<Value> Import::execute(Database& db) const {
-    auto& new_table = db.create_table(m_table, {}, std::map<std::string, std::shared_ptr<AST::Expression>> {});
+    auto& new_table = db.create_table(m_table, std::make_shared<AST::Check>(0));
     switch (m_mode) {
     case Mode::Csv:
         TRY(new_table.import_from_csv(m_filename));

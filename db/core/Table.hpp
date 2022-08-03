@@ -31,9 +31,8 @@ public:
 
 class MemoryBackedTable : public Table {
 public:
-    MemoryBackedTable(std::shared_ptr<AST::Expression> check, std::map<std::string, std::shared_ptr<AST::Expression>> check_map)
-        : m_check(std::move(check))
-        , m_check_constraints(std::move(check_map)) { }
+    MemoryBackedTable(std::shared_ptr<AST::Check> check)
+        : m_check(std::move(check)) { }
 
     static DbErrorOr<std::unique_ptr<MemoryBackedTable>> create_from_select_result(ResultSet const& select);
 
@@ -61,19 +60,10 @@ public:
     virtual DbErrorOr<void> alter_column(Column) override;
     virtual DbErrorOr<void> drop_column(std::string const&) override;
 
-    DbErrorOr<void> add_check(std::shared_ptr<AST::Expression> expr);
-    DbErrorOr<void> alter_check(std::shared_ptr<AST::Expression> expr);
-    DbErrorOr<void> drop_check();
-
-    DbErrorOr<void> add_constraint(std::string const& name, std::shared_ptr<AST::Expression> expr);
-    DbErrorOr<void> alter_constraint(std::string const& name, std::shared_ptr<AST::Expression> expr);
-    DbErrorOr<void> drop_constraint(std::string const& name);
-
     virtual DbErrorOr<void> insert(RowWithColumnNames::MapType) override;
     virtual DbErrorOr<void> insert(Tuple const&) override;
 
-    std::shared_ptr<AST::Expression> const& check_value() const { return m_check; }
-    std::map<std::string, std::shared_ptr<AST::Expression>> const& check_map() const { return m_check_constraints; }
+    std::shared_ptr<AST::Check>& check() { return m_check; }
 
 private:
     friend class RowWithColumnNames;
@@ -82,8 +72,7 @@ private:
 
     std::vector<Tuple> m_rows;
     std::vector<Column> m_columns;
-    std::shared_ptr<AST::Expression> m_check = nullptr;
-    std::map<std::string, std::shared_ptr<AST::Expression>> m_check_constraints;
+    std::shared_ptr<AST::Check> m_check;
     std::map<std::string, int> m_auto_increment_values;
 };
 

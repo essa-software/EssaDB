@@ -113,7 +113,7 @@ public:
         CrossJoin
     };
 
-    explicit JoinExpression(ssize_t start,
+    JoinExpression(ssize_t start,
         std::unique_ptr<TableIdentifier> lhs,
         std::unique_ptr<Identifier> on_lhs,
         Type join_type,
@@ -148,6 +148,30 @@ public:
 
     // run_from will be added to error message.
     DbErrorOr<Value> evaluate_and_require_single_value(EvaluationContext&, TupleWithSource const&, std::string run_from = "") const;
+};
+
+class Check : public Expression {
+public:
+    explicit Check(ssize_t start)
+        : Expression(start) { }
+
+    virtual DbErrorOr<Value> evaluate(EvaluationContext&, TupleWithSource const&) const override;
+    virtual std::string to_string() const override { return "Check(TODO)"; }
+
+    DbErrorOr<void> add_check(std::shared_ptr<AST::Expression> expr);
+    DbErrorOr<void> alter_check(std::shared_ptr<AST::Expression> expr);
+    DbErrorOr<void> drop_check();
+
+    DbErrorOr<void> add_constraint(std::string const& name, std::shared_ptr<AST::Expression> expr);
+    DbErrorOr<void> alter_constraint(std::string const& name, std::shared_ptr<AST::Expression> expr);
+    DbErrorOr<void> drop_constraint(std::string const& name);
+
+    std::shared_ptr<Expression> const& main_rule() const { return m_main_check; }
+    std::map<std::string, std::shared_ptr<Expression>> const& constraints() const { return m_constraints; }
+
+private:
+    std::shared_ptr<Expression> m_main_check = nullptr;
+    std::map<std::string, std::shared_ptr<Expression>> m_constraints;
 };
 
 class Literal : public Expression {
