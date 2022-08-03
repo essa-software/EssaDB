@@ -512,13 +512,12 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::CreateTable>> Parser::parse_create_ta
 
     auto paren_open = m_tokens[m_offset];
     if (paren_open.type != Token::Type::ParenOpen)
-        return std::make_unique<Core::AST::CreateTable>(start, table_name.value, std::vector<Core::Column> {}, nullptr, std::map<std::string, std::shared_ptr<Core::AST::Expression>> {});
+        return std::make_unique<Core::AST::CreateTable>(start, table_name.value, std::vector<Core::Column> {}, std::make_shared<Core::AST::Check>(start));
     m_offset++;
 
     std::vector<Core::Column> columns;
 
-    std::shared_ptr<Core::AST::Expression> check_expr = nullptr;
-    std::map<std::string, std::shared_ptr<Core::AST::Expression>> check_map;
+    std::shared_ptr<Core::AST::Check> check = std::make_shared<Core::AST::Check>(start);
 
     while (true) {
 
@@ -528,10 +527,11 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::CreateTable>> Parser::parse_create_ta
             auto keyword = m_tokens[m_offset];
             if (keyword.type == Token::Type::KeywordCheck) {
                 m_offset++;
-                if (check_expr)
+                if (check->main_rule())
                     Core::DbError { "Default rule already exists!", m_offset - 1 };
 
-                check_expr = TRY(parse_expression());
+                auto expr = TRY(parse_expression());
+                TRY(check->add_check(std::move(expr)));
             }
             else if (keyword.type == Token::Type::KeywordConstraint) {
                 m_offset++;
@@ -542,7 +542,7 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::CreateTable>> Parser::parse_create_ta
                     return expected("identifier", identifier, m_offset - 1);
                 m_offset++;
 
-                if (check_map.find(identifier.value) != check_map.end())
+                if (check->constraints().find(identifier.value) != check->constraints().end())
                     return Core::DbError { "Constraint with name '" + identifier.value + "' already exists!", m_offset - 1 };
 
                 if (m_tokens[m_offset].type != Token::Type::KeywordCheck)
@@ -551,7 +551,7 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::CreateTable>> Parser::parse_create_ta
 
                 auto expr = TRY(parse_expression());
 
-                check_map.insert({ identifier.value, std::move(expr) });
+                TRY(check->add_constraint(identifier.value, std::move(expr)));
             }
             else
                 break;
@@ -566,7 +566,7 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::CreateTable>> Parser::parse_create_ta
     if (paren_close.type != Token::Type::ParenClose)
         return expected("')' to close column list", paren_close, m_offset - 1);
 
-    return std::make_unique<Core::AST::CreateTable>(start, table_name.value, columns, std::move(check_expr), std::move(check_map));
+    return std::make_unique<Core::AST::CreateTable>(start, table_name.value, columns, std::move(check));
 }
 
 Core::DbErrorOr<std::unique_ptr<Core::AST::DropTable>> Parser::parse_drop_table() {

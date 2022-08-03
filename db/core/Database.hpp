@@ -11,7 +11,7 @@ namespace Db::Core {
 
 class Database : public Util::NonCopyable {
 public:
-    Table& create_table(std::string name, std::shared_ptr<AST::Expression> check, std::map<std::string, std::shared_ptr<AST::Expression>> check_map);
+    Table& create_table(std::string name, std::shared_ptr<AST::Check> check);
     DbErrorOr<Table*> create_table_from_query(ResultSet select, std::string name);
 
     DbErrorOr<void> drop_table(std::string name);
