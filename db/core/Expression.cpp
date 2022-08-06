@@ -164,7 +164,7 @@ DbErrorOr<std::unique_ptr<Table>> JoinExpression::evaluate(Database* db) const {
             add_to_index = false;
         if (add_to_index)
             lhs_index++;
-        std::string name = column.original_table()->name() + "." + column.name();
+        std::string name = (column.original_table()->name().empty() ? "" : column.original_table()->name() + ".") + column.name();
         TRY(table->add_column(Column(name, column.type(), 0, 0, 0)));
     }
 
@@ -175,7 +175,7 @@ DbErrorOr<std::unique_ptr<Table>> JoinExpression::evaluate(Database* db) const {
             add_to_index = false;
         if (add_to_index)
             rhs_index++;
-        std::string name = column.original_table()->name() + "." + column.name();
+        std::string name = (column.original_table()->name().empty() ? "" : column.original_table()->name() + ".") + column.name();
         TRY(table->add_column(Column(name, column.type(), 0, 0, 0)));
     }
 
@@ -310,12 +310,12 @@ DbErrorOr<std::unique_ptr<Table>> CrossJoinExpression::evaluate(Database* db) co
     auto rhs = dynamic_cast<MemoryBackedTable*>(rhs_ptr.get());
 
     for (const auto& column : lhs->columns()) {
-        std::string name = column.original_table()->name() + "." + column.name();
+        std::string name = (column.original_table()->name().empty() ? "" : column.original_table()->name() + ".") + column.name();
         TRY(table->add_column(Column(name, column.type(), 0, 0, 0)));
     }
 
     for (const auto& column : rhs->columns()) {
-        std::string name = column.original_table()->name() + "." + column.name();
+        std::string name = (column.original_table()->name().empty() ? "" : column.original_table()->name() + ".") + column.name();
         TRY(table->add_column(Column(name, column.type(), 0, 0, 0)));
     }
 
@@ -325,7 +325,7 @@ DbErrorOr<std::unique_ptr<Table>> CrossJoinExpression::evaluate(Database* db) co
             TRY(table->insert(row));
         }
     }
-    
+
     return table;
 }
 

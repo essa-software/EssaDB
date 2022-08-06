@@ -15,8 +15,6 @@ DbErrorOr<ResultSet> Select::execute(Database& db) const {
     // Comments specify SQL Conceptional Evaluation:
     // https://docs.microsoft.com/en-us/sql/t-sql/queries/select-transact-sql#logical-processing-order-of-the-select-statement
     // FROM
-    // TODO: ON
-    // TODO: JOIN
 
     std::unique_ptr<Table> table = m_options.from ? TRY(m_options.from->evaluate(&db)) : nullptr;
 
