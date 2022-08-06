@@ -1086,13 +1086,13 @@ static Core::AST::JoinExpression::Type token_type_to_join_operation(Token::Type 
         return Core::AST::JoinExpression::Type::LeftJoin;
         break;
     case Token::Type::KeywordRight:
-        return Core::AST::JoinExpression::Type::LeftJoin;
+        return Core::AST::JoinExpression::Type::RightJoin;
         break;
     case Token::Type::KeywordInner:
-        return Core::AST::JoinExpression::Type::LeftJoin;
+        return Core::AST::JoinExpression::Type::InnerJoin;
         break;
     case Token::Type::KeywordOuter:
-        return Core::AST::JoinExpression::Type::LeftJoin;
+        return Core::AST::JoinExpression::Type::OuterJoin;
         break;
     default:
         return Core::AST::JoinExpression::Type::Invalid;
