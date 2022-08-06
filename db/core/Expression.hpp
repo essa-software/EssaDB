@@ -88,6 +88,8 @@ public:
     virtual DbErrorOr<std::unique_ptr<Table>> evaluate(Database* db) const = 0;
     virtual std::string to_string() const = 0;
     virtual std::vector<std::string> referenced_columns() const { return {}; }
+
+    static Tuple prepare_tuple(const Tuple* lhs_row, const Tuple* rhs_row, size_t index, bool order);
 };
 
 class TableIdentifier : public TableExpression {
@@ -110,14 +112,14 @@ public:
         LeftJoin,
         RightJoin,
         OuterJoin,
-        CrossJoin
+        Invalid
     };
 
     JoinExpression(ssize_t start,
-        std::unique_ptr<TableIdentifier> lhs,
+        std::unique_ptr<TableExpression> lhs,
         std::unique_ptr<Identifier> on_lhs,
         Type join_type,
-        std::unique_ptr<TableIdentifier> rhs,
+        std::unique_ptr<TableExpression> rhs,
         std::unique_ptr<Identifier> on_rhs)
         : TableExpression(start)
         , m_lhs(std::move(lhs))
@@ -130,9 +132,25 @@ public:
     virtual std::string to_string() const override { return "JoinExpression(TODO)"; }
 
 private:
-    std::unique_ptr<TableIdentifier> m_lhs, m_rhs;
+    std::unique_ptr<TableExpression> m_lhs, m_rhs;
     std::unique_ptr<Identifier> m_on_lhs, m_on_rhs;
     Type m_join_type;
+};
+
+class CrossJoinExpression : public TableExpression {
+public:
+    CrossJoinExpression(ssize_t start,
+        std::unique_ptr<TableExpression> lhs,
+        std::unique_ptr<TableExpression> rhs)
+        : TableExpression(start)
+        , m_lhs(std::move(lhs))
+        , m_rhs(std::move(rhs)){ }
+
+    virtual DbErrorOr<std::unique_ptr<Table>> evaluate(Database* db) const override;
+    virtual std::string to_string() const override { return "JoinExpression(TODO)"; }
+
+private:
+    std::unique_ptr<TableExpression> m_lhs, m_rhs;
 };
 
 class Expression : public ASTNode {

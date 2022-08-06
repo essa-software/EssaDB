@@ -2,6 +2,7 @@
 
 #include "AST.hpp"
 #include "Expression.hpp"
+#include "db/core/Database.hpp"
 #include <memory>
 #include <optional>
 #include <string>
@@ -84,6 +85,19 @@ public:
         , m_select(std::move(select)) { }
 
     virtual DbErrorOr<Value> evaluate(EvaluationContext&, TupleWithSource const&) const override;
+    virtual std::string to_string() const override { return "(SELECT TODO)"; }
+
+private:
+    Select m_select;
+};
+
+class SelectTableExpression : public TableExpression {
+public:
+    SelectTableExpression(ssize_t start, Select select)
+        : TableExpression(start)
+        , m_select(std::move(select)) { }
+
+    virtual DbErrorOr<std::unique_ptr<Table>> evaluate(Database* db) const override;
     virtual std::string to_string() const override { return "(SELECT TODO)"; }
 
 private:
