@@ -1,7 +1,13 @@
 #include "Expression.hpp"
 #include "Database.hpp"
 #include "Table.hpp"
+#include "db/core/Column.hpp"
 #include "db/core/DbError.hpp"
+#include "db/core/RowWithColumnNames.hpp"
+#include "db/core/Tuple.hpp"
+#include "db/core/Value.hpp"
+#include <cstddef>
+#include <map>
 #include <memory>
 #include <vector>
 
@@ -17,13 +23,13 @@ DbErrorOr<Value> Expression::evaluate_and_require_single_value(EvaluationContext
     return select_result.as_value();
 }
 
-DbErrorOr<Value> Check::evaluate(EvaluationContext &context, const TupleWithSource &row) const{
-    if(TRY(TRY(m_main_check->evaluate(context, row)).to_bool())){
+DbErrorOr<Value> Check::evaluate(EvaluationContext& context, const TupleWithSource& row) const {
+    if (TRY(TRY(m_main_check->evaluate(context, row)).to_bool())) {
         return Value::create_bool(false);
     }
 
-    for(const auto& check : m_constraints){
-        if(TRY(TRY(check.second->evaluate(context, row)).to_bool())){
+    for (const auto& check : m_constraints) {
+        if (TRY(TRY(check.second->evaluate(context, row)).to_bool())) {
             return Value::create_bool(false);
         }
     }
@@ -94,7 +100,7 @@ DbErrorOr<void> Check::drop_constraint(const std::string& name) {
 
 DbErrorOr<std::unique_ptr<Table>> TableIdentifier::evaluate(Database* db) const {
     auto table_ptr = TRY(db->table(m_id));
-    MemoryBackedTable table(nullptr);
+    MemoryBackedTable table(nullptr, table_ptr->name());
 
     for (const auto& column : table_ptr->columns()) {
         TRY(table.add_column(column));
@@ -107,42 +113,222 @@ DbErrorOr<std::unique_ptr<Table>> TableIdentifier::evaluate(Database* db) const 
     return std::make_unique<MemoryBackedTable>(std::move(table));
 }
 
-DbErrorOr<std::unique_ptr<Table>> JoinExpression::evaluate(Database* db) const {
-    MemoryBackedTable table(nullptr);
-
-    auto lhs = TRY(m_lhs->evaluate(db));
-    auto rhs = TRY(m_rhs->evaluate(db));
-    
-    switch (m_join_type) {
-        case Type::InnerJoin:{
-
-
-            break;
+Tuple TableExpression::prepare_tuple(const Tuple* lhs_row, const Tuple* rhs_row, size_t index, bool order) {
+    std::vector<Value> row;
+    if (order) {
+        if (lhs_row) {
+            for (size_t i = 0; i < lhs_row->value_count(); i++) {
+                row.push_back(lhs_row->value(i));
+            }
         }
-        
-        case Type::LeftJoin:{
 
-            break;
+        if (rhs_row) {
+            for (size_t i = 0; i < rhs_row->value_count(); i++) {
+                if (i != index)
+                    row.push_back(rhs_row->value(i));
+            }
         }
-        
-        case Type::RightJoin:{
+    }
+    else {
+        if (rhs_row) {
+            for (size_t i = 0; i < rhs_row->value_count(); i++) {
+                row.push_back(rhs_row->value(i));
+            }
+        }
 
-            break;
+        if (lhs_row) {
+            for (size_t i = 0; i < lhs_row->value_count(); i++) {
+                if (i != index)
+                    row.push_back(lhs_row->value(i));
+            }
         }
-        
-        case Type::OuterJoin:{
-
-            break;
-        }
-        
-        case Type::CrossJoin:{
-
-            break;
-        }
-        
     }
 
-    return std::make_unique<MemoryBackedTable>(std::move(table));
+    return Tuple(row);
+}
+
+DbErrorOr<std::unique_ptr<Table>> JoinExpression::evaluate(Database* db) const {
+    auto table = std::make_unique<MemoryBackedTable>(nullptr, "");
+
+    auto lhs_ptr = TRY(m_lhs->evaluate(db));
+    auto rhs_ptr = TRY(m_rhs->evaluate(db));
+
+    auto lhs = dynamic_cast<MemoryBackedTable*>(lhs_ptr.get());
+    auto rhs = dynamic_cast<MemoryBackedTable*>(rhs_ptr.get());
+
+    std::multimap<Value, std::pair<MemoryBackedTable*, Tuple>, ValueSorter> contents;
+
+    size_t lhs_index = 0, rhs_index = 0;
+    bool add_to_index = true;
+
+    for (const auto& column : lhs->columns()) {
+        if (column.name() == m_on_lhs->referenced_columns().front())
+            add_to_index = false;
+        if (add_to_index)
+            lhs_index++;
+        std::string name = column.original_table()->name() + "." + column.name();
+        TRY(table->add_column(Column(name, column.type(), 0, 0, 0)));
+    }
+
+    add_to_index = true;
+
+    for (const auto& column : rhs->columns()) {
+        if (column.name() == m_on_rhs->referenced_columns().front())
+            add_to_index = false;
+        if (add_to_index)
+            rhs_index++;
+        std::string name = column.original_table()->name() + "." + column.name();
+        TRY(table->add_column(Column(name, column.type(), 0, 0, 0)));
+    }
+
+    for (const auto& row : *lhs) {
+        contents.insert(std::pair(row.value(lhs_index), std::make_pair(lhs, row)));
+    }
+
+    for (const auto& row : *rhs) {
+        contents.insert(std::pair(row.value(rhs_index), std::make_pair(rhs, row)));
+    }
+
+    auto beg = contents.begin();
+    beg++;
+    auto last = contents.begin();
+
+    switch (m_join_type) {
+    case Type::InnerJoin: {
+        for (auto it = beg; it != contents.end(); it++) {
+            if (last->second.first == lhs && it->second.first == rhs) {
+                if (TRY(it->first == last->first)) {
+                    auto row = prepare_tuple(&last->second.second, &it->second.second, lhs_index, 1);
+                    TRY(table->insert(row));
+                    it++;
+                    if (it == contents.end())
+                        break;
+                }
+            }
+            last = it;
+        }
+
+        break;
+    }
+
+    case Type::LeftJoin: {
+        for (auto it = beg; it != contents.end(); it++) {
+            if (last->second.first == lhs) {
+                if (TRY(it->first == last->first)) {
+                    auto row = prepare_tuple(&last->second.second, &it->second.second, rhs_index, 1);
+                    TRY(table->insert(row));
+                    it++;
+                    if (it == contents.end())
+                        break;
+                }
+                else {
+                    std::vector<Value> values(rhs->columns().size(), Value::null());
+                    Tuple dummy(values);
+
+                    auto row = prepare_tuple(&last->second.second, &dummy, rhs_index, 1);
+
+                    TRY(table->insert(row));
+                }
+            }
+            last = it;
+        }
+
+        break;
+    }
+
+    case Type::RightJoin: {
+        for (auto it = beg; it != contents.end(); it++) {
+            if (last->second.first == rhs || it->second.first == rhs) {
+                if (TRY(it->first == last->first)) {
+                    auto row = prepare_tuple(&last->second.second, &it->second.second, lhs_index, 0);
+                    TRY(table->insert(row));
+                    it++;
+                    if (it == contents.end())
+                        break;
+
+                    last = it;
+                }
+                else {
+                    std::vector<Value> values(lhs->columns().size(), Value::null());
+                    Tuple dummy(values);
+
+                    auto row = prepare_tuple(&dummy, &it->second.second, lhs_index, 0);
+
+                    TRY(table->insert(row));
+                }
+            }
+            last = it;
+        }
+
+        break;
+    }
+
+    case Type::OuterJoin: {
+        for (auto it = beg; it != contents.end(); it++) {
+            if (last->second.first == lhs && it->second.first == rhs && TRY(it->first == last->first)) {
+                auto row = prepare_tuple(&last->second.second, &it->second.second, rhs_index, 1);
+                TRY(table->insert(row));
+                it++;
+                if (it == contents.end())
+                    break;
+            }
+            else if (last->second.first == lhs) {
+                std::vector<Value> values(rhs->columns().size(), Value::null());
+                Tuple dummy(values);
+
+                auto row = prepare_tuple(&last->second.second, &dummy, rhs_index, 1);
+
+                TRY(table->insert(row));
+            }
+            else if (last->second.first == rhs) {
+                std::vector<Value> values(lhs->columns().size(), Value::null());
+                Tuple dummy(values);
+
+                auto row = prepare_tuple(&dummy, &it->second.second, lhs_index, 0);
+
+                TRY(table->insert(row));
+            }
+            last = it;
+        }
+
+        break;
+    }
+
+    case Type::Invalid:
+        return DbError { "Invalid join type!", start() };
+        break;
+    }
+
+    return table;
+}
+
+DbErrorOr<std::unique_ptr<Table>> CrossJoinExpression::evaluate(Database* db) const {
+    auto table = std::make_unique<MemoryBackedTable>(nullptr, "");
+
+    auto lhs_ptr = TRY(m_lhs->evaluate(db));
+    auto rhs_ptr = TRY(m_rhs->evaluate(db));
+
+    auto lhs = dynamic_cast<MemoryBackedTable*>(lhs_ptr.get());
+    auto rhs = dynamic_cast<MemoryBackedTable*>(rhs_ptr.get());
+
+    for (const auto& column : lhs->columns()) {
+        std::string name = column.original_table()->name() + "." + column.name();
+        TRY(table->add_column(Column(name, column.type(), 0, 0, 0)));
+    }
+
+    for (const auto& column : rhs->columns()) {
+        std::string name = column.original_table()->name() + "." + column.name();
+        TRY(table->add_column(Column(name, column.type(), 0, 0, 0)));
+    }
+
+    for (const auto& lhs_row : lhs->raw_rows()) {
+        for (const auto& rhs_row : rhs->raw_rows()) {
+            auto row = prepare_tuple(&lhs_row, &rhs_row, -1, 1);
+            TRY(table->insert(row));
+        }
+    }
+    
+    return table;
 }
 
 DbErrorOr<Value> Identifier::evaluate(EvaluationContext& context, TupleWithSource const& row) const {

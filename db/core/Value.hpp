@@ -4,6 +4,7 @@
 #include "ResultSet.hpp"
 #include <EssaUtil/SimulationClock.hpp>
 
+#include <functional>
 #include <optional>
 #include <string>
 #include <variant>
@@ -85,5 +86,15 @@ DbErrorOr<bool> operator>(Value const& lhs, Value const& rhs);
 DbErrorOr<bool> operator!=(Value const& lhs, Value const& rhs);
 
 Value::Type find_type(const std::string& str);
+
+class ValueSorter : public std::less<Value>{
+public:
+    bool operator()(const Value& lhs, const Value& rhs) const{
+        auto result = lhs < rhs;
+        if(result.is_error())
+            return false;
+        return result.release_value();
+    }
+};
 
 }

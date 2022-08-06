@@ -1,7 +1,9 @@
 #include "Select.hpp"
 #include "Value.hpp"
 #include "db/core/Expression.hpp"
+#include "db/core/Table.hpp"
 #include <EssaUtil/Is.hpp>
+#include <cstddef>
 #include <db/core/Database.hpp>
 #include <db/core/DbError.hpp>
 #include <db/core/Function.hpp>
@@ -291,6 +293,25 @@ DbErrorOr<std::vector<TupleWithSource>> Select::collect_rows(EvaluationContext& 
 
 DbErrorOr<Value> SelectExpression::evaluate(EvaluationContext& context, const TupleWithSource&) const {
     return Value::create_select_result(TRY(m_select.execute(*context.db)));
+}
+
+DbErrorOr<std::unique_ptr<Table>> SelectTableExpression::evaluate(Database* db) const {
+    auto result = TRY(m_select.execute(*db));
+    
+    auto table = std::make_unique<MemoryBackedTable>(nullptr, "");
+
+    size_t i = 0;
+
+    for(const auto& name : result.column_names()){
+        Value::Type type = result.rows().empty() ? Value::Type::Null : result.rows().front().value(i).type();
+        TRY(table->add_column(Column(name, type, 0, 0, 0)));
+    }
+
+    for(const auto& row : result.rows()){
+        TRY(table->insert(row));
+    }
+
+    return table;
 }
 
 DbErrorOr<Value> SelectStatement::execute(Database& db) const {

@@ -865,8 +865,41 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Expression>> Parser::parse_expression
     return maybe_operator;
 }
 
-Core::DbErrorOr<std::unique_ptr<Core::AST::TableExpression>> Parser::parse_table_expression() {
-    return TRY(parse_table_identifier());
+Core::DbErrorOr<std::unique_ptr<Core::AST::TableExpression>> Parser::parse_table_expression() {std::unique_ptr<Core::AST::TableExpression> lhs;
+
+    auto start = m_offset;
+    auto token = m_tokens[m_offset];
+
+    // std::cout << "parse_expression " << token.value << std::endl;
+    if (token.type == Token::Type::Identifier) {
+        lhs = TRY(parse_table_identifier());
+    }
+    else if (token.type == Token::Type::ParenOpen) {
+        auto postfix = m_tokens[m_offset + 1];
+        if (postfix.type == Token::Type::KeywordSelect) {
+            m_offset++;
+
+            size_t arr_size = m_table_aliases.size();
+            lhs = std::make_unique<Core::AST::SelectTableExpression>(start, TRY(parse_select()));
+            m_table_aliases.resize(arr_size);
+        }
+        else {
+            m_offset++;
+            lhs = TRY(parse_table_expression());
+        }
+
+        auto paren_close = m_tokens[m_offset++];
+
+        if (paren_close.type != Token::Type::ParenClose)
+            expected("')' to close expression", paren_close, m_offset - 1);
+    }
+    else {
+        return expected("table or expression", token, start);
+    }
+
+    auto maybe_operator = TRY(parse_join_expression(std::move(lhs)));
+    assert(maybe_operator);
+    return maybe_operator;
 }
 
 Core::DbErrorOr<Core::AST::ExpressionOrIndex> Parser::parse_expression_or_index() {
@@ -983,6 +1016,20 @@ static bool is_arithmetic_operator(Token::Type op) {
     }
 }
 
+static bool is_join_expression(Token::Type op) {
+    switch (op) {
+    case Token::Type::KeywordLeft:
+    case Token::Type::KeywordRight:
+    case Token::Type::KeywordInner:
+    case Token::Type::KeywordOuter:
+    case Token::Type::KeywordFull:
+    case Token::Type::Comma:
+        return true;
+    default:
+        return false;
+    }
+}
+
 static Core::AST::BinaryOperator::Operation token_type_to_binary_operation(Token::Type op) {
     switch (op) {
     case Token::Type::OpEqual:
@@ -1030,6 +1077,25 @@ static Core::AST::ArithmeticOperator::Operation token_type_to_arithmetic_operati
         break;
     default:
         return Core::AST::ArithmeticOperator::Operation::Invalid;
+    }
+}
+
+static Core::AST::JoinExpression::Type token_type_to_join_operation(Token::Type op) {
+    switch (op) {
+    case Token::Type::KeywordLeft:
+        return Core::AST::JoinExpression::Type::LeftJoin;
+        break;
+    case Token::Type::KeywordRight:
+        return Core::AST::JoinExpression::Type::LeftJoin;
+        break;
+    case Token::Type::KeywordInner:
+        return Core::AST::JoinExpression::Type::LeftJoin;
+        break;
+    case Token::Type::KeywordOuter:
+        return Core::AST::JoinExpression::Type::LeftJoin;
+        break;
+    default:
+        return Core::AST::JoinExpression::Type::Invalid;
     }
 }
 
@@ -1117,6 +1183,54 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Expression>> Parser::parse_operand(st
                 lhs = std::make_unique<Core::AST::ArithmeticOperator>(std::move(lhs), token_type_to_arithmetic_operation(current_operator),
                     TRY(parse_operand(std::move(std::get<std::unique_ptr<Core::AST::Expression>>(rhs)))));
             }
+        }
+    }
+}
+
+Core::DbErrorOr<std::unique_ptr<Core::AST::TableExpression>> Parser::parse_join_expression(std::unique_ptr<Core::AST::TableExpression> lhs){
+    auto peek_operator = [this]() {
+        return m_tokens[m_offset].type;
+    };
+
+    while (true) {
+        auto current_operator = peek_operator();
+        if (!is_join_expression(current_operator))
+            return lhs;
+        m_offset++;
+
+        if(current_operator == Token::Type::Comma){
+            auto rhs = TRY(parse_table_expression());
+            lhs = std::make_unique<Core::AST::CrossJoinExpression>(m_offset, std::move(lhs), std::move(rhs));
+        }else{
+            if(current_operator == Token::Type::KeywordFull){
+                current_operator = peek_operator();
+
+                if(current_operator != Token::Type::KeywordOuter){
+                    return expected("'OUTER' after 'FULL'", m_tokens[m_offset], m_offset);
+                }
+
+                m_offset++;
+            }
+
+            if(m_tokens[m_offset++].type != Token::Type::KeywordJoin){
+                return expected("'JOIN' after " + m_tokens[m_offset - 2].value, m_tokens[m_offset - 1], m_offset);
+            }
+
+            auto rhs = TRY(parse_table_expression());
+
+            if(m_tokens[m_offset++].type != Token::Type::KeywordOn){
+                return expected("'ON' expression after 'JOIN'", m_tokens[m_offset - 1], m_offset);
+            }
+
+            auto on_lhs = TRY(parse_identifier());
+
+            if(m_tokens[m_offset++].type != Token::Type::OpEqual){
+                return expected("'=' after column name", m_tokens[m_offset - 1], m_offset);
+            }
+
+            auto on_rhs = TRY(parse_identifier());
+
+            lhs = std::make_unique<Core::AST::JoinExpression>(m_offset, std::move(lhs), std::move(on_lhs), token_type_to_join_operation(current_operator), std::move(rhs), std::move(on_rhs));
         }
     }
 }

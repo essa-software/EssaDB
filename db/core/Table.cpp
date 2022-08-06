@@ -18,7 +18,7 @@
 namespace Db::Core {
 
 DbErrorOr<std::unique_ptr<MemoryBackedTable>> MemoryBackedTable::create_from_select_result(ResultSet const& select) {
-    std::unique_ptr<MemoryBackedTable> table = std::make_unique<MemoryBackedTable>(nullptr);
+    std::unique_ptr<MemoryBackedTable> table = std::make_unique<MemoryBackedTable>(nullptr, "");
 
     auto const& columns = select.column_names();
     auto const& rows = select.rows();

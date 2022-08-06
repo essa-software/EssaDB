@@ -25,14 +25,78 @@ public:
     virtual DbErrorOr<void> insert(Tuple const&) = 0;
     virtual int increment(std::string column) = 0;
 
+    virtual std::string name() const = 0;
+
     void export_to_csv(const std::string& path) const;
     DbErrorOr<void> import_from_csv(const std::string& path);
 };
 
 class MemoryBackedTable : public Table {
 public:
-    MemoryBackedTable(std::shared_ptr<AST::Check> check)
-        : m_check(std::move(check)) { }
+    class Iterator : public std::iterator<std::random_access_iterator_tag, Tuple> {
+    private:
+        Tuple* _ptr;
+
+    public:
+        using difference_type = typename std::iterator<std::random_access_iterator_tag, Tuple>::difference_type;
+
+        Iterator()
+            : _ptr(nullptr) { }
+        Iterator(Tuple* rhs)
+            : _ptr(rhs) { }
+        Iterator(const Iterator& rhs)
+            : _ptr(rhs._ptr) { }
+        /* inline Iterator& operator=(Type* rhs) {_ptr = rhs; return *this;} */
+        /* inline Iterator& operator=(const Iterator &rhs) {_ptr = rhs._ptr; return *this;} */
+        inline Iterator& operator+=(difference_type rhs) {
+            _ptr += rhs;
+            return *this;
+        }
+        inline Iterator& operator-=(difference_type rhs) {
+            _ptr -= rhs;
+            return *this;
+        }
+        inline Tuple& operator*() const { return *_ptr; }
+        inline Tuple* operator->() const { return _ptr; }
+        inline Tuple& operator[](difference_type rhs) const { return _ptr[rhs]; }
+
+        inline Iterator& operator++() {
+            ++_ptr;
+            return *this;
+        }
+        inline Iterator& operator--() {
+            --_ptr;
+            return *this;
+        }
+        inline Iterator operator++(int) {
+            Iterator tmp(*this);
+            ++_ptr;
+            return tmp;
+        }
+        inline Iterator operator--(int) {
+            Iterator tmp(*this);
+            --_ptr;
+            return tmp;
+        }
+        /* inline Iterator operator+(const Iterator& rhs) {return Iterator(_ptr+rhs.ptr);} */
+        inline difference_type operator-(const Iterator& rhs) const { return _ptr - rhs._ptr; }
+        inline Iterator operator+(difference_type rhs) const { return Iterator(_ptr + rhs); }
+        inline Iterator operator-(difference_type rhs) const { return Iterator(_ptr - rhs); }
+
+        inline bool operator==(const Iterator& rhs) const { return _ptr == rhs._ptr; }
+        inline bool operator!=(const Iterator& rhs) const { return _ptr != rhs._ptr; }
+        inline bool operator>(const Iterator& rhs) const { return _ptr > rhs._ptr; }
+        inline bool operator<(const Iterator& rhs) const { return _ptr < rhs._ptr; }
+        inline bool operator>=(const Iterator& rhs) const { return _ptr >= rhs._ptr; }
+        inline bool operator<=(const Iterator& rhs) const { return _ptr <= rhs._ptr; }
+    };
+
+    Iterator begin() { return m_rows.data(); }
+    Iterator end() { return m_rows.data() + m_rows.size(); }
+
+    MemoryBackedTable(std::shared_ptr<AST::Check> check, const std::string& name)
+        : m_check(std::move(check))
+        , m_name(name) { }
 
     static DbErrorOr<std::unique_ptr<MemoryBackedTable>> create_from_select_result(ResultSet const& select);
 
@@ -63,6 +127,8 @@ public:
     virtual DbErrorOr<void> insert(RowWithColumnNames::MapType) override;
     virtual DbErrorOr<void> insert(Tuple const&) override;
 
+    virtual std::string name() const override { return m_name; }
+
     std::shared_ptr<AST::Check>& check() { return m_check; }
 
 private:
@@ -74,6 +140,8 @@ private:
     std::vector<Column> m_columns;
     std::shared_ptr<AST::Check> m_check;
     std::map<std::string, int> m_auto_increment_values;
+
+    const std::string m_name;
 };
 
 }

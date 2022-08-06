@@ -4,7 +4,7 @@
 namespace Db::Core {
 
 Table& Database::create_table(std::string name, std::shared_ptr<AST::Check> check) {
-    return *m_tables.insert({ name, std::make_unique<MemoryBackedTable>(std::move(check)) }).first->second;
+    return *m_tables.insert({ name, std::make_unique<MemoryBackedTable>(std::move(check), name) }).first->second;
 }
 
 DbErrorOr<void> Database::drop_table(std::string name) {

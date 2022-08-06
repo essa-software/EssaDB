@@ -68,6 +68,7 @@ private:
     Core::DbErrorOr<Core::Column> parse_column();
     Core::DbErrorOr<std::unique_ptr<Core::AST::TableExpression>> parse_table_expression();
     Core::DbErrorOr<std::unique_ptr<Core::AST::TableIdentifier>> parse_table_identifier();
+    Core::DbErrorOr<std::unique_ptr<Core::AST::TableExpression>> parse_join_expression(std::unique_ptr<Core::AST::TableExpression> lhs); 
 
     std::vector<Token> const& m_tokens;
     std::vector<std::pair<std::string, std::string>> m_table_aliases;
