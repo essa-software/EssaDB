@@ -113,7 +113,7 @@ DbErrorOr<std::unique_ptr<Table>> TableIdentifier::evaluate(Database* db) const 
     return std::make_unique<MemoryBackedTable>(std::move(table));
 }
 
-Tuple TableExpression::prepare_tuple(const Tuple* lhs_row, const Tuple* rhs_row, size_t index, bool order) {
+Tuple TableExpression::prepare_tuple(const Tuple* lhs_row, const Tuple* rhs_row, bool order) {
     std::vector<Value> row;
     if (order) {
         if (lhs_row) {
@@ -124,8 +124,7 @@ Tuple TableExpression::prepare_tuple(const Tuple* lhs_row, const Tuple* rhs_row,
 
         if (rhs_row) {
             for (size_t i = 0; i < rhs_row->value_count(); i++) {
-                if (i != index)
-                    row.push_back(rhs_row->value(i));
+                row.push_back(rhs_row->value(i));
             }
         }
     }
@@ -138,8 +137,7 @@ Tuple TableExpression::prepare_tuple(const Tuple* lhs_row, const Tuple* rhs_row,
 
         if (lhs_row) {
             for (size_t i = 0; i < lhs_row->value_count(); i++) {
-                if (i != index)
-                    row.push_back(lhs_row->value(i));
+                row.push_back(lhs_row->value(i));
             }
         }
     }
@@ -198,7 +196,7 @@ DbErrorOr<std::unique_ptr<Table>> JoinExpression::evaluate(Database* db) const {
         for (auto it = beg; it != contents.end(); it++) {
             if (last->second.first == lhs && it->second.first == rhs) {
                 if (TRY(it->first == last->first)) {
-                    auto row = prepare_tuple(&last->second.second, &it->second.second, lhs_index, 1);
+                    auto row = prepare_tuple(&last->second.second, &it->second.second, 1);
                     TRY(table->insert(row));
                     it++;
                     if (it == contents.end())
@@ -215,7 +213,7 @@ DbErrorOr<std::unique_ptr<Table>> JoinExpression::evaluate(Database* db) const {
         for (auto it = beg; it != contents.end(); it++) {
             if (last->second.first == lhs) {
                 if (TRY(it->first == last->first)) {
-                    auto row = prepare_tuple(&last->second.second, &it->second.second, rhs_index, 1);
+                    auto row = prepare_tuple(&last->second.second, &it->second.second, 1);
                     TRY(table->insert(row));
                     it++;
                     if (it == contents.end())
@@ -225,7 +223,7 @@ DbErrorOr<std::unique_ptr<Table>> JoinExpression::evaluate(Database* db) const {
                     std::vector<Value> values(rhs->columns().size(), Value::null());
                     Tuple dummy(values);
 
-                    auto row = prepare_tuple(&last->second.second, &dummy, rhs_index, 1);
+                    auto row = prepare_tuple(&last->second.second, &dummy, 1);
 
                     TRY(table->insert(row));
                 }
@@ -240,7 +238,7 @@ DbErrorOr<std::unique_ptr<Table>> JoinExpression::evaluate(Database* db) const {
         for (auto it = beg; it != contents.end(); it++) {
             if (last->second.first == rhs || it->second.first == rhs) {
                 if (TRY(it->first == last->first)) {
-                    auto row = prepare_tuple(&last->second.second, &it->second.second, lhs_index, 0);
+                    auto row = prepare_tuple(&last->second.second, &it->second.second, 0);
                     TRY(table->insert(row));
                     it++;
                     if (it == contents.end())
@@ -252,7 +250,7 @@ DbErrorOr<std::unique_ptr<Table>> JoinExpression::evaluate(Database* db) const {
                     std::vector<Value> values(lhs->columns().size(), Value::null());
                     Tuple dummy(values);
 
-                    auto row = prepare_tuple(&dummy, &it->second.second, lhs_index, 0);
+                    auto row = prepare_tuple(&dummy, &it->second.second, 0);
 
                     TRY(table->insert(row));
                 }
@@ -266,7 +264,7 @@ DbErrorOr<std::unique_ptr<Table>> JoinExpression::evaluate(Database* db) const {
     case Type::OuterJoin: {
         for (auto it = beg; it != contents.end(); it++) {
             if (last->second.first == lhs && it->second.first == rhs && TRY(it->first == last->first)) {
-                auto row = prepare_tuple(&last->second.second, &it->second.second, rhs_index, 1);
+                auto row = prepare_tuple(&last->second.second, &it->second.second, 1);
                 TRY(table->insert(row));
                 it++;
                 if (it == contents.end())
@@ -276,7 +274,7 @@ DbErrorOr<std::unique_ptr<Table>> JoinExpression::evaluate(Database* db) const {
                 std::vector<Value> values(rhs->columns().size(), Value::null());
                 Tuple dummy(values);
 
-                auto row = prepare_tuple(&last->second.second, &dummy, rhs_index, 1);
+                auto row = prepare_tuple(&last->second.second, &dummy, 1);
 
                 TRY(table->insert(row));
             }
@@ -284,7 +282,7 @@ DbErrorOr<std::unique_ptr<Table>> JoinExpression::evaluate(Database* db) const {
                 std::vector<Value> values(lhs->columns().size(), Value::null());
                 Tuple dummy(values);
 
-                auto row = prepare_tuple(&dummy, &it->second.second, lhs_index, 0);
+                auto row = prepare_tuple(&dummy, &it->second.second, 0);
 
                 TRY(table->insert(row));
             }
@@ -323,7 +321,7 @@ DbErrorOr<std::unique_ptr<Table>> CrossJoinExpression::evaluate(Database* db) co
 
     for (const auto& lhs_row : lhs->raw_rows()) {
         for (const auto& rhs_row : rhs->raw_rows()) {
-            auto row = prepare_tuple(&lhs_row, &rhs_row, -1, 1);
+            auto row = prepare_tuple(&lhs_row, &rhs_row, 1);
             TRY(table->insert(row));
         }
     }

@@ -89,7 +89,7 @@ public:
     virtual std::string to_string() const = 0;
     virtual std::vector<std::string> referenced_columns() const { return {}; }
 
-    static Tuple prepare_tuple(const Tuple* lhs_row, const Tuple* rhs_row, size_t index, bool order);
+    static Tuple prepare_tuple(const Tuple* lhs_row, const Tuple* rhs_row, bool order);
 };
 
 class TableIdentifier : public TableExpression {
