@@ -33,66 +33,8 @@ public:
 
 class MemoryBackedTable : public Table {
 public:
-    class Iterator : public std::iterator<std::random_access_iterator_tag, Tuple> {
-    private:
-        Tuple* _ptr;
-
-    public:
-        using difference_type = typename std::iterator<std::random_access_iterator_tag, Tuple>::difference_type;
-
-        Iterator()
-            : _ptr(nullptr) { }
-        Iterator(Tuple* rhs)
-            : _ptr(rhs) { }
-        Iterator(const Iterator& rhs)
-            : _ptr(rhs._ptr) { }
-        /* inline Iterator& operator=(Type* rhs) {_ptr = rhs; return *this;} */
-        /* inline Iterator& operator=(const Iterator &rhs) {_ptr = rhs._ptr; return *this;} */
-        inline Iterator& operator+=(difference_type rhs) {
-            _ptr += rhs;
-            return *this;
-        }
-        inline Iterator& operator-=(difference_type rhs) {
-            _ptr -= rhs;
-            return *this;
-        }
-        inline Tuple& operator*() const { return *_ptr; }
-        inline Tuple* operator->() const { return _ptr; }
-        inline Tuple& operator[](difference_type rhs) const { return _ptr[rhs]; }
-
-        inline Iterator& operator++() {
-            ++_ptr;
-            return *this;
-        }
-        inline Iterator& operator--() {
-            --_ptr;
-            return *this;
-        }
-        inline Iterator operator++(int) {
-            Iterator tmp(*this);
-            ++_ptr;
-            return tmp;
-        }
-        inline Iterator operator--(int) {
-            Iterator tmp(*this);
-            --_ptr;
-            return tmp;
-        }
-        /* inline Iterator operator+(const Iterator& rhs) {return Iterator(_ptr+rhs.ptr);} */
-        inline difference_type operator-(const Iterator& rhs) const { return _ptr - rhs._ptr; }
-        inline Iterator operator+(difference_type rhs) const { return Iterator(_ptr + rhs); }
-        inline Iterator operator-(difference_type rhs) const { return Iterator(_ptr - rhs); }
-
-        inline bool operator==(const Iterator& rhs) const { return _ptr == rhs._ptr; }
-        inline bool operator!=(const Iterator& rhs) const { return _ptr != rhs._ptr; }
-        inline bool operator>(const Iterator& rhs) const { return _ptr > rhs._ptr; }
-        inline bool operator<(const Iterator& rhs) const { return _ptr < rhs._ptr; }
-        inline bool operator>=(const Iterator& rhs) const { return _ptr >= rhs._ptr; }
-        inline bool operator<=(const Iterator& rhs) const { return _ptr <= rhs._ptr; }
-    };
-
-    Iterator begin() { return m_rows.data(); }
-    Iterator end() { return m_rows.data() + m_rows.size(); }
+    auto begin() { return m_rows.data(); }
+    auto end() { return m_rows.data() + m_rows.size(); }
 
     MemoryBackedTable(std::shared_ptr<AST::Check> check, const std::string& name)
         : m_check(std::move(check))
