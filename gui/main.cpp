@@ -15,7 +15,7 @@ int main() {
     container.set_layout<GUI::VerticalBoxLayout>();
 
     auto controls = container.add_widget<GUI::Container>();
-    controls->set_size({ Length::Auto, 30.0_px });
+    controls->set_size({ Length::Auto, { static_cast<float>(app.theme().line_height), Length::Unit::Px } });
     controls->set_layout<GUI::HorizontalBoxLayout>();
 
     auto run_button = controls->add_widget<GUI::TextButton>();
