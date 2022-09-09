@@ -144,7 +144,7 @@ public:
         std::unique_ptr<TableExpression> rhs)
         : TableExpression(start)
         , m_lhs(std::move(lhs))
-        , m_rhs(std::move(rhs)){ }
+        , m_rhs(std::move(rhs)) { }
 
     virtual DbErrorOr<std::unique_ptr<Table>> evaluate(Database* db) const override;
     virtual std::string to_string() const override { return "JoinExpression(TODO)"; }
@@ -233,6 +233,7 @@ public:
         Less,         // <
         LessEqual,    // <=
         Like,
+        Match,
         And,
         Or,
         Not, // FIXME: This is not binary op

@@ -951,6 +951,7 @@ static int operator_precedence(Token::Type op) {
     switch (op) {
     case Token::Type::KeywordIs:
     case Token::Type::KeywordLike:
+    case Token::Type::KeywordMatch:
     case Token::Type::OpEqual:
     case Token::Type::OpNotEqual:
     case Token::Type::OpGreater:
@@ -993,6 +994,7 @@ static bool is_binary_operator(Token::Type op) {
     case Token::Type::KeywordIn:
     case Token::Type::KeywordIs:
     case Token::Type::KeywordLike:
+    case Token::Type::KeywordMatch:
     case Token::Type::OpEqual:
     case Token::Type::OpNotEqual:
     case Token::Type::OpGreater:
@@ -1048,6 +1050,9 @@ static Core::AST::BinaryOperator::Operation token_type_to_binary_operation(Token
         break;
     case Token::Type::KeywordLike:
         return Core::AST::BinaryOperator::Operation::Like;
+        break;
+    case Token::Type::KeywordMatch:
+        return Core::AST::BinaryOperator::Operation::Match;
         break;
     case Token::Type::KeywordAnd:
         return Core::AST::BinaryOperator::Operation::And;

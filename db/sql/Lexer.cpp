@@ -83,6 +83,7 @@ std::vector<Token> Lexer::lex() {
                 { "KEY", Token::Type::KeywordKey },
                 { "LIKE", Token::Type::KeywordLike },
                 { "LEFT", Token::Type::KeywordLeft },
+                { "MATCH", Token::Type::KeywordMatch },
                 { "NOT", Token::Type::KeywordNot },
                 { "NULL", Token::Type::KeywordNull },
                 { "ON", Token::Type::KeywordOn },
