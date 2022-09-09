@@ -865,7 +865,8 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Expression>> Parser::parse_expression
     return maybe_operator;
 }
 
-Core::DbErrorOr<std::unique_ptr<Core::AST::TableExpression>> Parser::parse_table_expression() {std::unique_ptr<Core::AST::TableExpression> lhs;
+Core::DbErrorOr<std::unique_ptr<Core::AST::TableExpression>> Parser::parse_table_expression() {
+    std::unique_ptr<Core::AST::TableExpression> lhs;
 
     auto start = m_offset;
     auto token = m_tokens[m_offset];
@@ -1018,10 +1019,12 @@ static bool is_arithmetic_operator(Token::Type op) {
     }
 }
 
-static bool is_join_expression(Token::Type op) {
-    switch (op) {
-    case Token::Type::KeywordLeft:
-    case Token::Type::KeywordRight:
+static bool is_join_expression(Token const& token) {
+    if (token.type == Token::Type::Identifier) {
+        if (Parser::compare_case_insensitive(token.value, "LEFT") || Parser::compare_case_insensitive(token.value, "RIGHT"))
+            return true;
+    }
+    switch (token.type) {
     case Token::Type::KeywordInner:
     case Token::Type::KeywordOuter:
     case Token::Type::KeywordFull:
@@ -1085,14 +1088,14 @@ static Core::AST::ArithmeticOperator::Operation token_type_to_arithmetic_operati
     }
 }
 
-static Core::AST::JoinExpression::Type token_type_to_join_operation(Token::Type op) {
-    switch (op) {
-    case Token::Type::KeywordLeft:
-        return Core::AST::JoinExpression::Type::LeftJoin;
-        break;
-    case Token::Type::KeywordRight:
-        return Core::AST::JoinExpression::Type::RightJoin;
-        break;
+static Core::AST::JoinExpression::Type token_to_join_operation(Token token) {
+    if (token.type == Token::Type::Identifier) {
+        if (Parser::compare_case_insensitive(token.value, "LEFT"))
+            return Core::AST::JoinExpression::Type::LeftJoin;
+        if (Parser::compare_case_insensitive(token.value, "RIGHT"))
+            return Core::AST::JoinExpression::Type::RightJoin;
+    }
+    switch (token.type) {
     case Token::Type::KeywordInner:
         return Core::AST::JoinExpression::Type::InnerJoin;
         break;
@@ -1192,50 +1195,46 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Expression>> Parser::parse_operand(st
     }
 }
 
-Core::DbErrorOr<std::unique_ptr<Core::AST::TableExpression>> Parser::parse_join_expression(std::unique_ptr<Core::AST::TableExpression> lhs){
-    auto peek_operator = [this]() {
-        return m_tokens[m_offset].type;
-    };
-
+Core::DbErrorOr<std::unique_ptr<Core::AST::TableExpression>> Parser::parse_join_expression(std::unique_ptr<Core::AST::TableExpression> lhs) {
     while (true) {
-        auto current_operator = peek_operator();
-        if (!is_join_expression(current_operator))
+        auto current = m_tokens[m_offset];
+        if (!is_join_expression(current))
             return lhs;
         m_offset++;
 
-        if(current_operator == Token::Type::Comma){
+        if (current.type == Token::Type::Comma) {
             auto rhs = TRY(parse_table_expression());
             lhs = std::make_unique<Core::AST::CrossJoinExpression>(m_offset, std::move(lhs), std::move(rhs));
-        }else{
-            if(current_operator == Token::Type::KeywordFull){
-                current_operator = peek_operator();
+        }
+        else {
+            if (current.type == Token::Type::KeywordFull) {
+                current = m_tokens[m_offset];
 
-                if(current_operator != Token::Type::KeywordOuter){
+                if (current.type != Token::Type::KeywordOuter) {
                     return expected("'OUTER' after 'FULL'", m_tokens[m_offset], m_offset);
                 }
 
                 m_offset++;
             }
 
-            if(m_tokens[m_offset++].type != Token::Type::KeywordJoin){
+            if (m_tokens[m_offset++].type != Token::Type::KeywordJoin) {
                 return expected("'JOIN' after " + m_tokens[m_offset - 2].value, m_tokens[m_offset - 1], m_offset);
             }
 
             auto rhs = TRY(parse_table_expression());
 
-            if(m_tokens[m_offset++].type != Token::Type::KeywordOn){
+            if (m_tokens[m_offset++].type != Token::Type::KeywordOn) {
                 return expected("'ON' expression after 'JOIN'", m_tokens[m_offset - 1], m_offset);
             }
 
             auto on_lhs = TRY(parse_identifier());
 
-            if(m_tokens[m_offset++].type != Token::Type::OpEqual){
+            if (m_tokens[m_offset++].type != Token::Type::OpEqual) {
                 return expected("'=' after column name", m_tokens[m_offset - 1], m_offset);
             }
 
             auto on_rhs = TRY(parse_identifier());
-
-            lhs = std::make_unique<Core::AST::JoinExpression>(m_offset, std::move(lhs), std::move(on_lhs), token_type_to_join_operation(current_operator), std::move(rhs), std::move(on_rhs));
+            lhs = std::make_unique<Core::AST::JoinExpression>(m_offset, std::move(lhs), std::move(on_lhs), token_to_join_operation(current), std::move(rhs), std::move(on_rhs));
         }
     }
 }
@@ -1388,7 +1387,8 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::TableIdentifier>> Parser::parse_table
         return expected("identifier", name, m_offset - 1);
 
     auto alias_token = m_tokens[m_offset];
-    if (alias_token.type == Token::Type::Identifier) {
+    // Don't allow LEFT/RIGHT as aliases because they are used for joins
+    if (alias_token.type == Token::Type::Identifier && alias_token.value != "LEFT" && alias_token.value != "RIGHT") {
         m_offset++;
         alias = alias_token.value;
     }

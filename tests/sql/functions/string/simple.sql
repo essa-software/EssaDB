@@ -86,7 +86,7 @@ SELECT id, REVERSE(TRIM([to_trim])) AS STRING FROM test;
 -- |  3 | null |  null |
 -- |  4 | test |  est1 |
 -- |  5 | test |  est2 |
-SELECT id, [LEFT](string, 4) AS [LEFT], [RIGHT](string, 4) AS [RIGHT] FROM test;
+SELECT id, LEFT(string, 4) AS LEFT, RIGHT(string, 4) AS RIGHT FROM test;
 
 -- stuff
 -- output:
