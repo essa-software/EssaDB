@@ -518,10 +518,10 @@ DbErrorOr<Value> ArithmeticOperator::evaluate(EvaluationContext& context, TupleW
 
 DbErrorOr<Value> BetweenExpression::evaluate(EvaluationContext& context, TupleWithSource const& row) const {
     // TODO: Implement this for strings etc
-    auto value = TRY(TRY(m_lhs->evaluate(context, row)).to_int());
-    auto min = TRY(TRY(m_min->evaluate(context, row)).to_int());
-    auto max = TRY(TRY(m_max->evaluate(context, row)).to_int());
-    return Value::create_bool(value >= min && value <= max);
+    auto value = TRY(m_lhs->evaluate(context, row));
+    auto min = TRY(m_min->evaluate(context, row));
+    auto max = TRY(m_max->evaluate(context, row));
+    return Value::create_bool(TRY(value >= min) && TRY(value <= max));
 }
 
 DbErrorOr<Value> InExpression::evaluate(EvaluationContext& context, TupleWithSource const& row) const {
