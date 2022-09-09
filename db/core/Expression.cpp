@@ -1,14 +1,17 @@
 #include "Expression.hpp"
+
+#include "Column.hpp"
 #include "Database.hpp"
+#include "DbError.hpp"
+#include "RowWithColumnNames.hpp"
 #include "Table.hpp"
-#include "db/core/Column.hpp"
-#include "db/core/DbError.hpp"
-#include "db/core/RowWithColumnNames.hpp"
-#include "db/core/Tuple.hpp"
-#include "db/core/Value.hpp"
+#include "Tuple.hpp"
+#include "Value.hpp"
+
 #include <cstddef>
 #include <map>
 #include <memory>
+#include <regex>
 #include <vector>
 
 namespace Db::Core::AST {
@@ -477,6 +480,16 @@ DbErrorOr<bool> BinaryOperator::is_true(EvaluationContext& context, TupleWithSou
         return TRY(TRY(m_lhs->evaluate(context, row)).to_bool());
     case Operation::Like: {
         return wildcard_parser(TRY(TRY(m_lhs->evaluate(context, row)).to_string()), TRY(TRY(m_rhs->evaluate(context, row)).to_string()));
+    }
+    case Operation::Match: {
+        auto value = TRY(TRY(m_lhs->evaluate(context, row)).to_string());
+        auto pattern = TRY(TRY(m_rhs->evaluate(context, row)).to_string());
+        try {
+            std::regex regex { pattern };
+            return std::regex_match(value, regex);
+        } catch (std::regex_error const& error) {
+            return DbError { error.what(), start() };
+        }
     }
     case Operation::Invalid:
         break;

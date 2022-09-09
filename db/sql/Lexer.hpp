@@ -39,6 +39,7 @@ struct Token {
         KeywordKey,
         KeywordLeft,
         KeywordLike,
+        KeywordMatch,
         KeywordNot,
         KeywordNull,
         KeywordOn,
