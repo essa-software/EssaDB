@@ -41,6 +41,10 @@ static void register_sql_function(std::string name, SQLFunction function) {
     s_functions.insert({ std::move(name), std::move(function) });
 }
 
+static void register_sql_function_alias(std::string name, std::string target) {
+    s_functions.insert({ std::move(name), s_functions[target] });
+}
+
 static void setup_sql_functions() {
     register_sql_function("LEN", [](ArgumentList args) -> DbErrorOr<Value> {
         // https://www.w3schools.com/sqL/func_sqlserver_len.asp
@@ -54,6 +58,7 @@ static void setup_sql_functions() {
             return Value::create_int(TRY(string.to_string()).size());
         }
     });
+    register_sql_function_alias("LENGTH", "LEN");
     register_sql_function("STR", [](ArgumentList args) -> DbErrorOr<Value> {
         // https://www.w3schools.com/sqL/func_sqlserver_len.asp
         auto string = TRY(TRY(args.get_required(0, "sth to convert")).to_string());
