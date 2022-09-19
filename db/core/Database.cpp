@@ -1,5 +1,6 @@
 #include "Database.hpp"
 #include "db/core/Table.hpp"
+#include <EssaUtil/Config.hpp>
 
 namespace Db::Core {
 
@@ -25,6 +26,18 @@ DbErrorOr<Table*> Database::table(std::string name) {
         return DbError { "Nonexistent table: " + name, 0 };
     }
     return it->second.get();
+}
+
+DbErrorOr<void> Database::import_to_table(std::string const& path, std::string const& table_name, AST::Import::Mode mode) {
+    auto& new_table = create_table(table_name, std::make_shared<AST::Check>(0));
+    switch (mode) {
+    case AST::Import::Mode::Csv:
+        TRY(new_table.import_from_csv(path));
+        break;
+    default:
+        ESSA_UNREACHABLE;
+    }
+    return {};
 }
 
 }

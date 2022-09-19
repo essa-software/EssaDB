@@ -1,5 +1,6 @@
 #pragma once
 
+#include "AST.hpp"
 #include "DbError.hpp"
 #include "Table.hpp"
 
@@ -18,6 +19,8 @@ public:
     DbErrorOr<Table*> table(std::string name);
 
     bool exists(std::string name) const { return m_tables.find(name) != m_tables.end(); }
+
+    DbErrorOr<void> import_to_table(std::string const& path, std::string const& table_name, AST::Import::Mode);
 
 private:
     std::unordered_map<std::string, std::unique_ptr<Table>> m_tables;
