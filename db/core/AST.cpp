@@ -1,14 +1,14 @@
 #include "AST.hpp"
 #include "Select.hpp"
 
+#include "AbstractTable.hpp"
 #include "Database.hpp"
 #include "DbError.hpp"
+#include "Expression.hpp"
 #include "Function.hpp"
+#include "RowWithColumnNames.hpp"
 #include "Tuple.hpp"
 #include "Value.hpp"
-#include "db/core/AbstractTable.hpp"
-#include "db/core/Expression.hpp"
-#include "db/core/RowWithColumnNames.hpp"
 
 #include <EssaUtil/Is.hpp>
 #include <cctype>
@@ -108,10 +108,10 @@ DbErrorOr<Value> AlterTable::execute(Database& db) const {
     if (!memory_backed_table)
         return DbError { "Table with invalid type!", 0 };
 
-    auto check_exists = [&]() -> DbErrorOr<bool>{
-        if(memory_backed_table->check())
+    auto check_exists = [&]() -> DbErrorOr<bool> {
+        if (memory_backed_table->check())
             return true;
-        return DbError {"No check to alter!", 0};
+        return DbError { "No check to alter!", 0 };
     };
 
     if (m_check_to_add && TRY(check_exists()))
@@ -124,17 +124,17 @@ DbErrorOr<Value> AlterTable::execute(Database& db) const {
         TRY(memory_backed_table->check()->drop_check());
 
     for (const auto& to_add : m_constraint_to_add) {
-        if(TRY(check_exists()))
+        if (TRY(check_exists()))
             TRY(memory_backed_table->check()->add_constraint(to_add.first, to_add.second));
     }
 
     for (const auto& to_alter : m_constraint_to_alter) {
-        if(TRY(check_exists()))
+        if (TRY(check_exists()))
             TRY(memory_backed_table->check()->alter_constraint(to_alter.first, to_alter.second));
     }
 
     for (const auto& to_drop : m_constraint_to_drop) {
-        if(TRY(check_exists()))
+        if (TRY(check_exists()))
             TRY(memory_backed_table->check()->drop_constraint(to_drop));
     }
 
@@ -174,12 +174,8 @@ DbErrorOr<Value> InsertInto::execute(Database& db) const {
 }
 
 DbErrorOr<Value> Import::execute(Database& db) const {
-    auto& new_table = db.create_table(m_table, std::make_shared<AST::Check>(0));
-    switch (m_mode) {
-    case Mode::Csv:
-        TRY(new_table.import_from_csv(m_filename));
-        break;
-    }
+    TRY(db.import_to_table(m_filename, m_table, m_mode));
     return Value::null();
 }
+
 }
