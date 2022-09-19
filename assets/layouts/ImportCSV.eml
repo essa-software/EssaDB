@@ -1,0 +1,64 @@
+@ToolWindow {
+    title: "Import from CSV"
+    width: 500
+    height: 150
+    center_on_screen: true
+
+    main_widget: @Container {
+        layout: @VerticalBoxLayout {
+            padding: 15
+            spacing: 15
+        }
+    
+        define ValueField : @Container {
+            layout: @HorizontalBoxLayout {
+                spacing: 10
+            }
+            height: 30px
+        }
+    
+        @ValueField {
+            @Textfield {
+                content: "Table name:"
+                width: 120px
+            }
+            @TextEditor table_name {
+                multiline: false
+            }
+        }
+        @ValueField {
+            @Textfield {
+                content: "CSV file:"
+                width: 120px
+            }
+            @TextEditor csv_file {
+                multiline: false
+            }
+            @TextButton load_file {
+                content: "Browse..."
+                width: 150px
+            }
+        }
+        @Container {
+            height: 30px
+    
+            layout: @HorizontalBoxLayout {
+                spacing: 10
+            }
+    
+            @Textfield {
+                width: auto
+            }
+    
+            @TextButton submit_cancel {
+                content: "Cancel"
+                width: 120px
+            }
+    
+            @TextButton submit_ok {
+                content: "OK"
+                width: 120px
+            }
+        }
+    }
+}
