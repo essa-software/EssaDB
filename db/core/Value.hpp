@@ -1,9 +1,7 @@
 #pragma once
 
 #include "DbError.hpp"
-#include "ResultSet.hpp"
 #include <EssaUtil/SimulationClock.hpp>
-
 #include <functional>
 #include <optional>
 #include <string>
@@ -13,7 +11,7 @@ namespace Db::Core {
 
 class ResultSet;
 
-using ValueBase = std::variant<std::monostate, int, float, std::string, bool, Util::SimulationClock::time_point, ResultSet>;
+using ValueBase = std::variant<std::monostate, int, float, std::string, bool, Util::SimulationClock::time_point>;
 
 class Value : public ValueBase {
 public:
@@ -24,7 +22,6 @@ public:
         Varchar,
         Bool,
         Time,
-        SelectResult,
     };
 
     static std::optional<Type> type_from_string(std::string const& str) {
@@ -50,13 +47,11 @@ public:
     static Value create_bool(bool b);
     static Value create_time(Util::SimulationClock::time_point clock);
     static Value create_time(std::string str, Util::SimulationClock::Format format);
-    static Value create_select_result(ResultSet);
 
     DbErrorOr<int> to_int() const;
     DbErrorOr<float> to_float() const;
     DbErrorOr<std::string> to_string() const;
     DbErrorOr<bool> to_bool() const;
-    DbErrorOr<ResultSet> to_select_result() const;
 
     Type type() const { return m_type; }
     bool is_null() const { return m_type == Value::Type::Null; }
@@ -87,11 +82,11 @@ DbErrorOr<bool> operator!=(Value const& lhs, Value const& rhs);
 
 Value::Type find_type(const std::string& str);
 
-class ValueSorter : public std::less<Value>{
+class ValueSorter : public std::less<Value> {
 public:
-    bool operator()(const Value& lhs, const Value& rhs) const{
+    bool operator()(const Value& lhs, const Value& rhs) const {
         auto result = lhs < rhs;
-        if(result.is_error())
+        if (result.is_error())
             return false;
         return result.release_value();
     }

@@ -9,7 +9,7 @@
 
 namespace Db::Sql {
 
-Core::DbErrorOr<Core::Value> run_query(Core::Database& db, std::string const& query) {
+Core::DbErrorOr<Core::ValueOrResultSet> run_query(Core::Database& db, std::string const& query) {
     std::istringstream in { query };
     Db::Sql::Lexer lexer { in };
     auto tokens = lexer.lex();

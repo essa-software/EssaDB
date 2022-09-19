@@ -1,13 +1,13 @@
 #pragma once
 
 #include "DbError.hpp"
+#include "Tuple.hpp"
 
 #include <string>
 #include <vector>
 
 namespace Db::Core {
 
-class Tuple;
 class Value;
 
 class ResultSet {

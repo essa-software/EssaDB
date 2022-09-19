@@ -16,16 +16,6 @@
 
 namespace Db::Core::AST {
 
-DbErrorOr<Value> Expression::evaluate_and_require_single_value(EvaluationContext& context, TupleWithSource const& row, std::string run_from) const {
-    auto result = TRY(evaluate(context, row));
-    if (result.type() != Value::Type::SelectResult)
-        return result;
-    auto select_result = TRY(result.to_select_result());
-    if (!select_result.is_convertible_to_value())
-        return DbError { "Expression result must contain 1 row and 1 column " + (run_from.empty() ? "here" : "in " + run_from), start() };
-    return select_result.as_value();
-}
-
 DbErrorOr<Value> Check::evaluate(EvaluationContext& context, const TupleWithSource& row) const {
     if (TRY(TRY(m_main_check->evaluate(context, row)).to_bool())) {
         return Value::create_bool(false);

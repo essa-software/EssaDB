@@ -163,9 +163,6 @@ public:
     virtual std::string to_string() const = 0;
     virtual std::vector<std::string> referenced_columns() const { return {}; }
     virtual bool contains_aggregate_function() const { return false; }
-
-    // run_from will be added to error message.
-    DbErrorOr<Value> evaluate_and_require_single_value(EvaluationContext&, TupleWithSource const&, std::string run_from = "") const;
 };
 
 class Check : public Expression {

@@ -1,5 +1,4 @@
 #include "AST.hpp"
-#include "Select.hpp"
 
 #include "AbstractTable.hpp"
 #include "Database.hpp"
@@ -7,6 +6,7 @@
 #include "Expression.hpp"
 #include "Function.hpp"
 #include "RowWithColumnNames.hpp"
+#include "Select.hpp"
 #include "Tuple.hpp"
 #include "Value.hpp"
 
@@ -22,7 +22,7 @@
 
 namespace Db::Core::AST {
 
-DbErrorOr<Value> DeleteFrom::execute(Database& db) const {
+DbErrorOr<ValueOrResultSet> DeleteFrom::execute(Database& db) const {
     auto table = TRY(db.table(m_from));
 
     EvaluationContext context { .columns = {}, .table = table, .db = &db, .row_type = EvaluationContext::RowType::FromTable };
@@ -49,7 +49,7 @@ DbErrorOr<Value> DeleteFrom::execute(Database& db) const {
     return Value::null();
 }
 
-DbErrorOr<Value> Update::execute(Database& db) const {
+DbErrorOr<ValueOrResultSet> Update::execute(Database& db) const {
     auto table = TRY(db.table(m_table));
 
     EvaluationContext context { .columns = {}, .table = table, .db = &db, .row_type = EvaluationContext::RowType::FromTable };
@@ -67,7 +67,7 @@ DbErrorOr<Value> Update::execute(Database& db) const {
     return Value::null();
 }
 
-DbErrorOr<Value> CreateTable::execute(Database& db) const {
+DbErrorOr<ValueOrResultSet> CreateTable::execute(Database& db) const {
     auto& table = db.create_table(m_name, m_check);
     for (auto const& column : m_columns) {
         TRY(table.add_column(column));
@@ -75,20 +75,20 @@ DbErrorOr<Value> CreateTable::execute(Database& db) const {
     return { Value::null() };
 }
 
-DbErrorOr<Value> DropTable::execute(Database& db) const {
+DbErrorOr<ValueOrResultSet> DropTable::execute(Database& db) const {
     TRY(db.drop_table(m_name));
 
     return { Value::null() };
 }
 
-DbErrorOr<Value> TruncateTable::execute(Database& db) const {
+DbErrorOr<ValueOrResultSet> TruncateTable::execute(Database& db) const {
     auto table = TRY(db.table(m_name));
     TRY(table->truncate());
 
     return { Value::null() };
 }
 
-DbErrorOr<Value> AlterTable::execute(Database& db) const {
+DbErrorOr<ValueOrResultSet> AlterTable::execute(Database& db) const {
     auto table = TRY(db.table(m_name));
 
     for (const auto& to_add : m_to_add) {
@@ -141,7 +141,7 @@ DbErrorOr<Value> AlterTable::execute(Database& db) const {
     return { Value::null() };
 }
 
-DbErrorOr<Value> InsertInto::execute(Database& db) const {
+DbErrorOr<ValueOrResultSet> InsertInto::execute(Database& db) const {
     auto table = TRY(db.table(m_name));
 
     RowWithColumnNames::MapType map;
@@ -173,7 +173,7 @@ DbErrorOr<Value> InsertInto::execute(Database& db) const {
     return { Value::null() };
 }
 
-DbErrorOr<Value> Import::execute(Database& db) const {
+DbErrorOr<ValueOrResultSet> Import::execute(Database& db) const {
     TRY(db.import_to_table(m_filename, m_table, m_mode));
     return Value::null();
 }

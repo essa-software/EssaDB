@@ -110,7 +110,7 @@ public:
         : Statement(start)
         , m_select(std::move(select)) { }
 
-    virtual DbErrorOr<Value> execute(Database&) const override;
+    virtual DbErrorOr<ValueOrResultSet> execute(Database&) const override;
 
 private:
     Select m_select;
@@ -124,7 +124,7 @@ public:
         , m_rhs(std::move(rhs))
         , m_distinct(distinct) { }
 
-    virtual DbErrorOr<Value> execute(Database&) const override;
+    virtual DbErrorOr<ValueOrResultSet> execute(Database&) const override;
 
 private:
     Select m_lhs;
@@ -146,7 +146,7 @@ public:
         , m_columns(std::move(columns))
         , m_select(std::move(select)) { }
 
-    virtual DbErrorOr<Value> execute(Database&) const override;
+    virtual DbErrorOr<ValueOrResultSet> execute(Database&) const override;
 
 private:
     std::string m_name;
