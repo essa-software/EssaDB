@@ -149,23 +149,23 @@ DbErrorOr<void> Table::import_from_csv(const std::string& path) {
             char c = line_in.peek();
             if (c == EOF)
                 break;
-            bool quotes = false;
-            if (c == '\'') {
-                quotes = true;
+            std::optional<char> quote;
+            if (c == '\'' || c == '"') {
+                quote = c;
                 line_in.get();
                 c = line_in.peek();
             }
-            while (!((!quotes && c == ',') || (quotes && c == '\''))) {
+            while (!((!quote && (c == ',' || c == ';')) || (quote && c == *quote))) {
                 if (c == EOF)
                     break;
                 value += c;
                 line_in.get();
                 c = line_in.peek();
             }
-            if (line_in.peek() == '\'')
+            if (line_in.peek() == '\'' || line_in.peek() == '"')
                 line_in.get();
             line_in >> std::ws;
-            if (line_in.peek() == ',')
+            if (line_in.peek() == ',' || line_in.peek() == ';')
                 line_in.get();
             values.push_back(std::move(value));
         }
