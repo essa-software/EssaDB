@@ -50,8 +50,6 @@ DbErrorOr<Value> Value::from_string(Type type, std::string const& string) {
         return DbError { "Bool value must be either 'true' or 'false', got '" + string + "'", 0 };
     case Type::Time:
         return Value::create_time(string, Util::SimulationClock::Format::NO_CLOCK_AMERICAN);
-    case Type::SelectResult:
-        return DbError { "Internal error: TODO: Parse string into SelectResult", 0 };
     }
     __builtin_unreachable();
 }
@@ -117,10 +115,6 @@ Value Value::create_time(std::string time, Util::SimulationClock::Format format)
     }
 }
 
-Value Value::create_select_result(ResultSet result) {
-    return Value { std::move(result), Type::SelectResult };
-}
-
 DbErrorOr<int> Value::to_int() const {
     switch (m_type) {
     // FIXME: Check in spec what should happen when converting null to 0
@@ -143,14 +137,6 @@ DbErrorOr<int> Value::to_int() const {
         return std::get<bool>(*this) ? 1 : 0;
     case Type::Time:
         return static_cast<int>(std::get<Util::SimulationClock::time_point>(*this).time_since_epoch().count());
-    case Type::SelectResult: {
-        auto select_result = std::get<ResultSet>(*this);
-        if (select_result.rows().size() != 1)
-            return DbError { "SelectResult must have only one 1 row to be convertible to int", 0 };
-        if (select_result.rows()[0].value_count() != 1)
-            return DbError { "SelectResult must have only one 1 column to be convertible to int", 0 };
-        return TRY(select_result.rows()[0].value(0).to_int());
-    }
     }
     __builtin_unreachable();
 }
@@ -177,14 +163,6 @@ DbErrorOr<float> Value::to_float() const {
         return std::get<bool>(*this) ? 1.f : 0.f;
     case Type::Time:
         return DbError { "Time is not convertible to float", 0 };
-    case Type::SelectResult: {
-        auto select_result = std::get<ResultSet>(*this);
-        if (select_result.rows().size() != 1)
-            return DbError { "SelectResult must have only one 1 row to be convertible to float", 0 };
-        if (select_result.rows()[0].value_count() != 1)
-            return DbError { "SelectResult must have only one 1 column to be convertible to float", 0 };
-        return TRY(select_result.rows()[0].value(0).to_float());
-    }
     }
     __builtin_unreachable();
 }
@@ -208,27 +186,12 @@ DbErrorOr<std::string> Value::to_string() const {
         stream << time_point;
         return stream.str();
     }
-    case Type::SelectResult: {
-        auto select_result = std::get<ResultSet>(*this);
-        if (select_result.rows().size() != 1)
-            return DbError { "SelectResult must have only one 1 row to be convertible to string", 0 };
-        if (select_result.rows()[0].value_count() != 1)
-            return DbError { "SelectResult must have only one 1 column to be convertible to string", 0 };
-        return TRY(select_result.rows()[0].value(0).to_string());
-    }
     }
     __builtin_unreachable();
 }
 
 DbErrorOr<bool> Value::to_bool() const {
     return TRY(to_int()) != 0;
-}
-
-DbErrorOr<ResultSet> Value::to_select_result() const {
-    if (m_type != Type::SelectResult) {
-        return ResultSet::create_single_value(*this);
-    }
-    return std::get<ResultSet>(*this);
 }
 
 std::string Value::to_debug_string() const {
@@ -246,19 +209,12 @@ std::string Value::to_debug_string() const {
         return "bool " + value;
     case Type::Time:
         return "time " + value;
-    case Type::SelectResult:
-        return "SelectResult (" + std::to_string(std::get<ResultSet>(*this).rows().size()) + " rows)";
     }
     __builtin_unreachable();
 }
 
 void Value::repl_dump(std::ostream& out) const {
-    if (m_type == Type::SelectResult) {
-        return std::get<ResultSet>(*this).dump(out);
-    }
-    else {
-        out << to_debug_string() << std::endl;
-    }
+    out << to_debug_string() << std::endl;
 }
 
 std::ostream& operator<<(std::ostream& out, Value const& value) {
@@ -287,8 +243,6 @@ DbErrorOr<Value> operator+(Value const& lhs, Value const& rhs) {
         Util::SimulationClock::duration dur(time);
         return Value::create_time(Util::SimulationClock::time_point(dur));
     }
-    case Value::Type::SelectResult:
-        return DbError { "No matching operator '+' for 'SelectResult' type.", 0 };
     }
     __builtin_unreachable();
 }
@@ -312,8 +266,6 @@ DbErrorOr<Value> operator-(Value const& lhs, Value const& rhs) {
         Util::SimulationClock::duration dur(time);
         return Value::create_time(Util::SimulationClock::time_point(dur));
     }
-    case Value::Type::SelectResult:
-        return DbError { "No matching operator '-' for 'SelectResult' type.", 0 };
     }
     __builtin_unreachable();
 }
@@ -335,8 +287,6 @@ DbErrorOr<Value> operator*(Value const& lhs, Value const& rhs) {
         return DbError { "No matching operator '*' for 'VARCHAR' type.", 0 };
     case Value::Type::Time:
         return DbError { "No matching operator '*' for 'TIME' type.", 0 };
-    case Value::Type::SelectResult:
-        return DbError { "No matching operator '*' for 'SelectResult' type.", 0 };
     }
     __builtin_unreachable();
 }
@@ -365,8 +315,6 @@ DbErrorOr<Value> operator/(Value const& lhs, Value const& rhs) {
         return DbError { "No matching operator '/' for 'VARCHAR' type.", 0 };
     case Value::Type::Time:
         return DbError { "No matching operator '/' for 'TIME' type.", 0 };
-    case Value::Type::SelectResult:
-        return DbError { "No matching operator '/' for 'SelectResult' type.", 0 };
     }
     __builtin_unreachable();
 }
@@ -391,9 +339,6 @@ DbErrorOr<bool> operator<(Value const& lhs, Value const& rhs) {
     case Value::Type::Time: {
         return TRY(lhs.to_int()) < TRY(rhs.to_int());
     }
-    case Value::Type::SelectResult:
-        // FIXME: make it properly
-        return TRY(lhs.to_string()) < TRY(rhs.to_string());
     }
     __builtin_unreachable();
 }
@@ -416,11 +361,6 @@ DbErrorOr<bool> operator==(Value const& lhs, Value const& rhs) {
         return TRY(lhs.to_string()) == TRY(rhs.to_string());
     case Value::Type::Time:
         return TRY(lhs.to_int()) == TRY(rhs.to_int());
-    case Value::Type::SelectResult: {
-        auto lhs_select_result = TRY(lhs.to_select_result());
-        auto rhs_select_result = TRY(rhs.to_select_result());
-        return lhs_select_result.compare(rhs_select_result);
-    }
     }
     __builtin_unreachable();
 }

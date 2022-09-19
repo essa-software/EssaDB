@@ -5,6 +5,7 @@
 #include "Table.hpp"
 #include "Tuple.hpp"
 #include "Value.hpp"
+#include "ValueOrResultSet.hpp"
 
 #include <iostream>
 #include <map>
@@ -29,7 +30,7 @@ public:
         : ASTNode(start) { }
 
     virtual ~Statement() = default;
-    virtual DbErrorOr<Value> execute(Database&) const = 0;
+    virtual DbErrorOr<ValueOrResultSet> execute(Database&) const = 0;
 };
 
 class DeleteFrom : public Statement {
@@ -39,7 +40,7 @@ public:
         , m_from(std::move(from))
         , m_where(std::move(where)) { }
 
-    virtual DbErrorOr<Value> execute(Database&) const override;
+    virtual DbErrorOr<ValueOrResultSet> execute(Database&) const override;
 
 private:
     std::string m_from;
@@ -58,7 +59,7 @@ public:
         , m_table(table)
         , m_to_update(std::move(to_update)) { }
 
-    virtual DbErrorOr<Value> execute(Database&) const override;
+    virtual DbErrorOr<ValueOrResultSet> execute(Database&) const override;
 
 private:
     std::string m_table;
@@ -77,7 +78,7 @@ public:
         , m_filename(std::move(filename))
         , m_table(std::move(table)) { }
 
-    virtual DbErrorOr<Value> execute(Database&) const override;
+    virtual DbErrorOr<ValueOrResultSet> execute(Database&) const override;
 
 private:
     Mode m_mode;
@@ -93,7 +94,7 @@ public:
         , m_columns(std::move(columns))
         , m_check(std::move(check)) { }
 
-    virtual DbErrorOr<Value> execute(Database&) const override;
+    virtual DbErrorOr<ValueOrResultSet> execute(Database&) const override;
 
 private:
     std::string m_name;
@@ -108,7 +109,7 @@ public:
         : Statement(start)
         , m_name(std::move(name)) { }
 
-    virtual DbErrorOr<Value> execute(Database&) const override;
+    virtual DbErrorOr<ValueOrResultSet> execute(Database&) const override;
 
 private:
     std::string m_name;
@@ -120,7 +121,7 @@ public:
         : Statement(start)
         , m_name(std::move(name)) { }
 
-    virtual DbErrorOr<Value> execute(Database&) const override;
+    virtual DbErrorOr<ValueOrResultSet> execute(Database&) const override;
 
 private:
     std::string m_name;
@@ -143,7 +144,7 @@ public:
         , m_constraint_to_alter(std::move(constraint_to_alter))
         , m_constraint_to_drop(std::move(constraint_to_drop)) { }
 
-    virtual DbErrorOr<Value> execute(Database&) const override;
+    virtual DbErrorOr<ValueOrResultSet> execute(Database&) const override;
 
 private:
     std::string m_name;

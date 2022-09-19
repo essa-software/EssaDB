@@ -47,7 +47,7 @@ DbErrorOr<ResultSet> Select::execute(Database& db) const {
 
         std::vector<Value> values;
         for (auto const& column : m_options.columns.columns()) {
-            values.push_back(TRY(column.column->evaluate_and_require_single_value(context, {}, "column value")));
+            values.push_back(TRY(column.column->evaluate(context, {})));
         }
         return std::vector<TupleWithSource> { { .tuple = Tuple { values }, .source = {} } };
     }());
@@ -149,7 +149,7 @@ DbErrorOr<std::vector<TupleWithSource>> Select::collect_rows(EvaluationContext& 
     auto should_include_row = [&](Tuple const& row) -> DbErrorOr<bool> {
         if (!m_options.where)
             return true;
-        return TRY(m_options.where->evaluate_and_require_single_value(context, TupleWithSource { .tuple = row, .source = {} }, "WHERE clause")).to_bool();
+        return TRY(m_options.where->evaluate(context, TupleWithSource { .tuple = row, .source = {} })).to_bool();
     };
 
     // Collect all rows that should be included (applying WHERE and GROUP BY)
@@ -217,7 +217,7 @@ DbErrorOr<std::vector<TupleWithSource>> Select::collect_rows(EvaluationContext& 
         Tuple dummy_row { values };
         context.row_group = std::span { &dummy_row, 1 };
         for (auto const& column : m_options.columns.columns()) {
-            TRY(column.column->evaluate_and_require_single_value(context, TupleWithSource { .tuple = dummy_row, .source = {} }, "column"));
+            TRY(column.column->evaluate(context, TupleWithSource { .tuple = dummy_row, .source = {} }));
         }
     }
 
@@ -230,7 +230,7 @@ DbErrorOr<std::vector<TupleWithSource>> Select::collect_rows(EvaluationContext& 
         auto should_include_group = [&](EvaluationContext& context, TupleWithSource const& row) -> DbErrorOr<bool> {
             if (!m_options.having)
                 return true;
-            return TRY(m_options.having->evaluate_and_require_single_value(context, row, "HAVING clause")).to_bool();
+            return TRY(m_options.having->evaluate(context, row)).to_bool();
         };
 
         auto is_in_group_by = [&](SelectColumns::Column const& column) {
@@ -253,7 +253,7 @@ DbErrorOr<std::vector<TupleWithSource>> Select::collect_rows(EvaluationContext& 
                     values.push_back(TRY(column.column->evaluate(context, {})));
                 }
                 else if (is_in_group_by(column)) {
-                    values.push_back(TRY(column.column->evaluate_and_require_single_value(context, { .tuple = group.second[0], .source = {} }, "column value")));
+                    values.push_back(TRY(column.column->evaluate(context, { .tuple = group.second[0], .source = {} })));
                 }
                 else {
                     // "All columns must be either aggregate or occur in GROUP BY clause"
@@ -279,7 +279,7 @@ DbErrorOr<std::vector<TupleWithSource>> Select::collect_rows(EvaluationContext& 
                 std::vector<Value> values;
                 context.row_group = group.second;
                 for (auto& column : context.columns.columns()) {
-                    values.push_back(TRY(column.column->evaluate_and_require_single_value(context, { .tuple = row, .source = row }, "column value")));
+                    values.push_back(TRY(column.column->evaluate(context, { .tuple = row, .source = row })));
                 }
                 aggregated_rows.push_back(TupleWithSource { .tuple = { values }, .source = row });
             }
@@ -290,33 +290,38 @@ DbErrorOr<std::vector<TupleWithSource>> Select::collect_rows(EvaluationContext& 
 }
 
 DbErrorOr<Value> SelectExpression::evaluate(EvaluationContext& context, const TupleWithSource&) const {
-    return Value::create_select_result(TRY(m_select.execute(*context.db)));
+    auto result_set = TRY(m_select.execute(*context.db));
+    if (!result_set.is_convertible_to_value()) {
+        // TODO: Store location info
+        return DbError { "Select expression must return a single row with a single value", 0 };
+    }
+    return result_set.as_value();
 }
 
 DbErrorOr<std::unique_ptr<Table>> SelectTableExpression::evaluate(Database* db) const {
     auto result = TRY(m_select.execute(*db));
-    
+
     auto table = std::make_unique<MemoryBackedTable>(nullptr, "");
 
     size_t i = 0;
 
-    for(const auto& name : result.column_names()){
+    for (const auto& name : result.column_names()) {
         Value::Type type = result.rows().empty() ? Value::Type::Null : result.rows().front().value(i).type();
         TRY(table->add_column(Column(name, type, 0, 0, 0)));
     }
 
-    for(const auto& row : result.rows()){
+    for (const auto& row : result.rows()) {
         TRY(table->insert(row));
     }
 
     return table;
 }
 
-DbErrorOr<Value> SelectStatement::execute(Database& db) const {
-    return Value::create_select_result(TRY(m_select.execute(db)));
+DbErrorOr<ValueOrResultSet> SelectStatement::execute(Database& db) const {
+    return TRY(m_select.execute(db));
 }
 
-DbErrorOr<Value> Union::execute(Database& db) const {
+DbErrorOr<ValueOrResultSet> Union::execute(Database& db) const {
     auto lhs = TRY(m_lhs.execute(db));
     auto rhs = TRY(m_rhs.execute(db));
 
@@ -352,7 +357,7 @@ DbErrorOr<Value> Union::execute(Database& db) const {
         }
     }
 
-    return Value::create_select_result({ lhs.column_names(), std::move(rows) });
+    return ResultSet { lhs.column_names(), std::move(rows) };
 }
 
 }
