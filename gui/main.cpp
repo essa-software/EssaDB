@@ -1,7 +1,10 @@
+#include "DatabaseModel.hpp"
 #include "ImportCSVDialog.hpp"
+#include <EssaGUI/eml/EMLResource.hpp>
 #include <EssaGUI/gui/Application.hpp>
 #include <EssaGUI/gui/Console.hpp>
 #include <EssaGUI/gui/MessageBox.hpp>
+#include <EssaGUI/gui/TreeView.hpp>
 #include <db/sql/SQL.hpp>
 #include <sstream>
 
@@ -10,24 +13,22 @@ int main() {
     auto& window = app.create_host_window({ 1200, 700 }, "EssaDB");
 
     auto& container = window.set_main_widget<GUI::Container>();
-    container.set_layout<GUI::VerticalBoxLayout>();
+    if (!container.load_from_eml_resource(app.resource_manager().require<EML::EMLResource>("MainWidget.eml")))
+        return 1;
 
-    auto controls = container.add_widget<GUI::Container>();
-    controls->set_size({ Length::Auto, { static_cast<float>(app.theme().line_height), Length::Unit::Px } });
-    controls->set_layout<GUI::HorizontalBoxLayout>();
+    auto run_button = container.find_widget_of_type_by_id_recursively<GUI::TextButton>("run_sql");
+    auto import_button = container.find_widget_of_type_by_id_recursively<GUI::TextButton>("import_csv");
+    auto outline_container = container.find_widget_of_type_by_id_recursively<GUI::Container>("outline_container");
+    outline_container->set_background_color(app.theme().sidebar);
 
-    auto run_button = controls->add_widget<GUI::TextButton>();
-    run_button->set_content("Run SQL");
-    run_button->set_size({ 120.0_px, Length::Auto });
+    auto tree_view = outline_container->add_widget<GUI::TreeView>();
+    tree_view->set_display_header(false);
 
-    auto import_button = controls->add_widget<GUI::TextButton>();
-    import_button->set_content("Import CSV...");
-    import_button->set_size({ 120.0_px, Length::Auto });
-
-    auto text_editor = container.add_widget<GUI::TextEditor>();
-    [[maybe_unused]] auto console = container.add_widget<GUI::Console>();
+    auto text_editor = container.find_widget_of_type_by_id_recursively<GUI::TextEditor>("sql_query_editor");
+    auto console = container.find_widget_of_type_by_id_recursively<GUI::Console>("sql_console");
 
     Db::Core::Database db;
+    auto& db_model = tree_view->create_and_set_model<EssaDB::DatabaseModel>(db);
 
     auto run_sql = [&](Util::UString const& query) {
         console->append_content({ .color = Util::Color { 100, 100, 255 }, .text = "> " + query });
@@ -39,13 +40,14 @@ int main() {
             std::ostringstream oss;
             result.release_value().repl_dump(oss);
             console->append_content({ .color = Util::Colors::White, .text = Util::UString { oss.str() } });
+            db_model.update();
         }
     };
 
     run_button->on_click = [&]() { run_sql(text_editor->content()); };
     import_button->on_click = [&]() {
         auto& import_csv_dialog = window.open_overlay<EssaDB::ImportCSVDialog>();
-        import_csv_dialog.on_ok = [&window, &db, &console, &import_csv_dialog]() {
+        import_csv_dialog.on_ok = [&window, &db, &console, &import_csv_dialog, &db_model]() {
             auto maybe_error = db.import_to_table(import_csv_dialog.csv_file(),
                 import_csv_dialog.table_name(), Db::Core::AST::Import::Mode::Csv);
             if (maybe_error.is_error()) {
@@ -59,6 +61,7 @@ int main() {
                 .text = Util::UString {
                     fmt::format("Successfully imported CSV {} to {}", import_csv_dialog.csv_file(), import_csv_dialog.table_name()) },
             });
+            db_model.update();
             return true;
         };
         import_csv_dialog.run();

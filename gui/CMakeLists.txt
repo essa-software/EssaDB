@@ -1,4 +1,5 @@
 add_executable(essadb-gui
+    DatabaseModel.cpp
     main.cpp
 )
 essautil_setup_target(essadb-gui)
