@@ -38,6 +38,24 @@ public:
         return {};
     }
 
+    static std::string type_to_string(Type type) {
+        switch (type) {
+        case Type::Int:
+            return "INT";
+        case Type::Float:
+            return "FLOAT";
+        case Type::Varchar:
+            return "VARCHAR";
+        case Type::Bool:
+            return "BOOL";
+        case Type::Time:
+            return "TIME";
+        case Type::Null:
+            return "NULL";
+        }
+        ESSA_UNREACHABLE;
+    }
+
     Value() = default;
     static DbErrorOr<Value> from_string(Type, std::string const&);
     static Value null();
