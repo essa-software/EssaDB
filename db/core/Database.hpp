@@ -22,6 +22,14 @@ public:
 
     DbErrorOr<void> import_to_table(std::string const& path, std::string const& table_name, AST::Import::Mode);
 
+    size_t table_count() const { return m_tables.size(); }
+
+    template<class Callback>
+    void for_each_table(Callback&& c) const {
+        for (auto const& table : m_tables)
+            c(table);
+    }
+
 private:
     std::unordered_map<std::string, std::unique_ptr<Table>> m_tables;
 };
