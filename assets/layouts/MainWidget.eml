@@ -1,0 +1,41 @@
+@Container {
+    layout: @VerticalBoxLayout {
+    }
+
+    @Container {
+        width: auto
+        height: 32px
+        layout: @HorizontalBoxLayout
+
+        @TextButton run_sql {
+            image: asset("run.png")
+            width: 32px
+        }
+
+        @TextButton import_csv {
+            image: asset("import.png")
+            width: 32px
+        }
+    }
+
+    @Container {
+        layout: @HorizontalBoxLayout
+
+        @Container outline_container {
+            layout: @HorizontalBoxLayout
+            width: 250px
+        }
+
+        @Container editors_container {
+            layout: @VerticalBoxLayout
+            @TextEditor sql_query_editor {
+                placeholder: "Enter SQL query (Press Ctrl + Enter to run)"
+                multiline: true
+            }
+
+            @Console sql_console {
+                height: 300px
+            }
+        }
+    }
+}
