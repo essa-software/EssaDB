@@ -1,62 +1,9 @@
-#include <EssaGUI/eml/EMLResource.hpp>
+#include "ImportCSVDialog.hpp"
 #include <EssaGUI/gui/Application.hpp>
 #include <EssaGUI/gui/Console.hpp>
-#include <EssaGUI/gui/Container.hpp>
-#include <EssaGUI/gui/FileExplorer.hpp>
 #include <EssaGUI/gui/MessageBox.hpp>
-#include <EssaGUI/gui/TextButton.hpp>
-#include <EssaGUI/gui/TextEditor.hpp>
-#include <EssaGUI/gui/Textbox.hpp>
 #include <db/sql/SQL.hpp>
 #include <sstream>
-
-class ImportCSVDialog : public GUI::ToolWindow {
-public:
-    ImportCSVDialog(GUI::HostWindow& window)
-        : GUI::ToolWindow(window) {
-        (void)load_from_eml_resource(resource_manager().require<EML::EMLResource>("ImportCSV.eml"));
-
-        auto container = static_cast<GUI::Container*>(main_widget());
-
-        m_table_name = container->find_widget_of_type_by_id_recursively<GUI::TextEditor>("table_name");
-        m_csv_file = container->find_widget_of_type_by_id_recursively<GUI::TextEditor>("csv_file");
-        auto load_file = container->find_widget_of_type_by_id_recursively<GUI::TextButton>("load_file");
-        auto submit_ok = container->find_widget_of_type_by_id_recursively<GUI::TextButton>("submit_ok");
-        auto submit_cancel = container->find_widget_of_type_by_id_recursively<GUI::TextButton>("submit_cancel");
-
-        load_file->on_click = [&]() {
-            auto& file_explorer_wnd = window.open_overlay<GUI::FileExplorer>();
-            file_explorer_wnd.set_size({ 1000, 600 });
-            file_explorer_wnd.center_on_screen();
-            file_explorer_wnd.on_submit = [this](std::filesystem::path path) {
-                m_csv_file->set_content(Util::UString { path.string() });
-            };
-
-            file_explorer_wnd.run();
-        };
-
-        submit_ok->on_click = [this]() {
-            if (on_ok && on_ok())
-                this->close();
-        };
-
-        submit_cancel->on_click = [this]() {
-            this->close();
-        };
-    }
-
-    // Returns true if import succeeded, false otherwise.
-    std::function<bool()> on_ok;
-
-    std::string table_name() const { return m_table_name->content().encode(); }
-    std::string csv_file() const { return m_csv_file->content().encode(); }
-    bool ok_clicked() const { return m_ok_clicked; }
-
-private:
-    GUI::TextEditor* m_table_name = nullptr;
-    GUI::TextEditor* m_csv_file = nullptr;
-    bool m_ok_clicked = false;
-};
 
 int main() {
     GUI::Application app;
@@ -97,7 +44,7 @@ int main() {
 
     run_button->on_click = [&]() { run_sql(text_editor->content()); };
     import_button->on_click = [&]() {
-        auto& import_csv_dialog = window.open_overlay<ImportCSVDialog>();
+        auto& import_csv_dialog = window.open_overlay<EssaDB::ImportCSVDialog>();
         import_csv_dialog.on_ok = [&window, &db, &console, &import_csv_dialog]() {
             auto maybe_error = db.import_to_table(import_csv_dialog.csv_file(),
                 import_csv_dialog.table_name(), Db::Core::AST::Import::Mode::Csv);
