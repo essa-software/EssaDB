@@ -677,11 +677,18 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::AlterTable>> Parser::parse_alter_tabl
             auto thing_to_drop = m_tokens[m_offset++];
 
             if (thing_to_drop.type == Token::Type::KeywordColumn) {
-                auto column_token = m_tokens[m_offset++];
-                if (column_token.type != Token::Type::Identifier)
-                    return expected("column name", column_token, m_offset - 1);
+                while (true) {
+                    auto column_token = m_tokens[m_offset++];
+                    if (column_token.type != Token::Type::Identifier)
+                        return expected("column name", column_token, m_offset - 1);
 
-                to_drop.push_back(Core::Column(column_token.value, {}, 1, 1, 1));
+                    to_drop.push_back(Core::Column(column_token.value, {}, 1, 1, 1));
+
+                    auto comma = m_tokens[m_offset];
+                    if (comma.type != Token::Type::Comma)
+                        break;
+                    m_offset++;
+                }
             }
             else if (thing_to_drop.type == Token::Type::KeywordCheck) {
                 if (check_to_drop)
