@@ -12,3 +12,16 @@ ALTER TABLE test DROP COLUMN string
 -- |  5 |     69 |      58 |
 -- |  6 |   1234 |     165 |
 SELECT * FROM test;
+
+ALTER TABLE test DROP COLUMN number, integer
+
+-- output:
+-- | id |
+-- |  0 |
+-- |  1 |
+-- |  2 |
+-- |  3 |
+-- |  4 |
+-- |  5 |
+-- |  6 |
+SELECT * FROM test;
