@@ -109,6 +109,7 @@ Core::DbErrorOr<Core::AST::Select> Parser::parse_select() {
     m_offset++;
 
     // FROM
+    // FIXME: Extreme hack moment
     std::unique_ptr<Core::AST::TableExpression> from_table = {};
     int jmp_from = 0, depth = 0;
     while (m_offset < m_tokens.size()) {
@@ -174,6 +175,9 @@ Core::DbErrorOr<Core::AST::Select> Parser::parse_select() {
 
             if (m_tokens[m_offset].type == Token::Type::KeywordAs) {
                 m_offset++;
+                if (m_tokens[m_offset].type != Token::Type::Identifier) {
+                    return expected("identifier in alias", m_tokens[m_offset], m_offset);
+                }
                 alias = m_tokens[m_offset++].value;
             }
 
