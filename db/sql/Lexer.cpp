@@ -12,7 +12,7 @@ std::vector<Token> Lexer::lex() {
 
     auto consume_identifier = [&]() {
         std::string s;
-        while (isalpha(m_in.peek()) || m_in.peek() == '_') {
+        while (isalnum(m_in.peek()) || m_in.peek() == '_') {
             s += m_in.get();
         }
         return s;
@@ -47,7 +47,7 @@ std::vector<Token> Lexer::lex() {
         }
 
         auto start = m_in.tellg();
-        if (isalpha(next)) {
+        if (isalpha(next) || next == '_') {
             auto id = consume_identifier();
 
             std::vector<std::pair<std::string, Token::Type>> keyword_to_token_type = {
