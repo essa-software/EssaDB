@@ -194,6 +194,8 @@ Core::DbErrorOr<Core::AST::Select> Parser::parse_select() {
         m_offset++;
     }
 
+    Core::AST::SelectColumns select_columns { std::move(columns) };
+
     // INTO
     std::optional<std::string> select_into;
     auto into = m_tokens[m_offset];
@@ -287,7 +289,7 @@ Core::DbErrorOr<Core::AST::Select> Parser::parse_select() {
         Core::AST::OrderBy order_by;
 
         while (true) {
-            auto expression = TRY(parse_expression_or_index());
+            auto expression = TRY(parse_expression_or_index(select_columns));
 
             auto param = m_tokens[m_offset];
             auto order_method = Core::AST::OrderBy::Order::Ascending;
@@ -299,7 +301,7 @@ Core::DbErrorOr<Core::AST::Select> Parser::parse_select() {
                 m_offset++;
             }
 
-            order_by.columns.push_back(Core::AST::OrderBy::OrderBySet { .column = std::move(expression), .order = order_method });
+            order_by.columns.push_back(Core::AST::OrderBy::OrderBySet { .expression = std::move(expression), .order = order_method });
 
             auto comma = m_tokens[m_offset];
             if (comma.type != Token::Type::Comma)
@@ -312,7 +314,7 @@ Core::DbErrorOr<Core::AST::Select> Parser::parse_select() {
 
     return Core::AST::Select { start,
         Core::AST::Select::SelectOptions {
-            .columns = Core::AST::SelectColumns { std::move(columns) },
+            .columns = std::move(select_columns),
             .from = std::move(from_table),
             .where = std::move(where),
             .order_by = std::move(order),
@@ -914,17 +916,23 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::TableExpression>> Parser::parse_table
     return maybe_operator;
 }
 
-Core::DbErrorOr<Core::AST::ExpressionOrIndex> Parser::parse_expression_or_index() {
+Core::DbErrorOr<std::unique_ptr<Core::AST::Expression>> Parser::parse_expression_or_index(Core::AST::SelectColumns const& select_columns) {
     auto token = m_tokens[m_offset];
     if (token.type == Token::Type::Int) {
         m_offset++;
         auto index = std::stoi(token.value);
+        if (select_columns.select_all()) {
+            return Core::DbError { "Index is not allowed when using SELECT *", m_offset - 1 };
+        }
         if (index < 1) {
             return Core::DbError { "Index must be positive, " + token.value + " given", m_offset - 1 };
         }
-        return Core::AST::ExpressionOrIndex { static_cast<size_t>(index - 1) };
+        if (static_cast<size_t>(index) > select_columns.columns().size()) {
+            return Core::DbError { "Index is out of range", m_offset - 1 };
+        }
+        return std::make_unique<Core::AST::NonOwningExpressionProxy>(m_offset - 1, *select_columns.columns()[index - 1].column);
     }
-    return Core::AST::ExpressionOrIndex { TRY(parse_expression()) };
+    return parse_expression();
 }
 
 Core::DbErrorOr<std::unique_ptr<Core::AST::Literal>> Parser::parse_literal() {

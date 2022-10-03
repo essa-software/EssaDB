@@ -54,14 +54,18 @@ SELECT * FROM test ORDER BY number DESC, id ASC;
 
 -- Order by index
 -- output:
--- | id | number | string | integer |
--- |  1 |   2137 |   null |      65 |
--- |  6 |   1234 |  testw |     165 |
--- |  3 |    420 |   null |     100 |
--- |  0 |     69 |   test |      48 |
--- |  4 |     69 |  test1 |     122 |
--- |  5 |     69 |  test2 |      58 |
--- |  2 |   null |   null |      89 |
+-- | id | number |
+-- |  1 |   2137 |
+-- |  6 |   1234 |
+-- |  3 |    420 |
+-- |  0 |     69 |
+-- |  4 |     69 |
+-- |  5 |     69 |
+-- |  2 |   null |
+SELECT id, number FROM test ORDER BY 2 DESC, 1 ASC;
+
+-- Disallow ordering by index with SELECT *
+-- error: Index is not allowed when using SELECT *
 SELECT * FROM test ORDER BY 2 DESC, 1 ASC;
 
 -- Order by alias

@@ -82,8 +82,8 @@ DbErrorOr<ResultSet> Select::execute(Database& db) const {
             std::vector<Value> rhs_values;
 
             for (auto const& column : m_options.order_by->columns) {
-                auto lhs_value = TRY(column.column.evaluate(context, lhs));
-                auto rhs_value = TRY(column.column.evaluate(context, rhs));
+                auto lhs_value = TRY(column.expression->evaluate(context, lhs));
+                auto rhs_value = TRY(column.expression->evaluate(context, rhs));
                 if (column.order == OrderBy::Order::Ascending) {
                     lhs_values.push_back(std::move(lhs_value));
                     rhs_values.push_back(std::move(rhs_value));
