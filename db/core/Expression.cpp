@@ -3,15 +3,14 @@
 #include "Column.hpp"
 #include "Database.hpp"
 #include "DbError.hpp"
+#include "Regex.hpp"
 #include "RowWithColumnNames.hpp"
 #include "Table.hpp"
 #include "Tuple.hpp"
 #include "Value.hpp"
-
 #include <cstddef>
 #include <map>
 #include <memory>
-#include <regex>
 #include <vector>
 
 namespace Db::Core::AST {
