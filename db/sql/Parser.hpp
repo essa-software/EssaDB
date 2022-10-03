@@ -33,7 +33,7 @@ private:
     Core::DbErrorOr<std::unique_ptr<Core::AST::Update>> parse_update();
     Core::DbErrorOr<std::unique_ptr<Core::AST::Import>> parse_import();
     Core::DbErrorOr<std::unique_ptr<Core::AST::Expression>> parse_expression(int min_precedence = 0);
-    Core::DbErrorOr<Core::AST::ExpressionOrIndex> parse_expression_or_index();
+    Core::DbErrorOr<std::unique_ptr<Core::AST::Expression>> parse_expression_or_index(Core::AST::SelectColumns const&);
 
     struct BetweenRange {
         std::unique_ptr<Core::AST::Expression> min;

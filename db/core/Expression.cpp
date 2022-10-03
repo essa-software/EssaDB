@@ -582,15 +582,32 @@ DbErrorOr<Value> SelectColumns::resolve_value(EvaluationContext& context, TupleW
     return tuple.source->value(column->index);
 }
 
-DbErrorOr<Value> ExpressionOrIndex::evaluate(EvaluationContext& context, TupleWithSource const& input) const {
-    if (is_expression()) {
-        return TRY(expression().evaluate(context, input));
-    }
-    auto index = this->index();
-    if (index >= context.columns.columns().size()) {
-        // TODO: Store location info
-        return DbError { "Index out of range", 0 };
-    }
-    return TRY(context.columns.columns()[index].column->evaluate(context, input));
+DbErrorOr<Value> NonOwningExpressionProxy::evaluate(EvaluationContext& context, TupleWithSource const& tuple) const {
+    return m_expression.evaluate(context, tuple);
 }
+
+std::string NonOwningExpressionProxy::to_string() const {
+    return m_expression.to_string();
+}
+
+std::vector<std::string> NonOwningExpressionProxy::referenced_columns() const {
+    return m_expression.referenced_columns();
+}
+
+bool NonOwningExpressionProxy::contains_aggregate_function() const {
+    return m_expression.contains_aggregate_function();
+}
+
+// DbErrorOr<Value> ExpressionOrIndex::evaluate(EvaluationContext& context, TupleWithSource const& input) const {
+//     if (is_expression()) {
+//         return TRY(expression().evaluate(context, input));
+//     }
+//     auto index = this->index();
+//     if (index >= context.columns.columns().size()) {
+//         // TODO: Store location info
+//         return DbError { "Index out of range", 0 };
+//     }
+//     return TRY(context.columns.columns()[index].column->evaluate(context, input));
+// }
+
 }

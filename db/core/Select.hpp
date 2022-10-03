@@ -16,7 +16,7 @@ struct OrderBy {
     };
 
     struct OrderBySet {
-        ExpressionOrIndex column;
+        std::unique_ptr<Expression> expression;
         Order order = Order::Ascending;
     };
 

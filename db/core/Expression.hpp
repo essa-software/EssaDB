@@ -467,23 +467,19 @@ private:
     std::unique_ptr<Core::AST::Expression> m_else_value;
 };
 
-class ExpressionOrIndex : public std::variant<size_t, std::unique_ptr<Expression>> {
+class NonOwningExpressionProxy : public Expression {
 public:
-    using Variant = std::variant<size_t, std::unique_ptr<Expression>>;
+    NonOwningExpressionProxy(ssize_t start, Expression const& expr)
+        : Expression(start)
+        , m_expression(expr) { }
 
-    explicit ExpressionOrIndex(size_t index)
-        : Variant { index } { }
+    virtual DbErrorOr<Value> evaluate(EvaluationContext& context, TupleWithSource const& tuple) const override;
+    virtual std::string to_string() const override;
+    virtual std::vector<std::string> referenced_columns() const override;
+    virtual bool contains_aggregate_function() const override;
 
-    explicit ExpressionOrIndex(std::unique_ptr<Expression> expr)
-        : Variant(std::move(expr)) { }
-
-    bool is_index() const { return std::holds_alternative<size_t>(*this); }
-    size_t index() const { return std::get<size_t>(*this); }
-
-    bool is_expression() const { return std::holds_alternative<std::unique_ptr<Expression>>(*this); }
-    Expression& expression() const { return *std::get<std::unique_ptr<Expression>>(*this); }
-
-    DbErrorOr<Value> evaluate(EvaluationContext& context, TupleWithSource const& input) const;
+private:
+    Expression const& m_expression;
 };
 
 }
