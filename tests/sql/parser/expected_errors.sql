@@ -13,7 +13,7 @@ SELECT )
 -- error: Expected expression, got ')'
 SELECT ()
 
--- error: Expected identifier in aggregate function, got 'EOF'
+-- error: Expected identifier, got 'EOF'
 SELECT COUNT(
 
 -- error: Expected expression, got 'EOF'

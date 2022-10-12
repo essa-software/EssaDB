@@ -2,6 +2,7 @@
 
 #include "Tuple.hpp"
 
+#include <list>
 #include <map>
 #include <memory>
 #include <optional>
@@ -60,97 +61,40 @@ public:
     };
 
     ResolvedAlias const* resolve_alias(std::string const& alias) const;
-    DbErrorOr<Value> resolve_value(EvaluationContext&, TupleWithSource const&, std::string const& alias) const;
+    DbErrorOr<Value> resolve_value(EvaluationContext&, Identifier const&) const;
 
 private:
     std::vector<Column> m_columns;
     std::map<std::string, ResolvedAlias> m_aliases;
 };
 
-struct EvaluationContext {
+class TableExpression;
+
+struct EvaluationContextFrame {
+    TableExpression const* table = nullptr;
     SelectColumns const& columns;
-    Table const* table = nullptr;
-    Database* db = nullptr;
+    TupleWithSource row {};
+
     std::optional<std::span<Tuple const>> row_group {};
     enum class RowType {
         FromTable,
         FromResultSet
     };
-    RowType row_type;
+    RowType row_type = RowType::FromTable;
+
+    EvaluationContextFrame(TableExpression const* table_, SelectColumns const& columns_)
+        : table(table_)
+        , columns(columns_) { }
 };
 
-class TableExpression : public ASTNode {
-public:
-    explicit TableExpression(ssize_t start)
-        : ASTNode(start) { }
+struct EvaluationContext {
+    Database* db = nullptr;
+    std::list<EvaluationContextFrame> frames {};
 
-    virtual ~TableExpression() = default;
-    virtual DbErrorOr<std::unique_ptr<Table>> evaluate(Database* db) const = 0;
-    virtual std::string to_string() const = 0;
-    virtual std::vector<std::string> referenced_columns() const { return {}; }
-
-    static Tuple prepare_tuple(const Tuple* lhs_row, const Tuple* rhs_row, bool order);
-};
-
-class TableIdentifier : public TableExpression {
-public:
-    explicit TableIdentifier(ssize_t start, std::string id)
-        : TableExpression(start)
-        , m_id(id) { }
-
-    virtual DbErrorOr<std::unique_ptr<Table>> evaluate(Database* db) const override;
-    virtual std::string to_string() const override { return m_id; }
-
-private:
-    std::string m_id;
-};
-
-class JoinExpression : public TableExpression {
-public:
-    enum class Type {
-        InnerJoin,
-        LeftJoin,
-        RightJoin,
-        OuterJoin,
-        Invalid
-    };
-
-    JoinExpression(ssize_t start,
-        std::unique_ptr<TableExpression> lhs,
-        std::unique_ptr<Identifier> on_lhs,
-        Type join_type,
-        std::unique_ptr<TableExpression> rhs,
-        std::unique_ptr<Identifier> on_rhs)
-        : TableExpression(start)
-        , m_lhs(std::move(lhs))
-        , m_rhs(std::move(rhs))
-        , m_on_lhs(std::move(on_lhs))
-        , m_on_rhs(std::move(on_rhs))
-        , m_join_type(join_type) { }
-
-    virtual DbErrorOr<std::unique_ptr<Table>> evaluate(Database* db) const override;
-    virtual std::string to_string() const override { return "JoinExpression(TODO)"; }
-
-private:
-    std::unique_ptr<TableExpression> m_lhs, m_rhs;
-    std::unique_ptr<Identifier> m_on_lhs, m_on_rhs;
-    Type m_join_type;
-};
-
-class CrossJoinExpression : public TableExpression {
-public:
-    CrossJoinExpression(ssize_t start,
-        std::unique_ptr<TableExpression> lhs,
-        std::unique_ptr<TableExpression> rhs)
-        : TableExpression(start)
-        , m_lhs(std::move(lhs))
-        , m_rhs(std::move(rhs)) { }
-
-    virtual DbErrorOr<std::unique_ptr<Table>> evaluate(Database* db) const override;
-    virtual std::string to_string() const override { return "JoinExpression(TODO)"; }
-
-private:
-    std::unique_ptr<TableExpression> m_lhs, m_rhs;
+    EvaluationContextFrame& current_frame() {
+        assert(!frames.empty());
+        return frames.back();
+    }
 };
 
 class Expression : public ASTNode {
@@ -159,7 +103,7 @@ public:
         : ASTNode(start) { }
 
     virtual ~Expression() = default;
-    virtual DbErrorOr<Value> evaluate(EvaluationContext&, TupleWithSource const&) const = 0;
+    virtual DbErrorOr<Value> evaluate(EvaluationContext&) const = 0;
     virtual std::string to_string() const = 0;
     virtual std::vector<std::string> referenced_columns() const { return {}; }
     virtual bool contains_aggregate_function() const { return false; }
@@ -170,7 +114,7 @@ public:
     explicit Check(ssize_t start)
         : Expression(start) { }
 
-    virtual DbErrorOr<Value> evaluate(EvaluationContext&, TupleWithSource const&) const override;
+    virtual DbErrorOr<Value> evaluate(EvaluationContext&) const override;
     virtual std::string to_string() const override { return "Check(TODO)"; }
 
     DbErrorOr<void> add_check(std::shared_ptr<AST::Expression> expr);
@@ -195,7 +139,7 @@ public:
         : Expression(start)
         , m_value(std::move(val)) { }
 
-    virtual DbErrorOr<Value> evaluate(EvaluationContext&, TupleWithSource const&) const override { return m_value; }
+    virtual DbErrorOr<Value> evaluate(EvaluationContext&) const override { return m_value; }
     virtual std::string to_string() const override { return m_value.to_string().release_value_but_fixme_should_propagate_errors(); }
 
     Value value() const { return m_value; }
@@ -211,9 +155,12 @@ public:
         , m_id(std::move(id))
         , m_table(std::move(table)) { }
 
-    virtual DbErrorOr<Value> evaluate(EvaluationContext&, TupleWithSource const&) const override;
+    virtual DbErrorOr<Value> evaluate(EvaluationContext&) const override;
     virtual std::string to_string() const override { return m_id; }
     virtual std::vector<std::string> referenced_columns() const override { return { m_id }; }
+
+    std::string id() const { return m_id; }
+    auto table() const { return m_table; }
 
 private:
     std::string m_id;
@@ -244,8 +191,8 @@ public:
         , m_operation(op)
         , m_rhs(std::move(rhs)) { }
 
-    virtual DbErrorOr<Value> evaluate(EvaluationContext& context, TupleWithSource const& row) const override {
-        return Value::create_bool(TRY(is_true(context, row)));
+    virtual DbErrorOr<Value> evaluate(EvaluationContext& context) const override {
+        return Value::create_bool(TRY(is_true(context)));
     }
     virtual std::string to_string() const override { return "BinaryOperator(" + m_lhs->to_string() + "," + m_rhs->to_string() + ")"; }
 
@@ -258,7 +205,7 @@ public:
     virtual bool contains_aggregate_function() const override { return m_lhs->contains_aggregate_function() || m_rhs->contains_aggregate_function(); }
 
 private:
-    DbErrorOr<bool> is_true(EvaluationContext&, TupleWithSource const&) const;
+    DbErrorOr<bool> is_true(EvaluationContext&) const;
 
     std::unique_ptr<Expression> m_lhs;
     Operation m_operation {};
@@ -282,7 +229,7 @@ public:
         , m_operation(op)
         , m_rhs(std::move(rhs)) { }
 
-    virtual DbErrorOr<Value> evaluate(EvaluationContext& context, TupleWithSource const& row) const override;
+    virtual DbErrorOr<Value> evaluate(EvaluationContext& context) const override;
 
     virtual std::string to_string() const override { return "ArithmeticOperator(" + m_lhs->to_string() + "," + m_rhs->to_string() + ")"; }
 
@@ -315,7 +262,7 @@ public:
         assert(m_max);
     }
 
-    virtual DbErrorOr<Value> evaluate(EvaluationContext& context, TupleWithSource const& row) const override;
+    virtual DbErrorOr<Value> evaluate(EvaluationContext&) const override;
     virtual std::string to_string() const override {
         return "BetweenExpression(" + m_lhs->to_string() + "," + m_min->to_string() + "," + m_max->to_string() + ")";
     }
@@ -346,7 +293,7 @@ public:
         assert(m_lhs);
     }
 
-    virtual DbErrorOr<Value> evaluate(EvaluationContext& context, TupleWithSource const& row) const override;
+    virtual DbErrorOr<Value> evaluate(EvaluationContext&) const override;
     virtual std::string to_string() const override {
         std::string result = "InExpression(";
         for (auto i = m_args.begin(); i < m_args.end(); i++) {
@@ -396,7 +343,7 @@ public:
         , m_lhs(std::move(lhs))
         , m_what(what) { }
 
-    virtual DbErrorOr<Value> evaluate(EvaluationContext& context, TupleWithSource const& row) const override;
+    virtual DbErrorOr<Value> evaluate(EvaluationContext&) const override;
 
     virtual std::string to_string() const override {
         return m_lhs->to_string() + " IS " + (m_what == What::Null ? "NULL" : "NOT NULL");
@@ -427,7 +374,7 @@ public:
         , m_cases(std::move(cases))
         , m_else_value(std::move(else_value)) { }
 
-    virtual DbErrorOr<Value> evaluate(EvaluationContext& context, TupleWithSource const& row) const override;
+    virtual DbErrorOr<Value> evaluate(EvaluationContext&) const override;
     virtual std::string to_string() const override {
         std::string result = "CaseExpression: \n";
         for (const auto& c : m_cases) {
@@ -473,13 +420,29 @@ public:
         : Expression(start)
         , m_expression(expr) { }
 
-    virtual DbErrorOr<Value> evaluate(EvaluationContext& context, TupleWithSource const& tuple) const override;
+    virtual DbErrorOr<Value> evaluate(EvaluationContext&) const override;
     virtual std::string to_string() const override;
     virtual std::vector<std::string> referenced_columns() const override;
     virtual bool contains_aggregate_function() const override;
 
 private:
     Expression const& m_expression;
+};
+
+class IndexExpression : public Expression {
+public:
+    IndexExpression(ssize_t start, size_t idx, std::string name)
+        : Expression(start)
+        , m_index(idx)
+        , m_name(std::move(name)) { }
+
+    virtual DbErrorOr<Value> evaluate(EvaluationContext&) const override;
+    virtual std::string to_string() const override;
+    virtual std::vector<std::string> referenced_columns() const override;
+
+private:
+    size_t m_index = 0;
+    std::string m_name;
 };
 
 }

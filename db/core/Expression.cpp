@@ -4,8 +4,8 @@
 #include "Database.hpp"
 #include "DbError.hpp"
 #include "Regex.hpp"
-#include "RowWithColumnNames.hpp"
 #include "Table.hpp"
+#include "TableExpression.hpp"
 #include "Tuple.hpp"
 #include "Value.hpp"
 #include <cstddef>
@@ -15,13 +15,13 @@
 
 namespace Db::Core::AST {
 
-DbErrorOr<Value> Check::evaluate(EvaluationContext& context, const TupleWithSource& row) const {
-    if (TRY(TRY(m_main_check->evaluate(context, row)).to_bool())) {
+DbErrorOr<Value> Check::evaluate(EvaluationContext& context) const {
+    if (TRY(TRY(m_main_check->evaluate(context)).to_bool())) {
         return Value::create_bool(false);
     }
 
     for (const auto& check : m_constraints) {
-        if (TRY(TRY(check.second->evaluate(context, row)).to_bool())) {
+        if (TRY(TRY(check.second->evaluate(context)).to_bool())) {
             return Value::create_bool(false);
         }
     }
@@ -90,263 +90,32 @@ DbErrorOr<void> Check::drop_constraint(const std::string& name) {
     return {};
 }
 
-DbErrorOr<std::unique_ptr<Table>> TableIdentifier::evaluate(Database* db) const {
-    auto table_ptr = TRY(db->table(m_id));
-    MemoryBackedTable table(nullptr, table_ptr->name());
-
-    for (const auto& column : table_ptr->columns()) {
-        TRY(table.add_column(column));
+DbErrorOr<Value> Identifier::evaluate(EvaluationContext& context) const {
+    if (!context.db) {
+        return DbError { "Identifiers cannot be resolved without database", start() };
     }
 
-    for (const auto& row : table_ptr->raw_rows()) {
-        TRY(table.insert(row));
-    }
-
-    return std::make_unique<MemoryBackedTable>(std::move(table));
-}
-
-Tuple TableExpression::prepare_tuple(const Tuple* lhs_row, const Tuple* rhs_row, bool order) {
-    std::vector<Value> row;
-    if (order) {
-        if (lhs_row) {
-            for (size_t i = 0; i < lhs_row->value_count(); i++) {
-                row.push_back(lhs_row->value(i));
+    if (context.current_frame().row_type == EvaluationContextFrame::RowType::FromTable) {
+        std::optional<size_t> index;
+        TupleWithSource const* row = nullptr;
+        for (auto it = context.frames.rbegin(); it != context.frames.rend(); it++) {
+            auto const& frame = *it;
+            if (!frame.table) {
+                return DbError { "Identifiers cannot be resolved without table", start() };
+            }
+            index = TRY(frame.table->resolve_identifier(context.db, *this));
+            if (index) {
+                row = &frame.row;
+                break;
             }
         }
-
-        if (rhs_row) {
-            for (size_t i = 0; i < rhs_row->value_count(); i++) {
-                row.push_back(rhs_row->value(i));
-            }
+        if (!index) {
+            return DbError { "Invalid identifier", start() };
         }
-    }
-    else {
-        if (rhs_row) {
-            for (size_t i = 0; i < rhs_row->value_count(); i++) {
-                row.push_back(rhs_row->value(i));
-            }
-        }
-
-        if (lhs_row) {
-            for (size_t i = 0; i < lhs_row->value_count(); i++) {
-                row.push_back(lhs_row->value(i));
-            }
-        }
+        return row->tuple.value(*index);
     }
 
-    return Tuple(row);
-}
-
-DbErrorOr<std::unique_ptr<Table>> JoinExpression::evaluate(Database* db) const {
-    auto table = std::make_unique<MemoryBackedTable>(nullptr, "");
-
-    auto lhs_ptr = TRY(m_lhs->evaluate(db));
-    auto rhs_ptr = TRY(m_rhs->evaluate(db));
-
-    auto lhs = dynamic_cast<MemoryBackedTable*>(lhs_ptr.get());
-    auto rhs = dynamic_cast<MemoryBackedTable*>(rhs_ptr.get());
-
-    std::multimap<Value, std::pair<MemoryBackedTable*, Tuple>, ValueSorter> contents;
-
-    size_t lhs_index = 0, rhs_index = 0;
-    bool add_to_index = true;
-
-    for (const auto& column : lhs->columns()) {
-        if (column.name() == m_on_lhs->referenced_columns().front())
-            add_to_index = false;
-        if (add_to_index)
-            lhs_index++;
-        std::string name = (column.original_table()->name().empty() ? "" : column.original_table()->name() + ".") + column.name();
-        TRY(table->add_column(Column(name, column.type(), 0, 0, 0)));
-    }
-
-    add_to_index = true;
-
-    for (const auto& column : rhs->columns()) {
-        if (column.name() == m_on_rhs->referenced_columns().front())
-            add_to_index = false;
-        if (add_to_index)
-            rhs_index++;
-        std::string name = (column.original_table()->name().empty() ? "" : column.original_table()->name() + ".") + column.name();
-        TRY(table->add_column(Column(name, column.type(), 0, 0, 0)));
-    }
-
-    for (const auto& row : *lhs) {
-        contents.insert(std::pair(row.value(lhs_index), std::make_pair(lhs, row)));
-    }
-
-    for (const auto& row : *rhs) {
-        contents.insert(std::pair(row.value(rhs_index), std::make_pair(rhs, row)));
-    }
-
-    auto beg = contents.begin();
-    beg++;
-    auto last = contents.begin();
-
-    switch (m_join_type) {
-    case Type::InnerJoin: {
-        for (auto it = beg; it != contents.end(); it++) {
-            if (last->second.first == lhs && it->second.first == rhs) {
-                if (TRY(it->first == last->first)) {
-                    auto row = prepare_tuple(&last->second.second, &it->second.second, 1);
-                    TRY(table->insert(row));
-                    it++;
-                    if (it == contents.end())
-                        break;
-                }
-            }
-            last = it;
-        }
-
-        break;
-    }
-
-    case Type::LeftJoin: {
-        for (auto it = beg; it != contents.end(); it++) {
-            if (last->second.first == lhs) {
-                if (TRY(it->first == last->first)) {
-                    auto row = prepare_tuple(&last->second.second, &it->second.second, 1);
-                    TRY(table->insert(row));
-                    it++;
-                    if (it == contents.end())
-                        break;
-                }
-                else {
-                    std::vector<Value> values(rhs->columns().size(), Value::null());
-                    Tuple dummy(values);
-
-                    auto row = prepare_tuple(&last->second.second, &dummy, 1);
-
-                    TRY(table->insert(row));
-                }
-            }
-            last = it;
-        }
-
-        break;
-    }
-
-    case Type::RightJoin: {
-        for (auto it = beg; it != contents.end(); it++) {
-            if (last->second.first == rhs || it->second.first == rhs) {
-                if (TRY(it->first == last->first)) {
-                    auto row = prepare_tuple(&last->second.second, &it->second.second, 0);
-                    TRY(table->insert(row));
-                    it++;
-                    if (it == contents.end())
-                        break;
-
-                    last = it;
-                }
-                else {
-                    std::vector<Value> values(lhs->columns().size(), Value::null());
-                    Tuple dummy(values);
-
-                    auto row = prepare_tuple(&dummy, &it->second.second, 0);
-
-                    TRY(table->insert(row));
-                }
-            }
-            last = it;
-        }
-
-        break;
-    }
-
-    case Type::OuterJoin: {
-        for (auto it = beg; it != contents.end(); it++) {
-            if (last->second.first == lhs && it->second.first == rhs && TRY(it->first == last->first)) {
-                auto row = prepare_tuple(&last->second.second, &it->second.second, 1);
-                TRY(table->insert(row));
-                it++;
-                if (it == contents.end())
-                    break;
-            }
-            else if (last->second.first == lhs) {
-                std::vector<Value> values(rhs->columns().size(), Value::null());
-                Tuple dummy(values);
-
-                auto row = prepare_tuple(&last->second.second, &dummy, 1);
-
-                TRY(table->insert(row));
-            }
-            else if (last->second.first == rhs) {
-                std::vector<Value> values(lhs->columns().size(), Value::null());
-                Tuple dummy(values);
-
-                auto row = prepare_tuple(&dummy, &it->second.second, 0);
-
-                TRY(table->insert(row));
-            }
-            last = it;
-        }
-
-        break;
-    }
-
-    case Type::Invalid:
-        return DbError { "Invalid join type!", start() };
-        break;
-    }
-
-    return table;
-}
-
-DbErrorOr<std::unique_ptr<Table>> CrossJoinExpression::evaluate(Database* db) const {
-    auto table = std::make_unique<MemoryBackedTable>(nullptr, "");
-
-    auto lhs_ptr = TRY(m_lhs->evaluate(db));
-    auto rhs_ptr = TRY(m_rhs->evaluate(db));
-
-    auto lhs = dynamic_cast<MemoryBackedTable*>(lhs_ptr.get());
-    auto rhs = dynamic_cast<MemoryBackedTable*>(rhs_ptr.get());
-
-    for (const auto& column : lhs->columns()) {
-        std::string name = (column.original_table()->name().empty() ? "" : column.original_table()->name() + ".") + column.name();
-        TRY(table->add_column(Column(name, column.type(), 0, 0, 0)));
-    }
-
-    for (const auto& column : rhs->columns()) {
-        std::string name = (column.original_table()->name().empty() ? "" : column.original_table()->name() + ".") + column.name();
-        TRY(table->add_column(Column(name, column.type(), 0, 0, 0)));
-    }
-
-    for (const auto& lhs_row : lhs->raw_rows()) {
-        for (const auto& rhs_row : rhs->raw_rows()) {
-            auto row = prepare_tuple(&lhs_row, &rhs_row, 1);
-            TRY(table->insert(row));
-        }
-    }
-
-    return table;
-}
-
-DbErrorOr<Value> Identifier::evaluate(EvaluationContext& context, TupleWithSource const& row) const {
-    if (context.row_type == EvaluationContext::RowType::FromTable) {
-        size_t index = 0;
-        if (context.table) {
-            if (m_table) {
-                auto table = TRY(context.db->table(*m_table));
-
-                auto column = context.table->get_column(m_id, table);
-                if (!column)
-                    return DbError { "No such column: " + m_id, start() };
-                index = column->index;
-            }
-            else {
-                auto column = context.table->get_column(m_id);
-                if (!column)
-                    return DbError { "No such column: " + m_id, start() };
-                index = column->index;
-            }
-        }
-        else {
-            return DbError { "You need a table to resolve identifiers", start() };
-        }
-        return row.tuple.value(index);
-    }
-
-    return TRY(context.columns.resolve_value(context, row, m_id));
+    return TRY(context.current_frame().columns.resolve_value(context, *this));
 }
 
 // FIXME: char ranges doesn't work in row
@@ -446,33 +215,33 @@ static DbErrorOr<bool> wildcard_parser(std::string const& lhs, std::string const
     return result;
 }
 
-DbErrorOr<bool> BinaryOperator::is_true(EvaluationContext& context, TupleWithSource const& row) const {
+DbErrorOr<bool> BinaryOperator::is_true(EvaluationContext& context) const {
     // TODO: Implement proper comparison
     switch (m_operation) {
     case Operation::Equal:
-        return TRY(m_lhs->evaluate(context, row)) == TRY(m_rhs->evaluate(context, row));
+        return TRY(m_lhs->evaluate(context)) == TRY(m_rhs->evaluate(context));
     case Operation::NotEqual:
-        return TRY(m_lhs->evaluate(context, row)) != TRY(m_rhs->evaluate(context, row));
+        return TRY(m_lhs->evaluate(context)) != TRY(m_rhs->evaluate(context));
     case Operation::Greater:
-        return TRY(m_lhs->evaluate(context, row)) > TRY(m_rhs->evaluate(context, row));
+        return TRY(m_lhs->evaluate(context)) > TRY(m_rhs->evaluate(context));
     case Operation::GreaterEqual:
-        return TRY(m_lhs->evaluate(context, row)) >= TRY(m_rhs->evaluate(context, row));
+        return TRY(m_lhs->evaluate(context)) >= TRY(m_rhs->evaluate(context));
     case Operation::Less:
-        return TRY(m_lhs->evaluate(context, row)) < TRY(m_rhs->evaluate(context, row));
+        return TRY(m_lhs->evaluate(context)) < TRY(m_rhs->evaluate(context));
     case Operation::LessEqual:
-        return TRY(m_lhs->evaluate(context, row)) <= TRY(m_rhs->evaluate(context, row));
+        return TRY(m_lhs->evaluate(context)) <= TRY(m_rhs->evaluate(context));
     case Operation::And:
-        return TRY(TRY(m_lhs->evaluate(context, row)).to_bool()) && TRY(TRY(m_rhs->evaluate(context, row)).to_bool());
+        return TRY(TRY(m_lhs->evaluate(context)).to_bool()) && TRY(TRY(m_rhs->evaluate(context)).to_bool());
     case Operation::Or:
-        return TRY(TRY(m_lhs->evaluate(context, row)).to_bool()) || TRY(TRY(m_rhs->evaluate(context, row)).to_bool());
+        return TRY(TRY(m_lhs->evaluate(context)).to_bool()) || TRY(TRY(m_rhs->evaluate(context)).to_bool());
     case Operation::Not:
-        return TRY(TRY(m_lhs->evaluate(context, row)).to_bool());
+        return TRY(TRY(m_lhs->evaluate(context)).to_bool());
     case Operation::Like: {
-        return wildcard_parser(TRY(TRY(m_lhs->evaluate(context, row)).to_string()), TRY(TRY(m_rhs->evaluate(context, row)).to_string()));
+        return wildcard_parser(TRY(TRY(m_lhs->evaluate(context)).to_string()), TRY(TRY(m_rhs->evaluate(context)).to_string()));
     }
     case Operation::Match: {
-        auto value = TRY(TRY(m_lhs->evaluate(context, row)).to_string());
-        auto pattern = TRY(TRY(m_rhs->evaluate(context, row)).to_string());
+        auto value = TRY(TRY(m_lhs->evaluate(context)).to_string());
+        auto pattern = TRY(TRY(m_rhs->evaluate(context)).to_string());
         try {
             std::regex regex { pattern };
             return std::regex_match(value, regex);
@@ -486,9 +255,9 @@ DbErrorOr<bool> BinaryOperator::is_true(EvaluationContext& context, TupleWithSou
     __builtin_unreachable();
 }
 
-DbErrorOr<Value> ArithmeticOperator::evaluate(EvaluationContext& context, TupleWithSource const& row) const {
-    auto lhs = TRY(m_lhs->evaluate(context, row));
-    auto rhs = TRY(m_rhs->evaluate(context, row));
+DbErrorOr<Value> ArithmeticOperator::evaluate(EvaluationContext& context) const {
+    auto lhs = TRY(m_lhs->evaluate(context));
+    auto rhs = TRY(m_rhs->evaluate(context));
 
     switch (m_operation) {
     case Operation::Add:
@@ -505,19 +274,19 @@ DbErrorOr<Value> ArithmeticOperator::evaluate(EvaluationContext& context, TupleW
     __builtin_unreachable();
 }
 
-DbErrorOr<Value> BetweenExpression::evaluate(EvaluationContext& context, TupleWithSource const& row) const {
+DbErrorOr<Value> BetweenExpression::evaluate(EvaluationContext& context) const {
     // TODO: Implement this for strings etc
-    auto value = TRY(m_lhs->evaluate(context, row));
-    auto min = TRY(m_min->evaluate(context, row));
-    auto max = TRY(m_max->evaluate(context, row));
+    auto value = TRY(m_lhs->evaluate(context));
+    auto min = TRY(m_min->evaluate(context));
+    auto max = TRY(m_max->evaluate(context));
     return Value::create_bool(TRY(value >= min) && TRY(value <= max));
 }
 
-DbErrorOr<Value> InExpression::evaluate(EvaluationContext& context, TupleWithSource const& row) const {
+DbErrorOr<Value> InExpression::evaluate(EvaluationContext& context) const {
     // TODO: Implement this for strings etc
-    auto value = TRY(TRY(m_lhs->evaluate(context, row)).to_string());
+    auto value = TRY(TRY(m_lhs->evaluate(context)).to_string());
     for (const auto& arg : m_args) {
-        auto to_compare = TRY(TRY(arg->evaluate(context, row)).to_string());
+        auto to_compare = TRY(TRY(arg->evaluate(context)).to_string());
 
         if (value == to_compare)
             return Value::create_bool(true);
@@ -525,8 +294,8 @@ DbErrorOr<Value> InExpression::evaluate(EvaluationContext& context, TupleWithSou
     return Value::create_bool(false);
 }
 
-DbErrorOr<Value> IsExpression::evaluate(EvaluationContext& context, TupleWithSource const& row) const {
-    auto lhs = TRY(m_lhs->evaluate(context, row));
+DbErrorOr<Value> IsExpression::evaluate(EvaluationContext& context) const {
+    auto lhs = TRY(m_lhs->evaluate(context));
     switch (m_what) {
     case What::Null:
         return Value::create_bool(lhs.is_null());
@@ -536,14 +305,14 @@ DbErrorOr<Value> IsExpression::evaluate(EvaluationContext& context, TupleWithSou
     __builtin_unreachable();
 }
 
-DbErrorOr<Value> CaseExpression::evaluate(EvaluationContext& context, TupleWithSource const& row) const {
+DbErrorOr<Value> CaseExpression::evaluate(EvaluationContext& context) const {
     for (const auto& case_expression : m_cases) {
-        if (TRY(TRY(case_expression.expr->evaluate(context, row)).to_bool()))
-            return TRY(case_expression.value->evaluate(context, row));
+        if (TRY(TRY(case_expression.expr->evaluate(context)).to_bool()))
+            return TRY(case_expression.value->evaluate(context));
     }
 
     if (m_else_value)
-        return TRY(m_else_value->evaluate(context, row));
+        return TRY(m_else_value->evaluate(context));
     return Value::null();
 }
 
@@ -566,24 +335,33 @@ SelectColumns::ResolvedAlias const* SelectColumns::resolve_alias(std::string con
     return &it->second;
 }
 
-DbErrorOr<Value> SelectColumns::resolve_value(EvaluationContext& context, TupleWithSource const& tuple, std::string const& alias) const {
-    auto resolved_alias = resolve_alias(alias);
-    if (resolved_alias)
-        return tuple.tuple.value(resolved_alias->index);
+DbErrorOr<Value> SelectColumns::resolve_value(EvaluationContext& context, Identifier const& identifier) const {
+    auto const& tuple = context.current_frame().row;
+    if (!identifier.table()) {
+        auto resolved_alias = resolve_alias(identifier.id());
+        if (resolved_alias)
+            return tuple.tuple.value(resolved_alias->index);
+    }
 
-    if (!context.table)
-        return DbError { "Identifier '" + alias + "' not defined", 0 };
-
-    auto column = context.table->get_column(alias);
-    if (!column)
-        return DbError { "Identifier '" + alias + "' not defined in table nor as an alias", 0 };
     if (!tuple.source)
         return DbError { "Cannot use table columns on aggregated rows", 0 };
-    return tuple.source->value(column->index);
+
+    std::optional<size_t> index;
+    for (auto it = context.frames.rbegin(); it != context.frames.rend(); it++) {
+        auto const& frame = *it;
+        index = TRY(frame.table->resolve_identifier(context.db, identifier));
+        if (index) {
+            break;
+        }
+    }
+    if (!index) {
+        return DbError { "Invalid identifier", identifier.start() };
+    }
+    return tuple.source->value(*index);
 }
 
-DbErrorOr<Value> NonOwningExpressionProxy::evaluate(EvaluationContext& context, TupleWithSource const& tuple) const {
-    return m_expression.evaluate(context, tuple);
+DbErrorOr<Value> NonOwningExpressionProxy::evaluate(EvaluationContext& context) const {
+    return m_expression.evaluate(context);
 }
 
 std::string NonOwningExpressionProxy::to_string() const {
@@ -598,16 +376,20 @@ bool NonOwningExpressionProxy::contains_aggregate_function() const {
     return m_expression.contains_aggregate_function();
 }
 
-// DbErrorOr<Value> ExpressionOrIndex::evaluate(EvaluationContext& context, TupleWithSource const& input) const {
-//     if (is_expression()) {
-//         return TRY(expression().evaluate(context, input));
-//     }
-//     auto index = this->index();
-//     if (index >= context.columns.columns().size()) {
-//         // TODO: Store location info
-//         return DbError { "Index out of range", 0 };
-//     }
-//     return TRY(context.columns.columns()[index].column->evaluate(context, input));
-// }
+DbErrorOr<Value> IndexExpression::evaluate(EvaluationContext& context) const {
+    auto const& tuple = context.current_frame().row.tuple;
+    if (m_index >= tuple.value_count()) {
+        return DbError { "Internal error: index expression overflow", start() };
+    }
+    return tuple.value(m_index);
+}
+
+std::string IndexExpression::to_string() const {
+    return m_name;
+}
+
+std::vector<std::string> IndexExpression::referenced_columns() const {
+    return {};
+}
 
 }

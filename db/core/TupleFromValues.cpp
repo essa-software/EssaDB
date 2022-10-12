@@ -1,19 +1,16 @@
-#include "RowWithColumnNames.hpp"
+#include "TupleFromValues.hpp"
 
+#include "Database.hpp"
 #include "Table.hpp"
-#include "db/core/Expression.hpp"
-#include "db/core/Tuple.hpp"
-#include "db/core/Value.hpp"
-
-#include <ostream>
+#include "TableExpression.hpp"
 
 namespace Db::Core {
 
-DbErrorOr<RowWithColumnNames> RowWithColumnNames::from_map(Table& table, MapType map) {
+DbErrorOr<Tuple> create_tuple_from_values(Database& db, Table& table, std::vector<std::pair<std::string, Value>> values) {
     std::vector<Value> row;
     auto& columns = table.columns();
     row.resize(columns.size());
-    for (auto& value : map) {
+    for (auto const& value : values) {
         auto column = table.get_column(value.first);
         if (!column) {
             // TODO: Save location info
@@ -39,18 +36,20 @@ DbErrorOr<RowWithColumnNames> RowWithColumnNames::from_map(Table& table, MapType
 
         row[column->index] = std::move(value.second);
     }
-    AST::SelectColumns select_all_columns;
 
-    AST::SelectColumns const& columns_to_context = *TRY([&table, &select_all_columns]() -> DbErrorOr<AST::SelectColumns const*> {
+    AST::SelectColumns columns_to_context;
+    {
         std::vector<AST::SelectColumns::Column> all_columns;
         for (auto const& column : table.columns()) {
             all_columns.push_back(AST::SelectColumns::Column { .column = std::make_unique<AST::Identifier>(0, column.name(), std::optional<std::string> {}) });
         }
-        select_all_columns = AST::SelectColumns { std::move(all_columns) };
-        return &select_all_columns;
-    }());
+        columns_to_context = AST::SelectColumns { std::move(all_columns) };
+    }
 
-    AST::EvaluationContext context { .columns = columns_to_context, .table = &table, .row_type = AST::EvaluationContext::RowType::FromTable };
+    AST::EvaluationContext context { .db = &db };
+
+    AST::SimpleTableExpression id { 0, table };
+    context.frames.emplace_back(&id, columns_to_context);
 
     // Null check
     for (size_t s = 0; s < row.size(); s++) {
@@ -79,30 +78,18 @@ DbErrorOr<RowWithColumnNames> RowWithColumnNames::from_map(Table& table, MapType
 
     if (memory_backed_table->check()) {
         if (memory_backed_table->check()->main_rule()) {
-            if (!TRY(TRY(memory_backed_table->check()->main_rule()->evaluate(context, AST::TupleWithSource { .tuple = Tuple { row }, .source = {} })).to_bool()))
+            context.current_frame().row = { .tuple = Tuple { row }, .source = {} };
+            if (!TRY(TRY(memory_backed_table->check()->main_rule()->evaluate(context)).to_bool()))
                 return DbError { "Values doesn't match general check rule specified for this table", 0 };
         }
 
         for (const auto& expr : memory_backed_table->check()->constraints()) {
-            if (!TRY(TRY(expr.second->evaluate(context, AST::TupleWithSource { .tuple = Tuple { row }, .source = {} })).to_bool()))
+            context.current_frame().row = { .tuple = Tuple { row }, .source = {} };
+            if (!TRY(TRY(expr.second->evaluate(context)).to_bool()))
                 return DbError { "Values doesn't match '" + expr.first + "' check rule specified for this table", 0 };
         }
     }
 
-    return RowWithColumnNames { Tuple { row }, table };
+    return Tuple { row };
 }
-
-std::ostream& operator<<(std::ostream& out, RowWithColumnNames const& row) {
-    size_t index = 0;
-    out << "{ ";
-    for (auto& value : row.m_row) {
-        auto column = row.m_table.columns()[index];
-        out << column.name() << ": " << value;
-        if (index != row.m_row.value_count() - 1)
-            out << ", ";
-        index++;
-    }
-    return out << " }";
-}
-
 }

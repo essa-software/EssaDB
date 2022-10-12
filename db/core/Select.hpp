@@ -1,8 +1,9 @@
 #pragma once
 
 #include "AST.hpp"
+#include "Database.hpp"
 #include "Expression.hpp"
-#include "db/core/Database.hpp"
+#include "TableExpression.hpp"
 #include <memory>
 #include <optional>
 #include <string>
@@ -69,7 +70,9 @@ public:
         : m_start(start)
         , m_options(std::move(options)) { }
 
-    DbErrorOr<ResultSet> execute(Database&) const;
+    DbErrorOr<ResultSet> execute(EvaluationContext&) const;
+
+    auto const& from() const { return m_options.from; }
 
 private:
     DbErrorOr<std::vector<TupleWithSource>> collect_rows(EvaluationContext&, AbstractTable&) const;
@@ -84,7 +87,7 @@ public:
         : Expression(start)
         , m_select(std::move(select)) { }
 
-    virtual DbErrorOr<Value> evaluate(EvaluationContext&, TupleWithSource const&) const override;
+    virtual DbErrorOr<Value> evaluate(EvaluationContext&) const override;
     virtual std::string to_string() const override { return "(SELECT TODO)"; }
 
 private:
@@ -97,8 +100,10 @@ public:
         : TableExpression(start)
         , m_select(std::move(select)) { }
 
-    virtual DbErrorOr<std::unique_ptr<Table>> evaluate(Database* db) const override;
+    virtual DbErrorOr<std::unique_ptr<Table>> evaluate(EvaluationContext& context) const override;
     virtual std::string to_string() const override { return "(SELECT TODO)"; }
+    virtual DbErrorOr<std::optional<size_t>> resolve_identifier(Database* db, Identifier const&) const override;
+    virtual DbErrorOr<size_t> column_count(Database* db) const override;
 
 private:
     Select m_select;

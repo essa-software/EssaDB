@@ -66,7 +66,7 @@ bool display_error_if_error(Db::Core::DbErrorOr<Db::Core::ValueOrResultSet>&& qu
             if (statement.display)
                 std::cout << "Expecting error: \e[31m" << *statement.expected_error << "\e[m" << std::endl;
             if (error.message() != *statement.expected_error) {
-                std::cout << "\r\x1b[2K[FAIL] Incorrect error returned: \e[31m" << error.message() << "\e[m" << std::endl;
+                std::cout << "\r\x1b[2K[FAIL] Incorrect error returned: \e[31m" << error.message() << "\e[m. Expected: \e[31m" << *statement.expected_error << "\e[m" << std::endl;
                 return false;
             }
         }
@@ -212,7 +212,11 @@ std::map<std::string, TestFunc> get_tests() {
                     std::cout << "\r\x1b[2K[*] Skipped in " << test_name.string() << ": " << statement.statement << std::endl;
                     continue;
                 }
-                success &= display_error_if_error(run_query(db, statement), statement);
+                bool this_success = display_error_if_error(run_query(db, statement), statement);
+                if (!this_success) {
+                    std::cout << "[FAIL]  when running \e[32m" << statement.statement << "\e[m" << std::endl;
+                }
+                success &= this_success;
             }
             if (!success)
                 return Db::Core::DbError { "SQL failed", 0 };

@@ -9,6 +9,7 @@
 #include <db/core/Expression.hpp>
 #include <db/core/Function.hpp>
 #include <db/core/Select.hpp>
+#include <db/core/TableExpression.hpp>
 #include <memory>
 
 namespace Db::Sql {
@@ -68,10 +69,9 @@ private:
     Core::DbErrorOr<Core::Column> parse_column();
     Core::DbErrorOr<std::unique_ptr<Core::AST::TableExpression>> parse_table_expression();
     Core::DbErrorOr<std::unique_ptr<Core::AST::TableIdentifier>> parse_table_identifier();
-    Core::DbErrorOr<std::unique_ptr<Core::AST::TableExpression>> parse_join_expression(std::unique_ptr<Core::AST::TableExpression> lhs); 
+    Core::DbErrorOr<std::unique_ptr<Core::AST::TableExpression>> parse_join_expression(std::unique_ptr<Core::AST::TableExpression> lhs);
 
     std::vector<Token> const& m_tokens;
-    std::vector<std::pair<std::string, std::string>> m_table_aliases;
 
     static Core::DbError expected(std::string what, Token got, size_t offset);
 

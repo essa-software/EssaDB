@@ -411,7 +411,7 @@ static void setup_sql_functions() {
     });
 }
 
-DbErrorOr<Value> Function::evaluate(EvaluationContext& context, TupleWithSource const& row) const {
+DbErrorOr<Value> Function::evaluate(EvaluationContext& context) const {
     static bool sql_functions_setup = false;
     if (!sql_functions_setup) {
         setup_sql_functions();
@@ -426,34 +426,36 @@ DbErrorOr<Value> Function::evaluate(EvaluationContext& context, TupleWithSource 
     if (function != s_functions.end()) {
         std::vector<Value> args;
         for (auto const& arg : m_args)
-            args.push_back(TRY(arg->evaluate(context, row)));
+            args.push_back(TRY(arg->evaluate(context)));
         return function->second(ArgumentList { std::move(args) });
     }
 
     return DbError { "Undefined function: '" + m_name + "'", start() };
 }
 
-DbErrorOr<Value> AggregateFunction::evaluate(EvaluationContext& context, TupleWithSource const&) const {
-    if (!context.row_group) {
+DbErrorOr<Value> AggregateFunction::evaluate(EvaluationContext& context) const {
+    auto& frame = context.current_frame();
+    if (!frame.row_group) {
         // TODO: Store more information about where user can't use aggregate function.
         return DbError { "Cannot use aggregate function here", start() };
     }
-    auto result = TRY(aggregate(context, *context.row_group));
+    auto result = TRY(aggregate(context, *frame.row_group));
     return result;
 }
 
 DbErrorOr<Value> AggregateFunction::aggregate(EvaluationContext& context, std::span<Tuple const> rows) const {
-    if (!context.table)
+    auto& frame = context.current_frame();
+    if (!frame.table)
         return DbError { "Internal error: aggregate() called without table", start() };
-    auto column = context.table->get_column(m_column);
+    auto column = TRY(frame.table->resolve_identifier(context.db, *m_column));
     if (!column)
-        return DbError { "Invalid column '" + m_column + "' used in aggregate function", start() };
+        return DbError { "Invalid column '" + m_column->to_string() + "' used in aggregate function", start() };
 
     switch (m_function) {
     case Function::Count: {
         int count = 0;
         for (auto& row : rows) {
-            if (row.value(column->index).type() != Value::Type::Null)
+            if (row.value(*column).type() != Value::Type::Null)
                 count += 1;
         }
         return Value::create_int(count);
@@ -461,7 +463,7 @@ DbErrorOr<Value> AggregateFunction::aggregate(EvaluationContext& context, std::s
     case Function::Sum: {
         float sum = 0;
         for (auto& row : rows) {
-            sum += TRY(row.value(column->index).to_float());
+            sum += TRY(row.value(*column).to_float());
         }
 
         return Value::create_float(sum);
@@ -469,7 +471,7 @@ DbErrorOr<Value> AggregateFunction::aggregate(EvaluationContext& context, std::s
     case Function::Min: {
         float min = std::numeric_limits<float>::max();
         for (auto& row : rows) {
-            min = std::min(min, TRY(row.value(column->index).to_float()));
+            min = std::min(min, TRY(row.value(*column).to_float()));
         }
 
         return Value::create_float(min);
@@ -477,7 +479,7 @@ DbErrorOr<Value> AggregateFunction::aggregate(EvaluationContext& context, std::s
     case Function::Max: {
         float max = std::numeric_limits<float>::min();
         for (auto& row : rows) {
-            max = std::max(max, TRY(row.value(column->index).to_float()));
+            max = std::max(max, TRY(row.value(*column).to_float()));
         }
 
         return Value::create_float(max);
@@ -486,7 +488,7 @@ DbErrorOr<Value> AggregateFunction::aggregate(EvaluationContext& context, std::s
         float sum = 0;
         size_t count = 0;
         for (auto& row : rows) {
-            sum += TRY(row.value(column->index).to_int());
+            sum += TRY(row.value(*column).to_int());
             count++;
         }
 
