@@ -32,7 +32,7 @@ DbErrorOr<void> Database::import_to_table(std::string const& path, std::string c
     auto& new_table = create_table(table_name, std::make_shared<AST::Check>(0));
     switch (mode) {
     case AST::Import::Mode::Csv:
-        TRY(new_table.import_from_csv(path));
+        TRY(new_table.import_from_csv(*this, path));
         break;
     default:
         ESSA_UNREACHABLE;

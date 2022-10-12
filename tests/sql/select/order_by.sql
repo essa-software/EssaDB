@@ -37,7 +37,7 @@ SELECT * FROM test ORDER BY number ASC;
 SELECT * FROM test ORDER BY number DESC;
 
 -- Order by nonexistent
--- error: Identifier 'nonexistent' not defined in table nor as an alias
+-- error: Column 'nonexistent' does not exist in table 'test'
 SELECT * FROM test ORDER BY nonexistent;
 
 -- Order by multiple

@@ -3,9 +3,8 @@
 #include "AbstractTable.hpp"
 #include "Column.hpp"
 #include "DbError.hpp"
+#include "Expression.hpp"
 #include "ResultSet.hpp"
-#include "RowWithColumnNames.hpp"
-#include "db/core/Expression.hpp"
 
 #include <EssaUtil/NonCopyable.hpp>
 #include <memory>
@@ -21,14 +20,13 @@ public:
     virtual DbErrorOr<void> add_column(Column) = 0;
     virtual DbErrorOr<void> alter_column(Column) = 0;
     virtual DbErrorOr<void> drop_column(std::string const&) = 0;
-    virtual DbErrorOr<void> insert(RowWithColumnNames::MapType) = 0;
     virtual DbErrorOr<void> insert(Tuple const&) = 0;
     virtual int increment(std::string column) = 0;
 
     virtual std::string name() const = 0;
 
     void export_to_csv(const std::string& path) const;
-    DbErrorOr<void> import_from_csv(const std::string& path);
+    DbErrorOr<void> import_from_csv(Database& db, const std::string& path);
 };
 
 class MemoryBackedTable : public Table {
@@ -65,17 +63,15 @@ public:
     virtual DbErrorOr<void> add_column(Column) override;
     virtual DbErrorOr<void> alter_column(Column) override;
     virtual DbErrorOr<void> drop_column(std::string const&) override;
-
-    virtual DbErrorOr<void> insert(RowWithColumnNames::MapType) override;
     virtual DbErrorOr<void> insert(Tuple const&) override;
 
     virtual std::string name() const override { return m_name; }
 
     std::shared_ptr<AST::Check>& check() { return m_check; }
 
-private:
-    friend class RowWithColumnNames;
+    void dump_structure() const;
 
+private:
     virtual int increment(std::string column) override { return ++m_auto_increment_values[column]; }
 
     std::vector<Tuple> m_rows;

@@ -2,9 +2,10 @@
 
 #include "AbstractTable.hpp"
 #include "Column.hpp"
+#include "DbError.hpp"
+#include "Expression.hpp"
 #include "ResultSet.hpp"
-#include "db/core/DbError.hpp"
-#include "db/core/Expression.hpp"
+#include "TupleFromValues.hpp"
 
 #include <cstring>
 #include <fstream>
@@ -22,20 +23,17 @@ DbErrorOr<std::unique_ptr<MemoryBackedTable>> MemoryBackedTable::create_from_sel
 
     auto const& columns = select.column_names();
     auto const& rows = select.rows();
-    size_t i = 0;
 
+    size_t i = 0;
     for (const auto& col : columns) {
-        TRY(table->add_column(Column(col, rows[0].value(i).type(), 0, 0, 0)));
+        TRY(table->add_column(Column(col, rows[0].value(i).type(), false, false, false)));
+        i++;
     }
     table->m_rows = rows;
     return table;
 }
 
 DbErrorOr<void> MemoryBackedTable::add_column(Column column) {
-    if (get_column(column.name())) {
-        // TODO: Save location info
-        return DbError { "Duplicate column '" + column.name() + "'", 0 };
-    }
     if (!column.original_table())
         column.set_table(this);
     m_columns.push_back(std::move(column));
@@ -85,14 +83,33 @@ DbErrorOr<void> MemoryBackedTable::drop_column(std::string const& column) {
     return {};
 }
 
-DbErrorOr<void> MemoryBackedTable::insert(RowWithColumnNames::MapType map) {
-    m_rows.push_back(TRY(RowWithColumnNames::from_map(*this, map)).row());
+DbErrorOr<void> MemoryBackedTable::insert(Tuple const& row) {
+    if (row.value_count() != m_columns.size()) {
+        dump_structure();
+        return DbError { fmt::format("Internal error: insert(): Column count does not match ({} given vs {} required)", row.value_count(), m_columns.size()), 0 };
+    }
+    for (size_t s = 0; s < m_columns.size(); s++) {
+        if (m_columns[s].not_null() && row.value(s).is_null()) {
+            dump_structure();
+            return DbError { fmt::format("Internal error: insert(): Column {} is set to be null but is not NOT NULL", s), 0 };
+        }
+        if (!row.value(s).is_null() && m_columns[s].type() != row.value(s).type()) {
+            dump_structure();
+            return DbError { fmt::format("Internal error: insert(): Type mismatch, required {} but given {} at index {}", Value::type_to_string(m_columns[s].type()), Value::type_to_string(row.value(s).type()), s), 0 };
+        }
+        // assert(m_columns[s].type() == row.value(s).type() || (!m_columns[s].not_null() && row.value(s).is_null()));
+    }
+    m_rows.push_back(row);
     return {};
 }
 
-DbErrorOr<void> MemoryBackedTable::insert(Tuple const& row) {
-    m_rows.push_back(row);
-    return {};
+void MemoryBackedTable::dump_structure() const {
+    fmt::print("MemoryBackedTable '{}' @{}\n", name(), fmt::ptr(this));
+    fmt::print("Rows: {}\n", raw_rows().size());
+    fmt::print("Columns:\n");
+    for (auto const& c : m_columns) {
+        fmt::print(" - {} {}\n", c.name(), Value::type_to_string(c.type()));
+    }
 }
 
 void Table::export_to_csv(const std::string& path) const {
@@ -126,7 +143,7 @@ void Table::export_to_csv(const std::string& path) const {
     });
 }
 
-DbErrorOr<void> Table::import_from_csv(const std::string& path) {
+DbErrorOr<void> Table::import_from_csv(Database& db, const std::string& path) {
     std::ifstream f_in(path);
     f_in >> std::ws;
     if (!f_in.good())
@@ -217,7 +234,7 @@ DbErrorOr<void> Table::import_from_csv(const std::string& path) {
 
     auto columns = this->columns();
     for (auto const& row : rows) {
-        RowWithColumnNames::MapType map;
+        std::vector<std::pair<std::string, Value>> tuple;
         unsigned i = 0;
 
         for (const auto& col : columns) {
@@ -228,10 +245,10 @@ DbErrorOr<void> Table::import_from_csv(const std::string& path) {
                 continue;
 
             auto created_value = TRY(Value::from_string(col.type(), value));
-            map.insert({ col.name(), created_value });
+            tuple.push_back({ col.name(), std::move(created_value) });
         }
 
-        TRY(insert(map));
+        TRY(insert(TRY(create_tuple_from_values(db, *this, tuple))));
     }
 
     return {};

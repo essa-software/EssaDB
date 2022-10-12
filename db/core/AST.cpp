@@ -5,9 +5,9 @@
 #include "DbError.hpp"
 #include "Expression.hpp"
 #include "Function.hpp"
-#include "RowWithColumnNames.hpp"
 #include "Select.hpp"
 #include "Tuple.hpp"
+#include "TupleFromValues.hpp"
 #include "Value.hpp"
 
 #include <EssaUtil/Is.hpp>
@@ -25,13 +25,16 @@ namespace Db::Core::AST {
 DbErrorOr<ValueOrResultSet> DeleteFrom::execute(Database& db) const {
     auto table = TRY(db.table(m_from));
 
-    EvaluationContext context { .columns = {}, .table = table, .db = &db, .row_type = EvaluationContext::RowType::FromTable };
+    EvaluationContext context { .db = &db };
+    AST::SimpleTableExpression id { 0, *table };
+    SelectColumns columns;
+    context.frames.emplace_back(&id, columns);
 
-    // TODO: Implement
     auto should_include_row = [&](Tuple const& row) -> DbErrorOr<bool> {
         if (!m_where)
             return true;
-        return TRY(m_where->evaluate(context, { .tuple = row, .source = {} })).to_bool();
+        context.current_frame().row = { .tuple = row, .source = {} };
+        return TRY(m_where->evaluate(context)).to_bool();
     };
 
     // TODO: Maintain integrity on error
@@ -51,14 +54,17 @@ DbErrorOr<ValueOrResultSet> DeleteFrom::execute(Database& db) const {
 
 DbErrorOr<ValueOrResultSet> Update::execute(Database& db) const {
     auto table = TRY(db.table(m_table));
-
-    EvaluationContext context { .columns = {}, .table = table, .db = &db, .row_type = EvaluationContext::RowType::FromTable };
+    EvaluationContext context { .db = &db };
+    AST::SimpleTableExpression id { 0, *table };
+    SelectColumns columns;
+    context.frames.emplace_back(&id, columns);
 
     for (const auto& update_pair : m_to_update) {
         auto column = table->get_column(update_pair.column);
         TRY(table->rows_writable().try_for_each_row([&](TupleWriter const& row) -> DbErrorOr<void> {
             auto tuple = row.read();
-            tuple.set_value(column->index, TRY(update_pair.expr->evaluate(context, { .tuple = tuple, .source = {} })));
+            context.current_frame().row = { .tuple = tuple, .source = {} };
+            tuple.set_value(column->index, TRY(update_pair.expr->evaluate(context)));
             TRY(row.write(tuple));
             return {};
         }));
@@ -144,31 +150,32 @@ DbErrorOr<ValueOrResultSet> AlterTable::execute(Database& db) const {
 DbErrorOr<ValueOrResultSet> InsertInto::execute(Database& db) const {
     auto table = TRY(db.table(m_name));
 
-    RowWithColumnNames::MapType map;
-    EvaluationContext context { .columns = {}, .table = table, .db = &db, .row_type = EvaluationContext::RowType::FromTable };
+    EvaluationContext context { .db = &db };
     if (m_select) {
-        auto result = TRY(m_select.value().execute(db));
+        auto result = TRY(m_select.value().execute(context));
 
         if (m_columns.size() != result.column_names().size())
             return DbError { "Values doesn't have corresponding columns", start() };
 
         for (const auto& row : result.rows()) {
+            std::vector<std::pair<std::string, Value>> values;
             for (size_t i = 0; i < m_columns.size(); i++) {
-                map.insert({ m_columns[i], row.value(i) });
+                values.push_back({ m_columns[i], row.value(i) });
             }
 
-            TRY(table->insert(std::move(map)));
+            TRY(table->insert(TRY(create_tuple_from_values(db, *table, values))));
         }
     }
     else {
         if (m_columns.size() != m_values.size())
             return DbError { "Values doesn't have corresponding columns", start() };
 
+        std::vector<std::pair<std::string, Value>> values;
         for (size_t i = 0; i < m_columns.size(); i++) {
-            map.insert({ m_columns[i], TRY(m_values[i]->evaluate(context, {})) });
+            values.push_back({ m_columns[i], TRY(m_values[i]->evaluate(context)) });
         }
 
-        TRY(table->insert(std::move(map)));
+        TRY(table->insert(TRY(create_tuple_from_values(db, *table, values))));
     }
     return { Value::null() };
 }

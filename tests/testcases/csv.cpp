@@ -27,7 +27,7 @@ DbErrorOr<void> csv_export_import() {
     table->export_to_csv("test.csv");
 
     auto* new_table = &db.create_table("newtest", nullptr);
-    TRY(new_table->import_from_csv("test.csv"));
+    TRY(new_table->import_from_csv(db, "test.csv"));
 
     auto result = TRY(Db::Sql::run_query(db, "SELECT * FROM newtest;")).as_result_set();
 
@@ -46,7 +46,7 @@ DbErrorOr<void> csv_export_import_with_aliases() {
     table->export_to_csv("test.csv");
 
     auto& new_table = db.create_table("new_test", nullptr);
-    TRY(new_table.import_from_csv("test.csv"));
+    TRY(new_table.import_from_csv(db, "test.csv"));
 
     result = TRY(Db::Sql::run_query(db, "SELECT * FROM [new_test];")).as_result_set();
     result.dump(std::cout);

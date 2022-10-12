@@ -7,10 +7,11 @@ add_library(
     core/Expression.cpp
     core/Function.cpp
     core/ResultSet.cpp
-    core/RowWithColumnNames.cpp
     core/Select.cpp
     core/Table.cpp
+    core/TableExpression.cpp
     core/Tuple.cpp
+    core/TupleFromValues.cpp
     core/Value.cpp
 
     sql/Lexer.cpp

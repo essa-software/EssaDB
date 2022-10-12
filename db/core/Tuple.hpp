@@ -22,8 +22,14 @@ public:
     }
 
     size_t value_count() const { return m_values.size(); }
-    Value value(size_t index) const { return m_values[index]; }
-    void set_value(size_t index, Value value) { m_values[index] = std::move(value); }
+    Value value(size_t index) const {
+        assert(index < m_values.size());
+        return m_values[index];
+    }
+    void set_value(size_t index, Value value) {
+        assert(index < m_values.size());
+        m_values[index] = std::move(value);
+    }
     void remove(size_t index) {
         std::vector<Value> vec;
         for (size_t i = 0; i < m_values.size(); i++) {

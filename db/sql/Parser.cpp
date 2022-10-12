@@ -34,7 +34,6 @@ bool Parser::compare_case_insensitive(const std::string& lhs, const std::string&
 }
 
 Core::DbErrorOr<std::unique_ptr<Core::AST::Statement>> Parser::parse_statement() {
-    m_table_aliases.clear();
     auto keyword = m_tokens[m_offset];
     // std::cout << keyword.value << "\n";
     if (keyword.type == Token::Type::KeywordSelect) {
@@ -809,9 +808,7 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Expression>> Parser::parse_expression
         if (postfix.type == Token::Type::KeywordSelect) {
             m_offset++;
 
-            size_t arr_size = m_table_aliases.size();
             lhs = std::make_unique<Core::AST::SelectExpression>(start, TRY(parse_select()));
-            m_table_aliases.resize(arr_size);
         }
         else {
             m_offset++;
@@ -892,10 +889,7 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::TableExpression>> Parser::parse_table
         auto postfix = m_tokens[m_offset + 1];
         if (postfix.type == Token::Type::KeywordSelect) {
             m_offset++;
-
-            size_t arr_size = m_table_aliases.size();
             lhs = std::make_unique<Core::AST::SelectTableExpression>(start, TRY(parse_select()));
-            m_table_aliases.resize(arr_size);
         }
         else {
             m_offset++;
@@ -1283,9 +1277,7 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Expression>> Parser::parse_function(s
 
         auto aggregate_function = to_aggregate_function(name);
         if (aggregate_function != Core::AST::AggregateFunction::Function::Invalid) {
-            auto column = m_tokens[m_offset++];
-            if (column.type != Token::Type::Identifier)
-                return expected("identifier in aggregate function", column, m_offset - 1);
+            auto column = TRY(parse_identifier());
 
             if (m_tokens[m_offset++].type != Token::Type::ParenClose)
                 return expected("')' to close aggregate function", m_tokens[m_offset], m_offset - 1);
@@ -1314,7 +1306,7 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Expression>> Parser::parse_function(s
                     return expected("')' to close 'OVER' clause", m_tokens[m_offset], m_offset - 1);
             }
 
-            return { std::make_unique<Core::AST::AggregateFunction>(m_offset, aggregate_function, column.value, std::move(over)) };
+            return { std::make_unique<Core::AST::AggregateFunction>(m_offset, aggregate_function, std::move(column), std::move(over)) };
         }
 
         auto expression = TRY(parse_expression());
@@ -1379,13 +1371,6 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Identifier>> Parser::parse_identifier
     if (m_tokens[m_offset].type == Token::Type::Period) {
         m_offset++;
 
-        for (const auto& pair : m_table_aliases) {
-            if (pair.first == name.value) {
-                table = pair.second;
-                break;
-            }
-        }
-
         if (!table)
             table = name.value;
 
@@ -1420,16 +1405,7 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::TableIdentifier>> Parser::parse_table
             return expected("identifier", alias_token, m_offset - 1);
         alias = alias_token.value;
     }
-
-    if (alias) {
-        for (const auto& pair : m_table_aliases) {
-            if (pair.first == name.value)
-                return Core::DbError { "Alias '" + *alias + "' already exists!", m_offset - 1 };
-        }
-        m_table_aliases.push_back(std::make_pair(*alias, name.value));
-    }
-
-    return std::make_unique<Core::AST::TableIdentifier>(m_offset - 1, name.value);
+    return std::make_unique<Core::AST::TableIdentifier>(m_offset - 1, name.value, alias);
 }
 
 Core::DbError Parser::expected(std::string what, Token got, size_t offset) {
