@@ -5,7 +5,7 @@ INSERT INTO events (date_) VALUES(#2010-11-17#);
 INSERT INTO events (date_) VALUES(#2038-11-01#);
 INSERT INTO events (date_) VALUES(#2100-02-26#);
 
--- display
+-- output:
 -- | Year | Month | Day |
 -- | 1970 |     1 |  19 |
 -- | 2010 |    11 |  17 |
