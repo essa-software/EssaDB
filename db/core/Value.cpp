@@ -194,6 +194,13 @@ DbErrorOr<bool> Value::to_bool() const {
     return TRY(to_int()) != 0;
 }
 
+DbErrorOr<Util::SimulationClock::time_point> Value::to_time() const {
+    if (type() != Type::Time) {
+        return DbError { "Cannot convert value to time", 0 };
+    }
+    return std::get<Util::SimulationClock::time_point>(*this);
+}
+
 std::string Value::to_debug_string() const {
     auto value = to_string().release_value();
     switch (m_type) {

@@ -1,12 +1,11 @@
 #include "Function.hpp"
 
-#include "Value.hpp"
-#include "db/core/DbError.hpp"
-#include "db/sql/Parser.hpp"
-
 #include <cctype>
 #include <cmath>
 #include <cstddef>
+#include <db/core/DbError.hpp>
+#include <db/core/Value.hpp>
+#include <db/sql/Parser.hpp>
 #include <functional>
 #include <limits>
 
@@ -106,6 +105,11 @@ static void setup_sql_functions() {
         }
 
         return Value::create_varchar(result);
+    });
+    register_sql_function("DATEDIFF", [](ArgumentList args) -> DbErrorOr<Value> {
+        auto start = TRY(TRY(args.get_required(0, "start")).to_time());
+        auto end = TRY(TRY(args.get_required(1, "end")).to_time());
+        return Value::create_int((end - start) / std::chrono::days { 1 });
     });
     register_sql_function("LOWER", [](ArgumentList args) -> DbErrorOr<Value> {
         auto str = TRY(TRY(args.get_required(0, "str")).to_string());

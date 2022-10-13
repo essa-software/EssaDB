@@ -70,6 +70,7 @@ public:
     DbErrorOr<float> to_float() const;
     DbErrorOr<std::string> to_string() const;
     DbErrorOr<bool> to_bool() const;
+    DbErrorOr<Util::SimulationClock::time_point> to_time() const;
 
     Type type() const { return m_type; }
     bool is_null() const { return m_type == Value::Type::Null; }
