@@ -1,28 +1,18 @@
 #pragma once
 
-#include "Expression.hpp"
-#include "ResultSet.hpp"
-#include "Table.hpp"
-#include "Tuple.hpp"
-#include "Value.hpp"
-#include "ValueOrResultSet.hpp"
-
-#include <iostream>
+#include <db/core/Column.hpp>
+#include <db/core/ValueOrResultSet.hpp>
+#include <db/core/ast/ASTNode.hpp>
 #include <map>
-#include <memory>
-#include <optional>
-#include <pthread.h>
-#include <set>
-#include <sstream>
-#include <string>
-#include <sys/types.h>
-#include <vector>
 
 namespace Db::Core {
 class Database;
 }
 
 namespace Db::Core::AST {
+
+class Expression;
+class Check;
 
 class Statement : public ASTNode {
 public:

@@ -1,5 +1,6 @@
 #pragma once
-#include "AST.hpp"
+
+#include <db/core/ast/Expression.hpp>
 
 namespace Db::Core::AST {
 

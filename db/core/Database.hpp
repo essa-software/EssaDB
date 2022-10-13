@@ -1,10 +1,9 @@
 #pragma once
 
-#include "AST.hpp"
-#include "DbError.hpp"
-#include "Table.hpp"
-
 #include <EssaUtil/NonCopyable.hpp>
+#include <db/core/DbError.hpp>
+#include <db/core/Table.hpp>
+#include <db/core/ast/Statement.hpp>
 #include <string>
 #include <unordered_map>
 

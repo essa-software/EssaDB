@@ -1,12 +1,13 @@
 #pragma once
 
-#include "AbstractTable.hpp"
-#include "Column.hpp"
-#include "DbError.hpp"
-#include "Expression.hpp"
-#include "ResultSet.hpp"
-
 #include <EssaUtil/NonCopyable.hpp>
+#include <db/core/AbstractTable.hpp>
+#include <db/core/Column.hpp>
+#include <db/core/Database.hpp>
+#include <db/core/DbError.hpp>
+#include <db/core/ResultSet.hpp>
+#include <db/core/ast/Expression.hpp>
+#include <map>
 #include <memory>
 #include <optional>
 #include <set>

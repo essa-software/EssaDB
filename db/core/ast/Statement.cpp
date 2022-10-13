@@ -1,24 +1,8 @@
-#include "AST.hpp"
+#include <db/core/ast/Statement.hpp>
 
-#include "AbstractTable.hpp"
-#include "Database.hpp"
-#include "DbError.hpp"
-#include "Expression.hpp"
-#include "Function.hpp"
-#include "Select.hpp"
-#include "Tuple.hpp"
-#include "TupleFromValues.hpp"
-#include "Value.hpp"
-
-#include <EssaUtil/Is.hpp>
-#include <cctype>
-#include <iostream>
-#include <memory>
-#include <span>
-#include <string>
-#include <unordered_set>
-#include <utility>
-#include <vector>
+#include <db/core/Database.hpp>
+#include <db/core/ast/EvaluationContext.hpp>
+#include <db/core/ast/TableExpression.hpp>
 
 namespace Db::Core::AST {
 
@@ -144,39 +128,6 @@ DbErrorOr<ValueOrResultSet> AlterTable::execute(Database& db) const {
             TRY(memory_backed_table->check()->drop_constraint(to_drop));
     }
 
-    return { Value::null() };
-}
-
-DbErrorOr<ValueOrResultSet> InsertInto::execute(Database& db) const {
-    auto table = TRY(db.table(m_name));
-
-    EvaluationContext context { .db = &db };
-    if (m_select) {
-        auto result = TRY(m_select.value().execute(context));
-
-        if (m_columns.size() != result.column_names().size())
-            return DbError { "Values doesn't have corresponding columns", start() };
-
-        for (const auto& row : result.rows()) {
-            std::vector<std::pair<std::string, Value>> values;
-            for (size_t i = 0; i < m_columns.size(); i++) {
-                values.push_back({ m_columns[i], row.value(i) });
-            }
-
-            TRY(table->insert(TRY(create_tuple_from_values(db, *table, values))));
-        }
-    }
-    else {
-        if (m_columns.size() != m_values.size())
-            return DbError { "Values doesn't have corresponding columns", start() };
-
-        std::vector<std::pair<std::string, Value>> values;
-        for (size_t i = 0; i < m_columns.size(); i++) {
-            values.push_back({ m_columns[i], TRY(m_values[i]->evaluate(context)) });
-        }
-
-        TRY(table->insert(TRY(create_tuple_from_values(db, *table, values))));
-    }
     return { Value::null() };
 }
 
