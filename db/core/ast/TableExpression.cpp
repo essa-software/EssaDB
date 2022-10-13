@@ -120,7 +120,7 @@ DbErrorOr<std::unique_ptr<Table>> JoinExpression::evaluate(EvaluationContext& co
         }
         for (auto const& row : source_table->raw_rows()) {
             if (index >= row.value_count()) {
-                return DbError { fmt::format("Internal error: index > row.value_count() ({} > {})\n", index, row.value_count()), 0 };
+                return DbError { fmt::format("Invalid column `{}` used in join expression", on_id->to_string()), 0 };
             }
             contents.insert(std::pair(row.value(index), std::make_pair(source_table, row)));
         }
