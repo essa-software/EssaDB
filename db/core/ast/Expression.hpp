@@ -1,7 +1,7 @@
 #pragma once
 
-#include "Tuple.hpp"
-
+#include <db/core/Tuple.hpp>
+#include <db/core/ast/ASTNode.hpp>
 #include <list>
 #include <map>
 #include <memory>
@@ -20,82 +20,6 @@ namespace Db::Core::AST {
 class Expression;
 struct EvaluationContext;
 class Identifier;
-
-class ASTNode {
-public:
-    explicit ASTNode(ssize_t start)
-        : m_start(start) { }
-
-    auto start() const { return m_start; }
-
-private:
-    size_t m_start;
-};
-
-struct TupleWithSource {
-    Tuple tuple;
-    std::optional<Tuple> source;
-
-    DbErrorOr<bool> operator==(TupleWithSource const& other) const {
-        return TRY(tuple == other.tuple) && source.has_value() == other.source.has_value() && TRY(source.value() == other.source.value());
-    }
-};
-
-class SelectColumns {
-public:
-    SelectColumns() = default;
-
-    struct Column {
-        std::optional<std::string> alias = {};
-        std::unique_ptr<Expression> column;
-    };
-
-    explicit SelectColumns(std::vector<Column> columns);
-
-    bool select_all() const { return m_columns.empty(); }
-    std::vector<Column> const& columns() const { return m_columns; }
-
-    struct ResolvedAlias {
-        Expression& column;
-        size_t index;
-    };
-
-    ResolvedAlias const* resolve_alias(std::string const& alias) const;
-    DbErrorOr<Value> resolve_value(EvaluationContext&, Identifier const&) const;
-
-private:
-    std::vector<Column> m_columns;
-    std::map<std::string, ResolvedAlias> m_aliases;
-};
-
-class TableExpression;
-
-struct EvaluationContextFrame {
-    TableExpression const* table = nullptr;
-    SelectColumns const& columns;
-    TupleWithSource row {};
-
-    std::optional<std::span<Tuple const>> row_group {};
-    enum class RowType {
-        FromTable,
-        FromResultSet
-    };
-    RowType row_type = RowType::FromTable;
-
-    EvaluationContextFrame(TableExpression const* table_, SelectColumns const& columns_)
-        : table(table_)
-        , columns(columns_) { }
-};
-
-struct EvaluationContext {
-    Database* db = nullptr;
-    std::list<EvaluationContextFrame> frames {};
-
-    EvaluationContextFrame& current_frame() {
-        assert(!frames.empty());
-        return frames.back();
-    }
-};
 
 class Expression : public ASTNode {
 public:

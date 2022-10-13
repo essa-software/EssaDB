@@ -1,6 +1,6 @@
 #include "TableExpression.hpp"
 
-#include "Database.hpp"
+#include <db/core/Database.hpp>
 
 namespace Db::Core::AST {
 

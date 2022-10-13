@@ -1,7 +1,6 @@
 #include "db/core/Table.hpp"
 #include <tests/setup.hpp>
 
-#include <db/core/AST.hpp>
 #include <db/core/Database.hpp>
 #include <db/core/ResultSet.hpp>
 #include <db/sql/SQL.hpp>

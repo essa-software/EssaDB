@@ -2,14 +2,15 @@
 
 #include "Lexer.hpp"
 
-#include <db/core/AST.hpp>
 #include <db/core/Column.hpp>
 #include <db/core/Database.hpp>
 #include <db/core/DbError.hpp>
-#include <db/core/Expression.hpp>
 #include <db/core/Function.hpp>
 #include <db/core/Select.hpp>
-#include <db/core/TableExpression.hpp>
+#include <db/core/ast/Expression.hpp>
+#include <db/core/ast/Select.hpp>
+#include <db/core/ast/Statement.hpp>
+#include <db/core/ast/TableExpression.hpp>
 #include <memory>
 
 namespace Db::Sql {

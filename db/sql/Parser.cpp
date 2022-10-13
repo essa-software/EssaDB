@@ -1,9 +1,7 @@
 #include "Parser.hpp"
 
-#include <db/core/AST.hpp>
 #include <db/core/Column.hpp>
 #include <db/core/DbError.hpp>
-#include <db/core/Expression.hpp>
 #include <db/core/Function.hpp>
 #include <db/core/Select.hpp>
 #include <db/core/Table.hpp>

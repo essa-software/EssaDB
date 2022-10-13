@@ -65,4 +65,13 @@ inline DbErrorOr<bool> operator==(Tuple const& lhs, Tuple const& rhs) {
 
 bool operator<(Tuple const& lhs, Tuple const& rhs);
 
+struct TupleWithSource {
+    Tuple tuple;
+    std::optional<Tuple> source;
+
+    DbErrorOr<bool> operator==(TupleWithSource const& other) const {
+        return TRY(tuple == other.tuple) && source.has_value() == other.source.has_value() && TRY(source.value() == other.source.value());
+    }
+};
+
 }

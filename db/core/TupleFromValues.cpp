@@ -1,8 +1,8 @@
 #include "TupleFromValues.hpp"
 
-#include "Database.hpp"
-#include "Table.hpp"
-#include "TableExpression.hpp"
+#include <db/core/Database.hpp>
+#include <db/core/Table.hpp>
+#include <db/core/ast/TableExpression.hpp>
 
 namespace Db::Core {
 

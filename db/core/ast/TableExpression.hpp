@@ -1,6 +1,10 @@
 #pragma once
 
-#include "AST.hpp"
+#include <db/core/Table.hpp>
+#include <db/core/ast/ASTNode.hpp>
+#include <db/core/ast/EvaluationContext.hpp>
+#include <db/core/ast/Expression.hpp>
+#include <memory>
 
 namespace Db::Core::AST {
 

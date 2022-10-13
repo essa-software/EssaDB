@@ -1,15 +1,17 @@
 add_library(
     essadb
 
-    core/AST.cpp
+    core/ast/Expression.cpp
+    core/ast/Select.cpp
+    core/ast/SelectColumns.cpp
+    core/ast/Statement.cpp
+    core/ast/TableExpression.cpp
     core/AbstractTable.cpp
     core/Database.cpp
-    core/Expression.cpp
     core/Function.cpp
     core/ResultSet.cpp
     core/Select.cpp
     core/Table.cpp
-    core/TableExpression.cpp
     core/Tuple.cpp
     core/TupleFromValues.cpp
     core/Value.cpp

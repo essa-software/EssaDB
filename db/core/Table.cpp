@@ -1,13 +1,12 @@
 #include "Table.hpp"
 
-#include "AbstractTable.hpp"
-#include "Column.hpp"
-#include "DbError.hpp"
-#include "Expression.hpp"
-#include "ResultSet.hpp"
-#include "TupleFromValues.hpp"
-
 #include <cstring>
+#include <db/core/AbstractTable.hpp>
+#include <db/core/Column.hpp>
+#include <db/core/DbError.hpp>
+#include <db/core/ResultSet.hpp>
+#include <db/core/TupleFromValues.hpp>
+#include <db/core/ast/Expression.hpp>
 #include <fstream>
 #include <iostream>
 #include <memory>
