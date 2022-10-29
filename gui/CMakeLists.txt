@@ -1,9 +1,5 @@
-cmake_minimum_required(VERSION 3.0)
-project(hello-mysql-world C)
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c99")
-
 include(FindPkgConfig)
-pkg_check_modules(LIBMYSQLCLIENT REQUIRED mysqlclient)
+pkg_check_modules(mysqlclient REQUIRED)
 
 foreach(FLAG ${LIBMYSQLCLIENT_CFLAGS_OTHER})
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${FLAG}")
