@@ -10,6 +10,8 @@
 #include <db/sql/SQL.hpp>
 #include <sstream>
 
+#include <mysql.h>
+
 int main() {
     GUI::Application app;
     auto& window = app.create_host_window({ 1200, 700 }, "EssaDB");
@@ -72,6 +74,43 @@ int main() {
 
     connect_button->on_click = [&]() {
         auto& connect_mysql_dialog = window.open_overlay<EssaDB::ConnectToMySQLDialog>();
+
+        connect_mysql_dialog.on_ok = [&console, &connect_mysql_dialog](){
+            MYSQL *connection;
+
+            connection = mysql_init(NULL);
+            if (connection == NULL) {
+                console->append_content({
+                    .color = Util::Colors::Red,
+                    .text = Util::UString {
+                        fmt::format("Failed to initialize: {}", mysql_error(connection)) },
+                });
+                return false;
+            }
+
+            if (!mysql_real_connect(connection, 
+                                    connect_mysql_dialog.address().data(), 
+                                    connect_mysql_dialog.username().data(), 
+                                    connect_mysql_dialog.password().data(), 
+                                    connect_mysql_dialog.database().data(),
+                                    std::stoi(connect_mysql_dialog.port()), NULL, 0)) {
+
+                console->append_content({
+                    .color = Util::Colors::Red,
+                    .text = Util::UString {
+                        fmt::format("Failed to connect to server: {}", mysql_error(connection)) },
+                });
+            return false;
+        }
+
+            console->append_content({
+                .color = Util::Colors::Lime,
+                .text = Util::UString {
+                    fmt::format("Successfully connected to the database '{}'!", connect_mysql_dialog.database()) },
+            });
+
+            return true;
+        };
         
         connect_mysql_dialog.run();
     };

@@ -20,6 +20,7 @@ public:
         m_port = container->find_widget_of_type_by_id_recursively<GUI::TextEditor>("port");
         m_username = container->find_widget_of_type_by_id_recursively<GUI::TextEditor>("username");
         m_password = container->find_widget_of_type_by_id_recursively<GUI::TextEditor>("password");
+        m_database = container->find_widget_of_type_by_id_recursively<GUI::TextEditor>("database");
         auto submit_connect = container->find_widget_of_type_by_id_recursively<GUI::TextButton>("submit_connect");
         auto submit_cancel = container->find_widget_of_type_by_id_recursively<GUI::TextButton>("submit_cancel");
 
@@ -41,6 +42,7 @@ public:
     std::string port() const { return m_port->content().encode(); }
     std::string username() const { return m_username->content().encode(); }
     std::string password() const { return m_password->content().encode(); }
+    std::string database() const { return m_database->content().encode(); }
     bool ok_clicked() const { return m_ok_clicked; }
 
 private:
@@ -48,6 +50,7 @@ private:
     GUI::TextEditor* m_port = nullptr;
     GUI::TextEditor* m_username = nullptr;
     GUI::TextEditor* m_password = nullptr;
+    GUI::TextEditor* m_database = nullptr;
     bool m_ok_clicked = false;
 };
 

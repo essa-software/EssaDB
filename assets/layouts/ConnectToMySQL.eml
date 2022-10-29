@@ -1,7 +1,7 @@
 @ToolWindow {
     title: "Connect to MySQL database"
     width: 500
-    height: 150
+    height: 190
     center_on_screen: true
 
     main_widget: @Container {
@@ -47,6 +47,15 @@
                 width: 120px
             }
             @TextEditor password {
+                multiline: false
+            }
+        }
+        @ValueField {
+            @Textfield {
+                content: "Database name:"
+                width: 235px
+            }
+            @TextEditor database {
                 multiline: false
             }
         }
