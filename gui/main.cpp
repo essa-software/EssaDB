@@ -146,7 +146,7 @@ int main() {
             console->append_content({
                 .color = Util::Colors::Red,
                 .text = Util::UString {
-                    fmt::format("You need to close the active conection in order to perform this operation!") },
+                    fmt::format("You need to close the active connection in order to perform this operation!") },
             });
             return;
         }
