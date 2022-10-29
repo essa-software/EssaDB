@@ -1,5 +1,7 @@
 #include "DatabaseModel.hpp"
 #include "ImportCSVDialog.hpp"
+#include "gui/ConnectToMySQLDialog.hpp"
+#include "gui/ConnectToMySQLDialog.hpp"
 #include <EssaGUI/eml/EMLResource.hpp>
 #include <EssaGUI/gui/Application.hpp>
 #include <EssaGUI/gui/Console.hpp>
@@ -18,6 +20,7 @@ int main() {
 
     auto run_button = container.find_widget_of_type_by_id_recursively<GUI::TextButton>("run_sql");
     auto import_button = container.find_widget_of_type_by_id_recursively<GUI::TextButton>("import_csv");
+    auto connect_button = container.find_widget_of_type_by_id_recursively<GUI::TextButton>("connect_mysql");
     auto outline_container = container.find_widget_of_type_by_id_recursively<GUI::Container>("outline_container");
     outline_container->set_background_color(app.theme().sidebar);
 
@@ -65,6 +68,12 @@ int main() {
             return true;
         };
         import_csv_dialog.run();
+    };
+
+    connect_button->on_click = [&]() {
+        auto& connect_mysql_dialog = window.open_overlay<EssaDB::ConnectToMySQLDialog>();
+        
+        connect_mysql_dialog.run();
     };
     text_editor->on_enter = [&](Util::UString const& query) { run_sql(query); };
 

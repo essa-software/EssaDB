@@ -16,6 +16,11 @@
             image: asset("import.png")
             width: 32px
         }
+
+        @TextButton connect_mysql {
+            image: asset("connect.png")
+            width: 32px
+        }
     }
 
     @Container {

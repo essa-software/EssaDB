@@ -1,0 +1,75 @@
+@ToolWindow {
+    title: "Connect to MySQL database"
+    width: 500
+    height: 150
+    center_on_screen: true
+
+    main_widget: @Container {
+        layout: @VerticalBoxLayout {
+            padding: 15
+            spacing: 15
+        }
+    
+        define ValueField : @Container {
+            layout: @HorizontalBoxLayout {
+                spacing: 10
+            }
+            height: 30px
+        }
+    
+        @ValueField {
+            @Textfield {
+                content: "Address:"
+                width: 120px
+            }
+            @TextEditor address {
+                multiline: false
+            }
+            @Textfield {
+                content: "Port:"
+                width: 120px
+            }
+            @TextEditor port {
+                multiline: false
+                type: "number"
+            }
+        }
+        @ValueField {
+            @Textfield {
+                content: "Username:"
+                width: 120px
+            }
+            @TextEditor username {
+                multiline: false
+            }
+            @Textfield {
+                content: "Password:"
+                width: 120px
+            }
+            @TextEditor password {
+                multiline: false
+            }
+        }
+        @Container {
+            height: 30px
+    
+            layout: @HorizontalBoxLayout {
+                spacing: 10
+            }
+    
+            @Textfield {
+                width: auto
+            }
+    
+            @TextButton submit_cancel {
+                content: "Cancel"
+                width: 120px
+            }
+    
+            @TextButton submit_connect {
+                content: "Connect"
+                width: 120px
+            }
+        }
+    }
+}
