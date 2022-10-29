@@ -7,6 +7,8 @@ file format being clever implementation of data heap.
 
 To build EssaDB to your local machine, you will need CMake tool and some project generator (we prefer Ninja to work with Essa Products). Clone this repository and EssaGUI (dependency for EssaDB): https://github.com/essa-software/EssaGUI.
 
+You will also need MySQL C++ Connector for MySQL Database connection support. You can get it from: https://github.com/mysql/mysql-connector-cpp
+
 Follow installation instructions for EssaGUI, then prepare a workspace for yourself (see commands below, run it in EssaDB root folder):
 
 ```
