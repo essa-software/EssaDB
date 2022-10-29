@@ -6,10 +6,13 @@
 #include <EssaGUI/gui/Console.hpp>
 #include <EssaGUI/gui/MessageBox.hpp>
 #include <EssaGUI/gui/TreeView.hpp>
+#include <algorithm>
 #include <db/sql/SQL.hpp>
+#include <iomanip>
 #include <sstream>
 
 #include <mysql.h>
+#include <vector>
 
 int mode = 0;
 
@@ -54,9 +57,62 @@ int main() {
             }
         }
         else if (mode == 1) {
+            MYSQL_RES *result;
+            MYSQL_FIELD *field;
+            MYSQL_ROW row;
+
+            if (mysql_query(connection, query.encode().data())) {
+                console->append_content({
+                    .color = Util::Colors::Red,
+                    .text = Util::UString {
+                        fmt::format("Error querying server: {}", mysql_error(connection)) },
+                });
+            }
+            
+            result = mysql_use_result(connection);
+            if (result == NULL) {
+                console->append_content({
+                    .color = Util::Colors::Lime,
+                    .text = Util::UString {
+                        fmt::format("Query executed successfully!") },
+                });
+            }else{
+                std::vector<std::vector<std::string>> table_vector(1);
+
+                int num_fields = mysql_num_fields(result);
+
+                std::vector<unsigned> max_width(num_fields, 0);
+
+                int i = 0;
+                while((field = mysql_fetch_field(result))){
+                    table_vector[0].push_back(field->name);
+                    max_width[i] = std::max(max_width[i], field->name_length);
+                    i++;
+                }
+
+                while((row = mysql_fetch_row(result))){
+                    table_vector.push_back(std::vector<std::string>(num_fields));
+                    for(int i = 0; i < num_fields; i++){
+                        std::string str = row[i] ? row[i] : "NULL";
+                        table_vector.back()[i] = str;
+                        max_width[i] = std::max(max_width[i], (unsigned)str.size());
+                    }
+                }
+
+                std::ostringstream oss;
+
+                for(unsigned i = 0; i < table_vector.size(); i++){
+                    for(int j = 0; j < num_fields; j++){
+                        oss << "| " << table_vector[i][j] << std::setw(max_width[j] - table_vector[i][j].size());
+                    }
+                    oss << "|\n";
+                }
+                console->append_content({ .color = Util::Colors::White, .text = Util::UString { oss.str() } });
+                mysql_free_result(result);
+            }
         }
     };
-
+// northwind_mysql
     run_button->on_click = [&]() { run_sql(text_editor->content()); };
     import_button->on_click = [&]() {
         auto& import_csv_dialog = window.open_overlay<EssaDB::ImportCSVDialog>();
@@ -102,12 +158,24 @@ int main() {
                 return false;
             }
 
+            int port = 0;
+
+            try{
+                port = std::stoi(connect_mysql_dialog.port());
+            }catch(...){
+                console->append_content({
+                    .color = Util::Colors::Red,
+                    .text = Util::UString {
+                        fmt::format("Value in 'port' field is invalid!") },
+                });
+            }
+
             if (!mysql_real_connect(connection,
                     connect_mysql_dialog.address().data(),
                     connect_mysql_dialog.username().data(),
                     connect_mysql_dialog.password().data(),
                     connect_mysql_dialog.database().data(),
-                    std::stoi(connect_mysql_dialog.port()), NULL, 0)) {
+                    port, NULL, 0)) {
 
                 console->append_content({
                     .color = Util::Colors::Red,
