@@ -1,5 +1,7 @@
 #include "DatabaseModel.hpp"
 #include "ImportCSVDialog.hpp"
+#include "db/core/Table.hpp"
+#include "db/core/Value.hpp"
 #include "gui/ConnectToMySQLDialog.hpp"
 #include <EssaGUI/eml/EMLResource.hpp>
 #include <EssaGUI/gui/Application.hpp>
@@ -9,9 +11,11 @@
 #include <algorithm>
 #include <db/sql/SQL.hpp>
 #include <iomanip>
+#include <optional>
 #include <sstream>
 
 #include <mysql.h>
+#include <string>
 #include <vector>
 
 int mode = 0;
@@ -112,7 +116,7 @@ int main() {
             }
         }
     };
-// northwind_mysql
+    
     run_button->on_click = [&]() { run_sql(text_editor->content()); };
     import_button->on_click = [&]() {
         auto& import_csv_dialog = window.open_overlay<EssaDB::ImportCSVDialog>();
@@ -147,7 +151,7 @@ int main() {
         }
         auto& connect_mysql_dialog = window.open_overlay<EssaDB::ConnectToMySQLDialog>();
 
-        connect_mysql_dialog.on_ok = [&connection, &console, &connect_mysql_dialog]() {
+        connect_mysql_dialog.on_ok = [&connection, &console, &connect_mysql_dialog, &db, &db_model]() {
             connection = mysql_init(NULL);
             if (connection == NULL) {
                 console->append_content({
@@ -192,7 +196,96 @@ int main() {
             });
 
             mode = 1;
+            
+            MYSQL_RES *result;
+            MYSQL_ROW row;
 
+            MYSQL* schema_connection;
+            schema_connection = mysql_init(NULL);
+            if (schema_connection == NULL) {
+                console->append_content({
+                    .color = Util::Colors::Red,
+                    .text = Util::UString {
+                        fmt::format("Failed to initialize table schemas: {}", mysql_error(schema_connection)) },
+                });
+                return false;
+            }
+
+            if (!mysql_real_connect(schema_connection,
+                    connect_mysql_dialog.address().data(),
+                    connect_mysql_dialog.username().data(),
+                    connect_mysql_dialog.password().data(),
+                    "information_schema",
+                    port, NULL, 0)) {
+
+                console->append_content({
+                    .color = Util::Colors::Red,
+                    .text = Util::UString {
+                        fmt::format("Failed to connect to information schemas: {}", mysql_error(connection)) },
+                });
+                return false;
+            }
+
+            if (mysql_query(schema_connection, ("SELECT * FROM COLUMNS WHERE TABLE_SCHEMA LIKE '" + connect_mysql_dialog.database() + "' ORDER BY table_name;").data())) {
+                console->append_content({
+                    .color = Util::Colors::Red,
+                    .text = Util::UString {
+                        fmt::format("Error querying table schema: {}", mysql_error(schema_connection)) },
+                });
+            }
+            
+            result = mysql_use_result(schema_connection);
+
+            std::string last_table = "";
+            Db::Core::Table* table = nullptr;
+
+            std::set<std::string> varchar_set{"blob", "char", "longblob", "longtext", "mediumtext", "set", "text", "varbinary", "varchar"};
+            std::set<std::string> int_set{"int", "smallint", "tinyint", "enum"};
+            std::set<std::string> float_set{"decimal", "double", "float"};
+            std::set<std::string> date_set{"datetime", "time", "timestamp"};
+
+            while((row = mysql_fetch_row(result))){
+                std::string table_name = row[2];
+
+                if(last_table != table_name){
+                    table = &db.create_table(table_name, nullptr);
+
+                    last_table = table_name;
+                }
+
+                if(table){
+                    std::string column_name = row[3];
+
+                    std::string type_str = row[7];
+                    Db::Core::Value::Type type;
+
+                    if(varchar_set.find(type_str) != varchar_set.end()){
+                        type = Db::Core::Value::Type::Varchar;
+                    }else if(int_set.find(type_str) != int_set.end()){
+                        type = Db::Core::Value::Type::Int;
+                    }else if(float_set.find(type_str) != float_set.end()){
+                        type = Db::Core::Value::Type::Float;
+                    }else if(date_set.find(type_str) != date_set.end()){
+                        type = Db::Core::Value::Type::Time;
+                    }else{
+                        type = Db::Core::Value::Type::Bool;
+                    }
+
+                    auto error = table->add_column(Db::Core::Column(column_name, type, false, false, std::string(row[6]) == "NO"));
+
+                    if(error.is_error()){
+                        console->append_content({
+                            .color = Util::Colors::Red,
+                            .text = Util::UString {
+                                fmt::format("Error wile creating table '{}': {}", table_name, error.error().message()) },
+                        });
+                    }
+                }
+            }
+
+            mysql_close(schema_connection);
+
+            db_model.update();
             return true;
         };
 
