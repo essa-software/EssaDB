@@ -282,7 +282,7 @@ int main() {
                         console->append_content({
                             .color = Util::Colors::Red,
                             .text = Util::UString {
-                                fmt::format("Error wile creating table '{}': {}", table_name, error.error().message()) },
+                                fmt::format("Error while creating table '{}': {}", table_name, error.error().message()) },
                         });
                     }
                 }
