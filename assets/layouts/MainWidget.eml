@@ -21,6 +21,11 @@
             image: asset("connect.png")
             width: 32px
         }
+
+        @TextButton close_connection {
+            image: asset("close_connection.png")
+            width: 32px
+        }
     }
 
     @Container {
