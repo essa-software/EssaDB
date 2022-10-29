@@ -138,6 +138,7 @@ int main() {
             });
 
             if(mode == 0){
+                db_model.update();
                 return true;
             }
 
@@ -151,7 +152,7 @@ int main() {
                     create_query += ", ";
                 }
 
-                create_query += column.name() + " ";
+                create_query += "`" + column.name() + "` ";
                 switch (column.type()) {
                 case Db::Core::Value::Type::Null:
                     create_query += "int";
@@ -186,6 +187,8 @@ int main() {
                     .text = Util::UString {
                         fmt::format("Error querying server: {}", mysql_error(connection)) },
                 });
+
+                auto result = db.drop_table(import_csv_dialog.table_name());
 
                 return false;
             }
