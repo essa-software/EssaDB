@@ -61,8 +61,8 @@ int main() {
             }
         }
         else if (mode == 1) {
-            MYSQL_RES *result;
-            MYSQL_FIELD *field;
+            MYSQL_RES* result;
+            MYSQL_FIELD* field;
             MYSQL_ROW row;
 
             if (mysql_query(connection, query.encode().data())) {
@@ -72,7 +72,7 @@ int main() {
                         fmt::format("Error querying server: {}", mysql_error(connection)) },
                 });
             }
-            
+
             result = mysql_use_result(connection);
             if (result == NULL) {
                 console->append_content({
@@ -80,7 +80,8 @@ int main() {
                     .text = Util::UString {
                         fmt::format("Query executed successfully!") },
                 });
-            }else{
+            }
+            else {
                 std::vector<std::vector<std::string>> table_vector(1);
 
                 int num_fields = mysql_num_fields(result);
@@ -88,15 +89,15 @@ int main() {
                 std::vector<unsigned> max_width(num_fields, 0);
 
                 int i = 0;
-                while((field = mysql_fetch_field(result))){
+                while ((field = mysql_fetch_field(result))) {
                     table_vector[0].push_back(field->name);
                     max_width[i] = std::max(max_width[i], field->name_length);
                     i++;
                 }
 
-                while((row = mysql_fetch_row(result))){
+                while ((row = mysql_fetch_row(result))) {
                     table_vector.push_back(std::vector<std::string>(num_fields));
-                    for(int i = 0; i < num_fields; i++){
+                    for (int i = 0; i < num_fields; i++) {
                         std::string str = row[i] ? row[i] : "NULL";
                         table_vector.back()[i] = str;
                         max_width[i] = std::max(max_width[i], (unsigned)str.size());
@@ -105,8 +106,8 @@ int main() {
 
                 std::ostringstream oss;
 
-                for(unsigned i = 0; i < table_vector.size(); i++){
-                    for(int j = 0; j < num_fields; j++){
+                for (unsigned i = 0; i < table_vector.size(); i++) {
+                    for (int j = 0; j < num_fields; j++) {
                         oss << "| " << table_vector[i][j] << std::setw(max_width[j] - table_vector[i][j].size());
                     }
                     oss << "|\n";
@@ -116,7 +117,7 @@ int main() {
             }
         }
     };
-    
+
     run_button->on_click = [&]() { run_sql(text_editor->content()); };
     import_button->on_click = [&]() {
         auto& import_csv_dialog = window.open_overlay<EssaDB::ImportCSVDialog>();
@@ -164,9 +165,9 @@ int main() {
 
             int port = 0;
 
-            try{
+            try {
                 port = std::stoi(connect_mysql_dialog.port());
-            }catch(...){
+            } catch (...) {
                 console->append_content({
                     .color = Util::Colors::Red,
                     .text = Util::UString {
@@ -194,8 +195,8 @@ int main() {
                 .text = Util::UString {
                     fmt::format("Successfully connected to the database '{}'!", connect_mysql_dialog.database()) },
             });
-            
-            MYSQL_RES *result;
+
+            MYSQL_RES* result;
             MYSQL_ROW row;
 
             MYSQL* schema_connection;
@@ -232,48 +233,52 @@ int main() {
                 });
                 return false;
             }
+
             db.remove_all_tables();
-            
             result = mysql_use_result(schema_connection);
 
             std::string last_table = "";
             Db::Core::Table* table = nullptr;
 
-            std::set<std::string> varchar_set{"blob", "char", "longblob", "longtext", "mediumtext", "set", "text", "varbinary", "varchar"};
-            std::set<std::string> int_set{"int", "smallint", "tinyint", "enum"};
-            std::set<std::string> float_set{"decimal", "double", "float"};
-            std::set<std::string> date_set{"datetime", "time", "timestamp"};
+            std::set<std::string> varchar_set { "blob", "char", "longblob", "longtext", "mediumtext", "set", "text", "varbinary", "varchar" };
+            std::set<std::string> int_set { "int", "smallint", "tinyint", "enum" };
+            std::set<std::string> float_set { "decimal", "double", "float" };
+            std::set<std::string> date_set { "datetime", "time", "timestamp" };
 
-            while((row = mysql_fetch_row(result))){
+            while ((row = mysql_fetch_row(result))) {
                 std::string table_name = row[2];
 
-                if(last_table != table_name){
+                if (last_table != table_name) {
                     table = &db.create_table(table_name, nullptr);
 
                     last_table = table_name;
                 }
 
-                if(table){
+                if (table) {
                     std::string column_name = row[3];
 
                     std::string type_str = row[7];
                     Db::Core::Value::Type type;
 
-                    if(varchar_set.find(type_str) != varchar_set.end()){
+                    if (varchar_set.find(type_str) != varchar_set.end()) {
                         type = Db::Core::Value::Type::Varchar;
-                    }else if(int_set.find(type_str) != int_set.end()){
+                    }
+                    else if (int_set.find(type_str) != int_set.end()) {
                         type = Db::Core::Value::Type::Int;
-                    }else if(float_set.find(type_str) != float_set.end()){
+                    }
+                    else if (float_set.find(type_str) != float_set.end()) {
                         type = Db::Core::Value::Type::Float;
-                    }else if(date_set.find(type_str) != date_set.end()){
+                    }
+                    else if (date_set.find(type_str) != date_set.end()) {
                         type = Db::Core::Value::Type::Time;
-                    }else{
+                    }
+                    else {
                         type = Db::Core::Value::Type::Bool;
                     }
 
                     auto error = table->add_column(Db::Core::Column(column_name, type, false, false, std::string(row[6]) == "NO"));
 
-                    if(error.is_error()){
+                    if (error.is_error()) {
                         console->append_content({
                             .color = Util::Colors::Red,
                             .text = Util::UString {
@@ -286,7 +291,7 @@ int main() {
             mysql_close(schema_connection);
 
             db_model.update();
-            
+
             mode = 1;
             return true;
         };
