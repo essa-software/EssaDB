@@ -29,6 +29,10 @@ public:
             c(table);
     }
 
+    void remove_all_tables(){
+        m_tables.clear();
+    }
+
 private:
     std::unordered_map<std::string, std::unique_ptr<Table>> m_tables;
 };

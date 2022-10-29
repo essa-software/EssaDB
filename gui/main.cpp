@@ -194,8 +194,6 @@ int main() {
                 .text = Util::UString {
                     fmt::format("Successfully connected to the database '{}'!", connect_mysql_dialog.database()) },
             });
-
-            mode = 1;
             
             MYSQL_RES *result;
             MYSQL_ROW row;
@@ -232,7 +230,9 @@ int main() {
                     .text = Util::UString {
                         fmt::format("Error querying table schema: {}", mysql_error(schema_connection)) },
                 });
+                return false;
             }
+            db.remove_all_tables();
             
             result = mysql_use_result(schema_connection);
 
@@ -286,6 +286,8 @@ int main() {
             mysql_close(schema_connection);
 
             db_model.update();
+            
+            mode = 1;
             return true;
         };
 
@@ -303,6 +305,7 @@ int main() {
         else if (mode == 1) {
             mode = 0;
             mysql_close(connection);
+            db.remove_all_tables();
             console->append_content({
                 .color = Util::Colors::Lime,
                 .text = Util::UString {
