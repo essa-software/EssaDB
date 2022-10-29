@@ -18,6 +18,7 @@ public:
 
         m_address = container->find_widget_of_type_by_id_recursively<GUI::TextEditor>("address");
         m_port = container->find_widget_of_type_by_id_recursively<GUI::TextEditor>("port");
+        m_port->set_content("3306");
         m_username = container->find_widget_of_type_by_id_recursively<GUI::TextEditor>("username");
         m_password = container->find_widget_of_type_by_id_recursively<GUI::TextEditor>("password");
         m_database = container->find_widget_of_type_by_id_recursively<GUI::TextEditor>("database");
