@@ -3,6 +3,7 @@
 #include <db/core/Column.hpp>
 #include <db/core/ValueOrResultSet.hpp>
 #include <db/core/ast/ASTNode.hpp>
+#include <db/core/ast/Expression.hpp>
 #include <map>
 
 namespace Db::Core {
