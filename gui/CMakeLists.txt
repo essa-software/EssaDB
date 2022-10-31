@@ -2,6 +2,11 @@ set(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake)
 find_package(MySQL)
 
 add_executable(essadb-gui
+client/ConnectToMySQLDialog.cpp
+    client/DatabaseClient.cpp
+    client/EssaDBDatabaseClient.cpp
+    client/MySQLDatabaseClient.cpp
+    ConnectDialog.cpp
     DatabaseModel.cpp
     main.cpp
 )
