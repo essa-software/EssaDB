@@ -1,5 +1,6 @@
 #include "TableExpression.hpp"
 
+#include <EssaUtil/Config.hpp>
 #include <db/core/Database.hpp>
 
 namespace Db::Core::AST {
@@ -15,20 +16,32 @@ Tuple TableExpression::create_joined_tuple(const Tuple& lhs_row, const Tuple& rh
     return Tuple(row);
 }
 
+class NonOwningTableWrapper : public Table {
+public:
+    NonOwningTableWrapper(Table const& other)
+        : m_other(other) { }
+
+    virtual std::vector<Column> const& columns() const { return m_other.columns(); }
+    virtual std::vector<Tuple> const& raw_rows() const { return m_other.raw_rows(); }
+    virtual AbstractTableRowIterator<true> rows() const { return m_other.rows(); }
+    virtual AbstractTableRowIterator<false> rows_writable() { ESSA_UNREACHABLE; }
+    virtual size_t size() const { return m_other.size(); }
+
+    virtual DbErrorOr<void> truncate() { ESSA_UNREACHABLE; }
+    virtual DbErrorOr<void> add_column(Column) { ESSA_UNREACHABLE; }
+    virtual DbErrorOr<void> alter_column(Column) { ESSA_UNREACHABLE; }
+    virtual DbErrorOr<void> drop_column(std::string const&) { ESSA_UNREACHABLE; }
+    virtual DbErrorOr<void> insert(Tuple const&) { ESSA_UNREACHABLE; }
+    virtual int increment(std::string) { ESSA_UNREACHABLE; }
+
+    virtual std::string name() const { return m_other.name(); }
+
+private:
+    Table const& m_other;
+};
+
 DbErrorOr<std::unique_ptr<Table>> SimpleTableExpression::evaluate(EvaluationContext&) const {
-    // FIXME: This totally does not copy the entire table
-    //        just to "evaluate" the identifier.
-    MemoryBackedTable table(nullptr, m_table.name());
-
-    for (const auto& column : m_table.columns()) {
-        TRY(table.add_column(column));
-    }
-
-    for (const auto& row : m_table.raw_rows()) {
-        TRY(table.insert(row));
-    }
-
-    return std::make_unique<MemoryBackedTable>(std::move(table));
+    return std::make_unique<NonOwningTableWrapper>(m_table);
 }
 
 std::string SimpleTableExpression::to_string() const {
