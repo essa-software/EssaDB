@@ -43,12 +43,8 @@ public:
 
     virtual std::vector<Column> const& columns() const override { return m_columns; }
 
-    virtual RelationRowIterator<true> rows() const override {
+    virtual RelationIterator rows() const override {
         return { std::make_unique<MemoryBackedRelationIteratorImpl<decltype(m_rows)::const_iterator>>(m_rows.begin(), m_rows.end()) };
-    }
-
-    virtual RelationRowIterator<false> rows_writable() override {
-        return { std::make_unique<WritableMemoryBackedRelationIteratorImpl<decltype(m_rows)>>(m_rows) };
     }
 
     virtual size_t size() const override { return m_rows.size(); }

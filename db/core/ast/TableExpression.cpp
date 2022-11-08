@@ -23,8 +23,7 @@ public:
 
     virtual std::vector<Column> const& columns() const { return m_other.columns(); }
     virtual std::vector<Tuple> const& raw_rows() const { return m_other.raw_rows(); }
-    virtual RelationRowIterator<true> rows() const { return m_other.rows(); }
-    virtual RelationRowIterator<false> rows_writable() { ESSA_UNREACHABLE; }
+    virtual RelationIterator rows() const { return m_other.rows(); }
     virtual size_t size() const { return m_other.size(); }
 
     virtual DbErrorOr<void> truncate() { ESSA_UNREACHABLE; }
