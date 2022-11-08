@@ -23,7 +23,7 @@ public:
         : TableExpression(start)
         , m_select(std::move(select)) { }
 
-    virtual DbErrorOr<std::unique_ptr<Table>> evaluate(EvaluationContext& context) const override;
+    virtual DbErrorOr<std::unique_ptr<Relation>> evaluate(EvaluationContext& context) const override;
     virtual std::string to_string() const override { return "(SELECT TODO)"; }
     virtual DbErrorOr<std::optional<size_t>> resolve_identifier(Database* db, Identifier const&) const override;
     virtual DbErrorOr<size_t> column_count(Database* db) const override;

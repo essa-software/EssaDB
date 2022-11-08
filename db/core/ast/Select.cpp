@@ -13,7 +13,7 @@ DbErrorOr<Value> SelectExpression::evaluate(EvaluationContext& context) const {
     return result_set.as_value();
 }
 
-DbErrorOr<std::unique_ptr<Table>> SelectTableExpression::evaluate(EvaluationContext& context) const {
+DbErrorOr<std::unique_ptr<Relation>> SelectTableExpression::evaluate(EvaluationContext& context) const {
     auto result = TRY(m_select.execute(context));
 
     auto table = std::make_unique<MemoryBackedTable>(nullptr, "");
