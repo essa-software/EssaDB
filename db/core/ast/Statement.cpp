@@ -1,5 +1,7 @@
+#include "db/core/Table.hpp"
 #include <db/core/ast/Statement.hpp>
 
+#include <EssaUtil/ScopeGuard.hpp>
 #include <db/core/Database.hpp>
 #include <db/core/ast/EvaluationContext.hpp>
 #include <db/core/ast/TableExpression.hpp>
@@ -7,7 +9,7 @@
 namespace Db::Core::AST {
 
 DbErrorOr<ValueOrResultSet> DeleteFrom::execute(Database& db) const {
-    auto table = TRY(db.table(m_from));
+    auto table = static_cast<MemoryBackedTable*>(TRY(db.table(m_from)));
 
     EvaluationContext context { .db = &db };
     AST::SimpleTableExpression id { 0, *table };
@@ -23,21 +25,28 @@ DbErrorOr<ValueOrResultSet> DeleteFrom::execute(Database& db) const {
 
     // TODO: Maintain integrity on error
     std::optional<DbError> error;
-    TRY(table->rows_writable().try_for_each_row([&](TupleWriter const& writer) -> DbErrorOr<void> {
-        auto result = should_include_row(writer.read());
-        if (result.is_error())
-            return {};
-        if (result.release_value())
-            TRY(writer.remove());
+    std::vector<size_t> rows_to_remove;
+
+    size_t idx = 0;
+    TRY(table->rows().try_for_each_row([&](auto const& row) -> DbErrorOr<void> {
+        Util::ScopeGuard guard {
+            [&idx] { idx++; }
+        };
+        auto should_include = TRY(should_include_row(row));
+        if (should_include) {
+            rows_to_remove.push_back(idx);
+        }
         return {};
     }));
-    if (error)
-        return *error;
+
+    for (auto it = rows_to_remove.rbegin(); it != rows_to_remove.rend(); it++) {
+        table->raw_rows().erase(table->raw_rows().begin() + *it);
+    }
     return Value::null();
 }
 
 DbErrorOr<ValueOrResultSet> Update::execute(Database& db) const {
-    auto table = TRY(db.table(m_table));
+    auto table = static_cast<MemoryBackedTable*>(TRY(db.table(m_table)));
     EvaluationContext context { .db = &db };
     AST::SimpleTableExpression id { 0, *table };
     SelectColumns columns;
@@ -45,13 +54,11 @@ DbErrorOr<ValueOrResultSet> Update::execute(Database& db) const {
 
     for (const auto& update_pair : m_to_update) {
         auto column = table->get_column(update_pair.column);
-        TRY(table->rows_writable().try_for_each_row([&](TupleWriter const& row) -> DbErrorOr<void> {
-            auto tuple = row.read();
+
+        for (auto& tuple : table->raw_rows()) {
             context.current_frame().row = { .tuple = tuple, .source = {} };
             tuple.set_value(column->index, TRY(update_pair.expr->evaluate(context)));
-            TRY(row.write(tuple));
-            return {};
-        }));
+        }
     }
 
     return Value::null();
