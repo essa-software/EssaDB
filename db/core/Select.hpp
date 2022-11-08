@@ -74,7 +74,7 @@ public:
     auto const& from() const { return m_options.from; }
 
 private:
-    DbErrorOr<std::vector<TupleWithSource>> collect_rows(EvaluationContext&, AbstractTable&) const;
+    DbErrorOr<std::vector<TupleWithSource>> collect_rows(EvaluationContext&, Relation&) const;
 
     size_t m_start {};
     SelectOptions m_options;

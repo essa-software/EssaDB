@@ -6,9 +6,9 @@ add_library(
     core/ast/SelectColumns.cpp
     core/ast/Statement.cpp
     core/ast/TableExpression.cpp
-    core/AbstractTable.cpp
     core/Database.cpp
     core/Function.cpp
+    core/Relation.cpp
     core/ResultSet.cpp
     core/Select.cpp
     core/Table.cpp

@@ -1,8 +1,8 @@
-#include "AbstractTable.hpp"
+#include "Relation.hpp"
 
 namespace Db::Core {
 
-std::optional<AbstractTable::ResolvedColumn> AbstractTable::get_column(std::string const& name) const {
+std::optional<Relation::ResolvedColumn> Relation::get_column(std::string const& name) const {
     size_t index = 0;
     for (auto const& column : columns()) {
         if (column.name() == name)
@@ -12,7 +12,7 @@ std::optional<AbstractTable::ResolvedColumn> AbstractTable::get_column(std::stri
     return {};
 }
 
-std::optional<AbstractTable::ResolvedColumn> AbstractTable::get_column(std::string const& name, Table* table) const {
+std::optional<Relation::ResolvedColumn> Relation::get_column(std::string const& name, Table* table) const {
     size_t index = 0;
     for (auto const& column : columns()) {
         if (column.name() == name && column.original_table() == table)
