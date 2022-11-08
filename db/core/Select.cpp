@@ -150,7 +150,7 @@ DbErrorOr<ResultSet> Select::execute(EvaluationContext& context) const {
     return result;
 }
 
-DbErrorOr<std::vector<TupleWithSource>> Select::collect_rows(EvaluationContext& context, AbstractTable& table) const {
+DbErrorOr<std::vector<TupleWithSource>> Select::collect_rows(EvaluationContext& context, Relation& table) const {
     auto& frame = context.current_frame();
 
     auto should_include_row = [&](Tuple const& row) -> DbErrorOr<bool> {

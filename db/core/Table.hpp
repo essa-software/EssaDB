@@ -1,7 +1,7 @@
 #pragma once
 
 #include <EssaUtil/NonCopyable.hpp>
-#include <db/core/AbstractTable.hpp>
+#include <db/core/Relation.hpp>
 #include <db/core/Column.hpp>
 #include <db/core/Database.hpp>
 #include <db/core/DbError.hpp>
@@ -15,7 +15,7 @@
 namespace Db::Core {
 
 class Table : public Util::NonCopyable
-    , public AbstractTable {
+    , public Relation {
 public:
     virtual DbErrorOr<void> truncate() = 0;
     virtual DbErrorOr<void> add_column(Column) = 0;
@@ -43,12 +43,12 @@ public:
 
     virtual std::vector<Column> const& columns() const override { return m_columns; }
 
-    virtual AbstractTableRowIterator<true> rows() const override {
-        return { std::make_unique<MemoryBackedAbstractTableIteratorImpl<decltype(m_rows)::const_iterator>>(m_rows.begin(), m_rows.end()) };
+    virtual RelationRowIterator<true> rows() const override {
+        return { std::make_unique<MemoryBackedRelationIteratorImpl<decltype(m_rows)::const_iterator>>(m_rows.begin(), m_rows.end()) };
     }
 
-    virtual AbstractTableRowIterator<false> rows_writable() override {
-        return { std::make_unique<WritableMemoryBackedAbstractTableIteratorImpl<decltype(m_rows)>>(m_rows) };
+    virtual RelationRowIterator<false> rows_writable() override {
+        return { std::make_unique<WritableMemoryBackedRelationIteratorImpl<decltype(m_rows)>>(m_rows) };
     }
 
     virtual size_t size() const override { return m_rows.size(); }

@@ -1,7 +1,7 @@
 #include "Table.hpp"
 
 #include <cstring>
-#include <db/core/AbstractTable.hpp>
+#include <db/core/Relation.hpp>
 #include <db/core/Column.hpp>
 #include <db/core/DbError.hpp>
 #include <db/core/ResultSet.hpp>

@@ -16,15 +16,15 @@ public:
     virtual DbErrorOr<void> remove() const = 0;
 };
 
-class AbstractTableRowIteratorImpl {
+class RelationRowIteratorImpl {
 public:
-    virtual ~AbstractTableRowIteratorImpl() = default;
+    virtual ~RelationRowIteratorImpl() = default;
     virtual std::optional<Tuple> next() = 0;
 };
 
-class WritableAbstractTableRowIteratorImpl {
+class WritableRelationRowIteratorImpl {
 public:
-    virtual ~WritableAbstractTableRowIteratorImpl() = default;
+    virtual ~WritableRelationRowIteratorImpl() = default;
     virtual std::optional<std::unique_ptr<TupleWriter>> next_writable() = 0;
 };
 
@@ -35,12 +35,12 @@ inline constexpr bool IsOneOf = (std::is_same_v<T, Ts> || ...);
 // clang-format off
     
 template<bool Const>
-class AbstractTableRowIterator {
+class RelationRowIterator {
 public:
-    AbstractTableRowIterator(std::unique_ptr<AbstractTableRowIteratorImpl> impl) requires(Const)
+    RelationRowIterator(std::unique_ptr<RelationRowIteratorImpl> impl) requires(Const)
         : m_impl(std::move(impl)) { }
 
-    AbstractTableRowIterator(std::unique_ptr<WritableAbstractTableRowIteratorImpl> impl) requires(!Const)
+    RelationRowIterator(std::unique_ptr<WritableRelationRowIteratorImpl> impl) requires(!Const)
         : m_impl(std::move(impl)) { }
 
     auto next() requires(Const) { return m_impl->next(); }
@@ -82,7 +82,7 @@ public:
     }
 
 private:
-    std::unique_ptr<std::conditional_t<Const, AbstractTableRowIteratorImpl, WritableAbstractTableRowIteratorImpl>> m_impl {};
+    std::unique_ptr<std::conditional_t<Const, RelationRowIteratorImpl, WritableRelationRowIteratorImpl>> m_impl {};
 };
 
 // clang-format on
@@ -90,17 +90,17 @@ private:
 // A database thing that has columns and rows. Note that it *doesn't allow*
 // modifying a table; iterator returns a tuple as a value (For example, join
 // or subquery result cannot be modified).
-// Note that AbstractTable must know columns in advance (it need it anyway to
+// Note that Relation must know columns in advance (it need it anyway to
 // correctly interpret serialized data), but doesn't need to know rows (but
 // needs to know their count)
-class AbstractTable {
+class Relation {
 public:
-    virtual ~AbstractTable() = default;
+    virtual ~Relation() = default;
 
     virtual std::vector<Column> const& columns() const = 0;
     virtual std::vector<Tuple> const& raw_rows() const = 0;
-    virtual AbstractTableRowIterator<true> rows() const = 0;
-    virtual AbstractTableRowIterator<false> rows_writable() = 0;
+    virtual RelationRowIterator<true> rows() const = 0;
+    virtual RelationRowIterator<false> rows_writable() = 0;
     virtual size_t size() const = 0;
 
     struct ResolvedColumn {
@@ -114,9 +114,9 @@ public:
 // An abstract table iterator that iterates over a container
 // of rows stored in memory.
 template<class It>
-requires(std::forward_iterator<It>) class MemoryBackedAbstractTableIteratorImpl : public AbstractTableRowIteratorImpl {
+requires(std::forward_iterator<It>) class MemoryBackedRelationIteratorImpl : public RelationRowIteratorImpl {
 public:
-    explicit MemoryBackedAbstractTableIteratorImpl(It begin, It end)
+    explicit MemoryBackedRelationIteratorImpl(It begin, It end)
         : m_begin(begin)
         , m_current(begin)
         , m_end(end) { }
@@ -134,17 +134,17 @@ private:
 };
 
 template<class Container>
-class WritableMemoryBackedAbstractTableIteratorImpl : public WritableAbstractTableRowIteratorImpl {
+class WritableMemoryBackedRelationIteratorImpl : public WritableRelationRowIteratorImpl {
 public:
     using Iterator = decltype(Container {}.begin());
 
-    explicit WritableMemoryBackedAbstractTableIteratorImpl(Container& container)
+    explicit WritableMemoryBackedRelationIteratorImpl(Container& container)
         : m_container(container)
         , m_current(container.begin()) { }
 
     class _TupleWriter : public TupleWriter {
     public:
-        explicit _TupleWriter(WritableMemoryBackedAbstractTableIteratorImpl& base, Iterator it)
+        explicit _TupleWriter(WritableMemoryBackedRelationIteratorImpl& base, Iterator it)
             : m_base(base)
             , m_iterator(it) { }
 
@@ -162,7 +162,7 @@ public:
             return {};
         }
 
-        WritableMemoryBackedAbstractTableIteratorImpl& m_base;
+        WritableMemoryBackedRelationIteratorImpl& m_base;
         Iterator m_iterator;
     };
 
