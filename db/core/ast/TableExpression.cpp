@@ -56,19 +56,7 @@ DbErrorOr<std::unique_ptr<Relation>> TableIdentifier::evaluate(EvaluationContext
         return DbError { "Cannot evaluate table identifier without database", start() };
     }
 
-    // FIXME: Yes, this abstraction is entirely wrong...
-    auto table_ptr = TRY(context.db->table(m_id));
-    MemoryBackedTable table(nullptr, table_ptr->name());
-
-    for (const auto& column : table_ptr->columns()) {
-        TRY(table.add_column(column));
-    }
-    TRY(table_ptr->rows().try_for_each_row([&](auto const& row) -> DbErrorOr<void> {
-        TRY(table.insert(row));
-        return {};
-    }));
-
-    return std::make_unique<MemoryBackedTable>(std::move(table));
+    return std::make_unique<NonOwningTableWrapper>(*TRY(context.db->table(m_id)));
 }
 
 DbErrorOr<std::optional<size_t>> TableIdentifier::resolve_identifier(Database* db, Identifier const& id) const {
