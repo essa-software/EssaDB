@@ -17,11 +17,11 @@ DbErrorOr<ResultSet> Select::execute(EvaluationContext& context) const {
     // https://docs.microsoft.com/en-us/sql/t-sql/queries/select-transact-sql#logical-processing-order-of-the-select-statement
     // FROM
 
-    std::unique_ptr<Table> table = m_options.from ? TRY(m_options.from->evaluate(context)) : nullptr;
+    std::unique_ptr<Relation> relation = m_options.from ? TRY(m_options.from->evaluate(context)) : nullptr;
 
     SelectColumns select_all_columns;
 
-    SelectColumns const& columns = *TRY([this, table = table.get(), &select_all_columns]() -> DbErrorOr<SelectColumns const*> {
+    SelectColumns const& columns = *TRY([this, table = relation.get(), &select_all_columns]() -> DbErrorOr<SelectColumns const*> {
         if (m_options.columns.select_all()) {
             if (!table) {
                 return DbError { "You need a table to do SELECT *", m_start };
@@ -44,7 +44,7 @@ DbErrorOr<ResultSet> Select::execute(EvaluationContext& context) const {
             // SELECT etc.
             // TODO: Make use of iterator capabilities of this instead of
             //       reading everything into memory.
-            return collect_rows(context, *table);
+            return collect_rows(context, *relation);
         }
 
         std::vector<Value> values;

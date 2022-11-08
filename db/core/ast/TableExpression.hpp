@@ -14,7 +14,7 @@ public:
         : ASTNode(start) { }
 
     virtual ~TableExpression() = default;
-    virtual DbErrorOr<std::unique_ptr<Table>> evaluate(EvaluationContext& context) const = 0;
+    virtual DbErrorOr<std::unique_ptr<Relation>> evaluate(EvaluationContext& context) const = 0;
     virtual std::string to_string() const = 0;
     virtual DbErrorOr<std::optional<size_t>> resolve_identifier(Database* db, Identifier const&) const = 0;
     virtual DbErrorOr<size_t> column_count(Database*) const = 0;
@@ -28,7 +28,7 @@ public:
         : TableExpression(start)
         , m_table(table) { }
 
-    virtual DbErrorOr<std::unique_ptr<Table>> evaluate(EvaluationContext& context) const override;
+    virtual DbErrorOr<std::unique_ptr<Relation>> evaluate(EvaluationContext& context) const override;
     virtual std::string to_string() const override;
     virtual DbErrorOr<std::optional<size_t>> resolve_identifier(Database* db, Identifier const&) const override;
     virtual DbErrorOr<size_t> column_count(Database* db) const override;
@@ -44,7 +44,7 @@ public:
         , m_id(std::move(id))
         , m_alias(std::move(alias)) { }
 
-    virtual DbErrorOr<std::unique_ptr<Table>> evaluate(EvaluationContext& context) const override;
+    virtual DbErrorOr<std::unique_ptr<Relation>> evaluate(EvaluationContext& context) const override;
     virtual std::string to_string() const override { return m_id; }
     virtual DbErrorOr<std::optional<size_t>> resolve_identifier(Database* db, Identifier const&) const override;
     virtual DbErrorOr<size_t> column_count(Database* db) const override;
@@ -77,7 +77,7 @@ public:
         , m_on_rhs(std::move(on_rhs))
         , m_join_type(join_type) { }
 
-    virtual DbErrorOr<std::unique_ptr<Table>> evaluate(EvaluationContext& context) const override;
+    virtual DbErrorOr<std::unique_ptr<Relation>> evaluate(EvaluationContext& context) const override;
     virtual std::string to_string() const override { return "JoinExpression(TODO)"; }
     virtual DbErrorOr<std::optional<size_t>> resolve_identifier(Database* db, Identifier const&) const override;
     virtual DbErrorOr<size_t> column_count(Database* db) const override;
@@ -97,7 +97,7 @@ public:
         , m_lhs(std::move(lhs))
         , m_rhs(std::move(rhs)) { }
 
-    virtual DbErrorOr<std::unique_ptr<Table>> evaluate(EvaluationContext& context) const override;
+    virtual DbErrorOr<std::unique_ptr<Relation>> evaluate(EvaluationContext& context) const override;
     virtual std::string to_string() const override { return "JoinExpression(TODO)"; }
     virtual DbErrorOr<std::optional<size_t>> resolve_identifier(Database* db, Identifier const&) const override;
     virtual DbErrorOr<size_t> column_count(Database* db) const override;
