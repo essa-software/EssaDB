@@ -1,4 +1,5 @@
 #include "TableExpression.hpp"
+#include "db/core/DbError.hpp"
 
 #include <EssaUtil/Config.hpp>
 #include <db/core/Database.hpp>
@@ -22,7 +23,6 @@ public:
         : m_other(other) { }
 
     virtual std::vector<Column> const& columns() const { return m_other.columns(); }
-    virtual std::vector<Tuple> const& raw_rows() const { return m_other.raw_rows(); }
     virtual RelationIterator rows() const { return m_other.rows(); }
     virtual size_t size() const { return m_other.size(); }
 
@@ -63,10 +63,10 @@ DbErrorOr<std::unique_ptr<Relation>> TableIdentifier::evaluate(EvaluationContext
     for (const auto& column : table_ptr->columns()) {
         TRY(table.add_column(column));
     }
-
-    for (const auto& row : table_ptr->raw_rows()) {
+    TRY(table_ptr->rows().try_for_each_row([&](auto const& row) -> DbErrorOr<void> {
         TRY(table.insert(row));
-    }
+        return {};
+    }));
 
     return std::make_unique<MemoryBackedTable>(std::move(table));
 }
@@ -118,12 +118,13 @@ DbErrorOr<std::unique_ptr<Relation>> JoinExpression::evaluate(EvaluationContext&
                 index++;
             TRY(table->add_column(Column(column.name(), column.type(), false, false, false)));
         }
-        for (auto const& row : source_table.raw_rows()) {
+        TRY(source_table.rows().try_for_each_row([&](auto const& row) -> DbErrorOr<void> {
             if (index >= row.value_count()) {
                 return DbError { fmt::format("Invalid column `{}` used in join expression", on_id->to_string()), 0 };
             }
             contents.insert(std::pair(row.value(index), std::make_pair(&source_table, row)));
-        }
+            return {};
+        }));
         return {};
     };
 
@@ -260,23 +261,25 @@ DbErrorOr<size_t> JoinExpression::column_count(Database* db) const {
 DbErrorOr<std::unique_ptr<Relation>> CrossJoinExpression::evaluate(EvaluationContext& context) const {
     auto table = std::make_unique<MemoryBackedTable>(nullptr, "");
 
-    auto lhs_ptr = TRY(m_lhs->evaluate(context));
-    auto rhs_ptr = TRY(m_rhs->evaluate(context));
+    auto lhs = TRY(m_lhs->evaluate(context));
+    auto rhs = TRY(m_rhs->evaluate(context));
 
-    for (const auto& column : lhs_ptr->columns()) {
+    for (const auto& column : lhs->columns()) {
         TRY(table->add_column(Column(column.name(), column.type(), false, false, false)));
     }
 
-    for (const auto& column : rhs_ptr->columns()) {
+    for (const auto& column : rhs->columns()) {
         TRY(table->add_column(Column(column.name(), column.type(), false, false, false)));
     }
 
-    for (const auto& lhs_row : lhs_ptr->raw_rows()) {
-        for (const auto& rhs_row : rhs_ptr->raw_rows()) {
+    TRY(lhs->rows().try_for_each_row([&](auto const& lhs_row) -> DbErrorOr<void> {
+        TRY(rhs->rows().try_for_each_row([&](auto const& rhs_row) -> DbErrorOr<void> {
             auto row = create_joined_tuple(lhs_row, rhs_row);
             TRY(table->insert(row));
-        }
-    }
+            return {};
+        }));
+        return {};
+    }));
 
     return table;
 }

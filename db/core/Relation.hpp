@@ -59,7 +59,6 @@ public:
     virtual ~Relation() = default;
 
     virtual std::vector<Column> const& columns() const = 0;
-    virtual std::vector<Tuple> const& raw_rows() const = 0;
     virtual RelationIterator rows() const = 0;
     virtual size_t size() const = 0;
 

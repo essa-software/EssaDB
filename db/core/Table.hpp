@@ -1,10 +1,10 @@
 #pragma once
 
 #include <EssaUtil/NonCopyable.hpp>
-#include <db/core/Relation.hpp>
 #include <db/core/Column.hpp>
 #include <db/core/Database.hpp>
 #include <db/core/DbError.hpp>
+#include <db/core/Relation.hpp>
 #include <db/core/ResultSet.hpp>
 #include <db/core/ast/Expression.hpp>
 #include <map>
@@ -49,7 +49,7 @@ public:
 
     virtual size_t size() const override { return m_rows.size(); }
 
-    virtual std::vector<Tuple> const& raw_rows() const override { return m_rows; }
+    std::vector<Tuple> const& raw_rows() const { return m_rows; }
     std::vector<Tuple>& raw_rows() { return m_rows; }
 
     virtual DbErrorOr<void> truncate() override {
