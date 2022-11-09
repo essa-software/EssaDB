@@ -67,7 +67,7 @@ private:
     Core::DbErrorOr<Parser::IsArgs> parse_is();
     Core::DbErrorOr<std::unique_ptr<Core::AST::Identifier>> parse_identifier();
     Core::DbErrorOr<std::unique_ptr<Core::AST::Literal>> parse_literal();
-    Core::DbErrorOr<Core::Column> parse_column();
+    Core::DbErrorOr<Core::AST::ParsedColumn> parse_column();
     Core::DbErrorOr<std::unique_ptr<Core::AST::TableExpression>> parse_table_expression();
     Core::DbErrorOr<std::unique_ptr<Core::AST::TableIdentifier>> parse_table_identifier();
     Core::DbErrorOr<std::unique_ptr<Core::AST::TableExpression>> parse_join_expression(std::unique_ptr<Core::AST::TableExpression> lhs);

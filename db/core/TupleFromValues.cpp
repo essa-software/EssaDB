@@ -71,6 +71,51 @@ DbErrorOr<Tuple> create_tuple_from_values(Database& db, Table& table, std::vecto
         }
     }
 
+    // Primary key (NULL + duplicate check)
+    // For now, this is checked even if no constraint is explicitly defined.
+    if (table.primary_key()) {
+        auto const& pk = table.primary_key();
+        auto column = table.get_column(pk->local_column);
+        if (!column) {
+            return DbError { fmt::format("Internal error: Nonexistent column '{}' used as primary key", pk->local_column), 0 };
+        }
+        auto const& value = row[column->index];
+        if (value.is_null()) {
+            return DbError { "Primary key may not be null", 0 };
+        }
+        TRY(table.rows().try_for_each_row([&](Tuple const& row) -> DbErrorOr<void> {
+            if (TRY(row.value(column->index) == value))
+                return DbError { "Primary key must be unique", 0 };
+            return {};
+        }));
+    }
+
+    // Foreign keys (row existence in the foreign table)
+    // For now, this is checked even if no constraint is explicitly defined.
+    for (auto const& fk : table.foreign_keys()) {
+        auto local_column = table.get_column(fk.local_column);
+        if (!local_column) {
+            return DbError { fmt::format("Internal error: Nonexistent column '{}' used as foreign key", fk.local_column), 0 };
+        }
+        auto referenced_table = TRY(db.table(fk.referenced_table));
+        auto referenced_column = referenced_table->get_column(fk.referenced_column);
+        if (!referenced_column) {
+            return DbError { fmt::format("Internal error: Nonexistent column '{}' used as referenced table in foreign key", fk.referenced_column), 0 };
+        }
+
+        auto const& local_value = row[local_column->index];
+        if (local_value.is_null()) {
+            continue;
+        }
+
+        if (!referenced_table->find_first_matching_tuple(referenced_column->index, local_value)) {
+            return DbError { fmt::format("Foreign key '{}' requires matching value in referenced column '{}.{}'",
+                                 fk.local_column, fk.referenced_table, fk.referenced_column),
+                0 };
+        }
+    }
+
+    // Checks and constraints
     auto memory_backed_table = dynamic_cast<MemoryBackedTable*>(&table);
 
     if (!memory_backed_table)
