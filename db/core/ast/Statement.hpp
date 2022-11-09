@@ -1,6 +1,7 @@
 #pragma once
 
 #include <db/core/Column.hpp>
+#include <db/core/IndexedRelation.hpp>
 #include <db/core/ValueOrResultSet.hpp>
 #include <db/core/ast/ASTNode.hpp>
 #include <db/core/ast/Expression.hpp>
@@ -11,6 +12,11 @@ class Database;
 }
 
 namespace Db::Core::AST {
+
+struct ParsedColumn {
+    Core::Column column;
+    std::variant<std::monostate, Core::PrimaryKey, Core::ForeignKey> key;
+};
 
 class Expression;
 class Check;
@@ -79,7 +85,7 @@ private:
 
 class CreateTable : public Statement {
 public:
-    CreateTable(ssize_t start, std::string name, std::vector<Column> columns, std::shared_ptr<AST::Check> check)
+    CreateTable(ssize_t start, std::string name, std::vector<ParsedColumn> columns, std::shared_ptr<AST::Check> check)
         : Statement(start)
         , m_name(std::move(name))
         , m_columns(std::move(columns))
@@ -89,7 +95,7 @@ public:
 
 private:
     std::string m_name;
-    std::vector<Column> m_columns;
+    std::vector<ParsedColumn> m_columns;
     std::shared_ptr<AST::Check> m_check;
     std::map<std::string, std::shared_ptr<AST::Expression>> m_check_constraints;
 };
@@ -120,7 +126,7 @@ private:
 
 class AlterTable : public Statement {
 public:
-    AlterTable(ssize_t start, std::string name, std::vector<Column> to_add, std::vector<Column> to_alter, std::vector<Column> to_drop,
+    AlterTable(ssize_t start, std::string name, std::vector<ParsedColumn> to_add, std::vector<ParsedColumn> to_alter, std::vector<std::string> to_drop,
         std::shared_ptr<Expression> check_to_add, std::shared_ptr<Expression> check_to_alter, bool check_to_drop,
         std::vector<std::pair<std::string, std::shared_ptr<Expression>>> constraint_to_add, std::vector<std::pair<std::string, std::shared_ptr<Expression>>> constraint_to_alter, std::vector<std::string> constraint_to_drop)
         : Statement(start)
@@ -139,9 +145,9 @@ public:
 
 private:
     std::string m_name;
-    std::vector<Column> m_to_add;
-    std::vector<Column> m_to_alter;
-    std::vector<Column> m_to_drop;
+    std::vector<ParsedColumn> m_to_add;
+    std::vector<ParsedColumn> m_to_alter;
+    std::vector<std::string> m_to_drop;
     std::shared_ptr<Expression> m_check_to_add;
     std::shared_ptr<Expression> m_check_to_alter;
     bool m_check_to_drop;

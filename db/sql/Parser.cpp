@@ -1,4 +1,5 @@
 #include "Parser.hpp"
+#include "db/core/IndexedRelation.hpp"
 
 #include <db/core/Column.hpp>
 #include <db/core/DbError.hpp>
@@ -434,7 +435,7 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::DeleteFrom>> Parser::parse_delete_fro
         std::move(where));
 }
 
-Core::DbErrorOr<Core::Column> Parser::parse_column() {
+Core::DbErrorOr<Core::AST::ParsedColumn> Parser::parse_column() {
     auto name = m_tokens[m_offset++];
     if (name.type != Token::Type::Identifier)
         return expected("column name", name, m_offset - 1);
@@ -451,14 +452,16 @@ Core::DbErrorOr<Core::Column> Parser::parse_column() {
     bool unique = false;
     bool not_null = false;
     std::optional<Core::Value> default_value = {};
+    std::variant<std::monostate, Core::PrimaryKey, Core::ForeignKey> key;
 
     while (true) {
         auto param = m_tokens[m_offset];
         if (param.type != Token::Type::Identifier
-            && param.type != Token::Type::KeywordNot
             && param.type != Token::Type::KeywordDefault
-            && param.type != Token::Type::KeywordUnique
-            && param.type != Token::Type::KeywordPrimary)
+            && param.type != Token::Type::KeywordForeign
+            && param.type != Token::Type::KeywordNot
+            && param.type != Token::Type::KeywordPrimary
+            && param.type != Token::Type::KeywordUnique)
             break;
         m_offset++;
         if (param.value == "AUTO_INCREMENT")
@@ -498,11 +501,41 @@ Core::DbErrorOr<Core::Column> Parser::parse_column() {
 
             unique = true;
             not_null = true;
+            key = Core::PrimaryKey { .local_column = name.value };
+        }
+        else if (param.type == Token::Type::KeywordForeign) {
+            if (m_tokens[m_offset++].type != Token::Type::KeywordKey)
+                return Core::DbError { "Expected 'KEY' after 'FOREIGN'", m_offset - 1 };
+            if (m_tokens[m_offset++].type != Token::Type::KeywordReferences)
+                return Core::DbError { "Expected 'REFERENCES' after 'FOREIGN KEY'", m_offset - 1 };
+
+            auto referenced_table = m_tokens[m_offset++];
+            if (referenced_table.type != Token::Type::Identifier) {
+                return expected("referenced table name", m_tokens[m_offset - 1], m_offset);
+            }
+
+            if (m_tokens[m_offset++].type != Token::Type::ParenOpen) {
+                return expected("'('", m_tokens[m_offset - 1], m_offset);
+            }
+
+            auto referenced_column = m_tokens[m_offset++];
+            if (referenced_column.type != Token::Type::Identifier) {
+                return expected("referenced column name", m_tokens[m_offset - 1], m_offset);
+            }
+
+            if (m_tokens[m_offset++].type != Token::Type::ParenClose) {
+                return expected("')'", m_tokens[m_offset - 1], m_offset);
+            }
+
+            key = Core::ForeignKey { .local_column = name.value, .referenced_table = referenced_table.value, .referenced_column = referenced_column.value };
         }
         else
             return Core::DbError { "Invalid param for column: '" + param.value + "'", m_offset };
     }
-    return Core::Column { name.value, *type, auto_increment, unique, not_null, std::move(default_value) };
+    return Core::AST::ParsedColumn {
+        .column = Core::Column { name.value, *type, auto_increment, unique, not_null, std::move(default_value) },
+        .key = std::move(key)
+    };
 }
 
 Core::DbErrorOr<std::unique_ptr<Core::AST::CreateTable>> Parser::parse_create_table() {
@@ -515,16 +548,16 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::CreateTable>> Parser::parse_create_ta
 
     auto paren_open = m_tokens[m_offset];
     if (paren_open.type != Token::Type::ParenOpen)
-        return std::make_unique<Core::AST::CreateTable>(start, table_name.value, std::vector<Core::Column> {}, std::make_shared<Core::AST::Check>(start));
+        return std::make_unique<Core::AST::CreateTable>(start, table_name.value, std::vector<Core::AST::ParsedColumn> {}, std::make_shared<Core::AST::Check>(start));
     m_offset++;
 
-    std::vector<Core::Column> columns;
+    std::vector<Core::AST::ParsedColumn> columns;
 
     std::shared_ptr<Core::AST::Check> check = std::make_shared<Core::AST::Check>(start);
 
     while (true) {
-
-        columns.push_back(TRY(parse_column()));
+        auto column = TRY(parse_column());
+        columns.push_back(std::move(column));
 
         while (true) {
             auto keyword = m_tokens[m_offset];
@@ -569,7 +602,7 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::CreateTable>> Parser::parse_create_ta
     if (paren_close.type != Token::Type::ParenClose)
         return expected("')' to close column list", paren_close, m_offset - 1);
 
-    return std::make_unique<Core::AST::CreateTable>(start, table_name.value, columns, std::move(check));
+    return std::make_unique<Core::AST::CreateTable>(start, table_name.value, std::move(columns), std::move(check));
 }
 
 Core::DbErrorOr<std::unique_ptr<Core::AST::DropTable>> Parser::parse_drop_table() {
@@ -602,9 +635,9 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::AlterTable>> Parser::parse_alter_tabl
     if (table_name.type != Token::Type::Identifier)
         return expected("table name", table_name, m_offset - 1);
 
-    std::vector<Core::Column> to_add;
-    std::vector<Core::Column> to_alter;
-    std::vector<Core::Column> to_drop;
+    std::vector<Core::AST::ParsedColumn> to_add;
+    std::vector<Core::AST::ParsedColumn> to_alter;
+    std::vector<std::string> to_drop;
     std::shared_ptr<Core::AST::Expression> check_to_add = nullptr;
     std::shared_ptr<Core::AST::Expression> check_to_alter = nullptr;
     bool check_to_drop = false;
@@ -685,7 +718,7 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::AlterTable>> Parser::parse_alter_tabl
                     if (column_token.type != Token::Type::Identifier)
                         return expected("column name", column_token, m_offset - 1);
 
-                    to_drop.push_back(Core::Column(column_token.value, {}, 1, 1, 1));
+                    to_drop.push_back(column_token.value);
 
                     auto comma = m_tokens[m_offset];
                     if (comma.type != Token::Type::Comma)

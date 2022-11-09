@@ -1,7 +1,7 @@
 #include "Lexer.hpp"
-#include "db/sql/Parser.hpp"
 
 #include <cctype>
+#include <db/sql/Parser.hpp>
 #include <iostream>
 #include <string>
 
@@ -70,6 +70,7 @@ std::vector<Token> Lexer::lex() {
                 { "ELSE", Token::Type::KeywordElse },
                 { "END", Token::Type::KeywordEnd },
                 { "FROM", Token::Type::KeywordFrom },
+                { "FOREIGN", Token::Type::KeywordForeign },
                 { "FULL", Token::Type::KeywordFull },
                 { "GROUP", Token::Type::KeywordGroup },
                 { "HAVING", Token::Type::KeywordHaving },
@@ -92,6 +93,7 @@ std::vector<Token> Lexer::lex() {
                 { "OVER", Token::Type::KeywordOver },
                 { "PARTITION", Token::Type::KeywordPartition },
                 { "PRIMARY", Token::Type::KeywordPrimary },
+                { "REFERENCES", Token::Type::KeywordReferences },
                 { "SELECT", Token::Type::KeywordSelect },
                 { "SET", Token::Type::KeywordSet },
                 { "TABLE", Token::Type::KeywordTable },

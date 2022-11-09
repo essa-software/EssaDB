@@ -1,4 +1,6 @@
+#include "db/core/IndexedRelation.hpp"
 #include "db/core/Table.hpp"
+#include <EssaUtil/Config.hpp>
 #include <db/core/ast/Statement.hpp>
 
 #include <EssaUtil/ScopeGuard.hpp>
@@ -67,7 +69,18 @@ DbErrorOr<ValueOrResultSet> Update::execute(Database& db) const {
 DbErrorOr<ValueOrResultSet> CreateTable::execute(Database& db) const {
     auto& table = db.create_table(m_name, m_check);
     for (auto const& column : m_columns) {
-        TRY(table.add_column(column));
+        TRY(table.add_column(column.column));
+        std::visit(
+            Util::Overloaded {
+                [](std::monostate) {},
+                [&](PrimaryKey const& pk) {
+                    table.set_primary_key(pk);
+                },
+                [&](ForeignKey const& fk) {
+                    table.add_foreign_key(fk);
+                },
+            },
+            column.key);
     }
     return { Value::null() };
 }
@@ -89,15 +102,41 @@ DbErrorOr<ValueOrResultSet> AlterTable::execute(Database& db) const {
     auto table = TRY(db.table(m_name));
 
     for (const auto& to_add : m_to_add) {
-        TRY(table->add_column(to_add));
+        TRY(table->add_column(to_add.column));
+        std::visit(
+            Util::Overloaded {
+                [](std::monostate) {},
+                [&](PrimaryKey const& pk) {
+                    table->set_primary_key(pk);
+                },
+                [&](ForeignKey const& fk) {
+                    table->add_foreign_key(fk);
+                },
+            },
+            to_add.key);
     }
 
     for (const auto& to_alter : m_to_alter) {
-        TRY(table->alter_column(to_alter));
+        TRY(table->alter_column(to_alter.column));
+        std::visit(
+            Util::Overloaded {
+                [](std::monostate) {},
+                [&](PrimaryKey const& pk) {
+                    table->set_primary_key(pk);
+                },
+                [&](ForeignKey const& fk) {
+                    table->add_foreign_key(fk);
+                },
+            },
+            to_alter.key);
     }
 
     for (const auto& to_drop : m_to_drop) {
-        TRY(table->drop_column(to_drop.name()));
+        TRY(table->drop_column(to_drop));
+        if (table->primary_key() && table->primary_key()->local_column == to_drop) {
+            table->set_primary_key({});
+        }
+        table->drop_foreign_key(to_drop);
     }
 
     auto memory_backed_table = dynamic_cast<MemoryBackedTable*>(table);

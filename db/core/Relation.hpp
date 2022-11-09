@@ -51,7 +51,7 @@ private:
 // A database thing that has columns and rows. Note that it *doesn't allow*
 // modifying a table; iterator returns a tuple as a value (For example, join
 // or subquery result cannot be modified).
-// Note that Relation must know columns in advance (it need it anyway to
+// Note that Relation must know columns in advance (it needs them anyway to
 // correctly interpret serialized data), but doesn't need to know rows (but
 // needs to know their count)
 class Relation {
@@ -61,6 +61,11 @@ public:
     virtual std::vector<Column> const& columns() const = 0;
     virtual RelationIterator rows() const = 0;
     virtual size_t size() const = 0;
+
+    // Find tuple that which `column`-th value is equal to `value`.
+    // By default, this just iterates over the table; this may be
+    // optimized by indexes in the future.
+    virtual std::optional<Tuple const*> find_first_matching_tuple(size_t column, Value value);
 
     struct ResolvedColumn {
         size_t index;

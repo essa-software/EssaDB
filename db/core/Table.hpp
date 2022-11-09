@@ -4,7 +4,7 @@
 #include <db/core/Column.hpp>
 #include <db/core/Database.hpp>
 #include <db/core/DbError.hpp>
-#include <db/core/Relation.hpp>
+#include <db/core/IndexedRelation.hpp>
 #include <db/core/ResultSet.hpp>
 #include <db/core/ast/Expression.hpp>
 #include <map>
@@ -15,7 +15,7 @@
 namespace Db::Core {
 
 class Table : public Util::NonCopyable
-    , public Relation {
+    , public IndexedRelation {
 public:
     virtual DbErrorOr<void> truncate() = 0;
     virtual DbErrorOr<void> add_column(Column) = 0;
