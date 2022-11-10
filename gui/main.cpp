@@ -22,10 +22,10 @@
 #include <string>
 #include <vector>
 
-int ____LEGACy_MODE_____ = 0;
-
 int main() {
     GUI::Application app;
+
+    app.set_tps_limit(25);
 
     EssaDB::DatabaseClient::register_type("essadb", std::make_unique<EssaDB::EssaDBDatabaseClientType>());
     EssaDB::DatabaseClient::register_type("mysql", std::make_unique<EssaDB::MySQLDatabaseClientType>());
