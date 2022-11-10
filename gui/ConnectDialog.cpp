@@ -13,7 +13,7 @@ SelectConnectionTypeDialog::SelectConnectionTypeDialog(GUI::HostWindow& host_win
     set_title("Select connection type");
     set_size({ 250, 120 });
     center_on_screen();
-    auto& container = set_main_widget<GUI::RadioGroup>();
+    auto& container = set_main_widget<GUI::Container>();
     container.set_layout<GUI::VerticalBoxLayout>().set_padding(GUI::Boxf::all_equal(10));
 
     auto radio_group = container.add_widget<GUI::RadioGroup>();
