@@ -88,6 +88,14 @@ int main() {
 
     run_button->on_click = [&]() { run_sql(text_editor->content()); };
     import_button->on_click = [&]() {
+        if (!client) {
+            console->append_content({
+                .color = Util::Colors::Red,
+                .text = Util::UString { "Connection to server is not opened" },
+            });
+            return;
+        }
+
         auto& import_csv_dialog = window.open_overlay<EssaDB::ImportCSVDialog>();
         import_csv_dialog.on_ok = [&window, &console, &import_csv_dialog, &client, &update_db_model]() {
             auto maybe_error = client->import(import_csv_dialog.csv_file(), import_csv_dialog.table_name(), Db::Core::AST::Import::Mode::Csv);
