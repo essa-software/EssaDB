@@ -1,10 +1,11 @@
 #include "MySQLDatabaseClient.hpp"
-#include "mysql.h"
 
 #include <EssaUtil/Config.hpp>
 #include <EssaUtil/ScopeGuard.hpp>
+#include <db/sql/Parser.hpp>
 #include <gui/Structure.hpp>
 #include <gui/client/ConnectToMySQLDialog.hpp>
+#include <mysql.h>
 
 namespace EssaDB {
 
@@ -40,6 +41,11 @@ Db::Core::DbErrorOr<Db::Core::ValueOrResultSet> MySQLDatabaseClient::run_query(s
 
     if (mysql_query(m_mysql_connection, query.data())) {
         return Db::Core::DbError { fmt::format("Error querying server: {}", mysql_error(m_mysql_connection)), 0 };
+    }
+
+    if (Db::Sql::Parser::compare_case_insensitive(query.substr(0, 4), "USE ")) {
+        auto db = query[query.size() - 1] == ';' ? query.substr(4, query.size() - 5) : query.substr(4);
+        m_connection_data.database = db;
     }
 
     result = mysql_use_result(m_mysql_connection);
