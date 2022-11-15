@@ -4,6 +4,7 @@ add_library(
     core/ast/Expression.cpp
     core/ast/Select.cpp
     core/ast/SelectColumns.cpp
+    core/ast/Show.cpp
     core/ast/Statement.cpp
     core/ast/TableExpression.cpp
     core/Database.cpp

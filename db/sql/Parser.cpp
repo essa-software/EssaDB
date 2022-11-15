@@ -1,12 +1,13 @@
 #include "Parser.hpp"
-#include "db/core/IndexedRelation.hpp"
 
 #include <db/core/Column.hpp>
 #include <db/core/DbError.hpp>
 #include <db/core/Function.hpp>
+#include <db/core/IndexedRelation.hpp>
 #include <db/core/Select.hpp>
 #include <db/core/Table.hpp>
 #include <db/core/Value.hpp>
+#include <db/core/ast/Show.hpp>
 #include <db/sql/Lexer.hpp>
 
 #include <iostream>
@@ -98,6 +99,16 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Statement>> Parser::parse_statement()
     }
     else if (keyword.type == Token::Type::KeywordImport) {
         return TRY(parse_import());
+    }
+    else if (keyword.type == Token::Type::KeywordShow) {
+        auto type = m_tokens[++m_offset];
+        switch (type.type) {
+        case Token::Type::KeywordTables:
+            return std::make_unique<Core::AST::Show>(m_offset - 1, Core::AST::Show::Type::Tables);
+        default:
+            break;
+        }
+        return expected("'TABLES'", m_tokens[m_offset], m_offset);
     }
     return expected("statement", keyword, m_offset);
 }
