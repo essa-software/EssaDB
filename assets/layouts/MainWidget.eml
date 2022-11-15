@@ -10,21 +10,25 @@
         @TextButton run_sql {
             image: asset("run.png")
             width: 32px
+            tooltip_text: "Run SQL"
         }
 
         @TextButton import_csv {
             image: asset("import.png")
             width: 32px
+            tooltip_text: "Import CSV"
         }
 
         @TextButton connect_mysql {
             image: asset("connect.png")
             width: 32px
+            tooltip_text: "Connect to database"
         }
 
         @TextButton close_connection {
             image: asset("close_connection.png")
             width: 32px
+            tooltip_text: "Close database connection"
         }
     }
 
