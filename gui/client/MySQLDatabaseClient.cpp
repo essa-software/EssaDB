@@ -76,30 +76,11 @@ Db::Core::DbErrorOr<Structure::Database> MySQLDatabaseClient::structure() const 
     MYSQL_RES* result;
     MYSQL_ROW row;
 
-    MYSQL* schema_connection;
-    schema_connection = mysql_init(NULL);
-    if (schema_connection == NULL) {
-        return Db::Core::DbError { fmt::format("Failed to initialize table schemas: {}", mysql_error(schema_connection)), 0 };
-    }
-    Util::ScopeGuard guard { [&]() {
-        mysql_close(schema_connection);
-    } };
-
-    if (!mysql_real_connect(schema_connection,
-            m_connection_data.address.data(),
-            m_connection_data.username.data(),
-            m_connection_data.password.data(),
-            "information_schema",
-            m_connection_data.port, NULL, 0)) {
-
-        return Db::Core::DbError { fmt::format("Failed to connect to information schemas: {}", mysql_error(schema_connection)), 0 };
+    if (mysql_query(m_mysql_connection, ("SELECT * FROM information_schema.columns WHERE table_schema LIKE '" + m_connection_data.database + "' ORDER BY table_name;").data())) {
+        return Db::Core::DbError { fmt::format("Error querying table schema: {}", mysql_error(m_mysql_connection)), 0 };
     }
 
-    if (mysql_query(schema_connection, ("SELECT * FROM COLUMNS WHERE TABLE_SCHEMA LIKE '" + m_connection_data.database + "' ORDER BY table_name;").data())) {
-        return Db::Core::DbError { fmt::format("Error querying table schema: {}", mysql_error(schema_connection)), 0 };
-    }
-
-    result = mysql_use_result(schema_connection);
+    result = mysql_use_result(m_mysql_connection);
     Util::ScopeGuard result_guard { [&]() {
         mysql_free_result(result);
     } };
