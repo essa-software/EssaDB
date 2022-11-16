@@ -18,9 +18,9 @@ The runtime. Contains abstractions for databases, tables, rows, columns, values 
 
 The SQL parser and lexer, along with some high-level functions for running SQL queries. Depends on `core`.
 
-### `util`
+### `storage`
 
-Various generally useful utilities, like `NonCopyable` or time formatting.
+Code for reading and writing EssaDB databases to files. Depends on `core`.
 
 ## `docs`
 

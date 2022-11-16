@@ -3,6 +3,7 @@
 #include "Column.hpp"
 #include "Tuple.hpp"
 
+#include <EssaUtil/Error.hpp>
 #include <memory>
 #include <vector>
 

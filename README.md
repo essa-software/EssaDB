@@ -1,7 +1,7 @@
 # EssaDB - ESSA Database
 Welcome to ESSA Database Engine! Our goal is to be better than MS Access (which is not that hard). EssaDB is going to have fully implemented SQL 
 dialect (called EssaSQL obviously, right?). We want to be as efective as it's possible including future great optimizations to Database Engine and our 
-file format being clever implementation of data heap.
+file format being [clever implementation of data heap](docs/EDBFileFormat.md).
 
 ## How to build our code?
 
