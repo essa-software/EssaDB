@@ -73,6 +73,8 @@ public:
     };
     std::optional<ResolvedColumn> get_column(std::string const& name) const;
     std::optional<ResolvedColumn> get_column(std::string const& name, Table* table) const;
+
+    void dump_structure() const;
 };
 
 // An abstract table iterator that iterates over a container

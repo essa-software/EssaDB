@@ -39,4 +39,13 @@ std::optional<Relation::ResolvedColumn> Relation::get_column(std::string const& 
     return {};
 }
 
+void Relation::dump_structure() const {
+    fmt::print("Relation @{}\n", fmt::ptr(this));
+    fmt::print("Rows: {}\n", size());
+    fmt::print("Columns:\n");
+    for (auto const& c : columns()) {
+        fmt::print(" - {} {}\n", c.name(), Value::type_to_string(c.type()));
+    }
+}
+
 }

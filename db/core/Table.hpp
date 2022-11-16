@@ -66,8 +66,6 @@ public:
 
     std::shared_ptr<AST::Check>& check() { return m_check; }
 
-    void dump_structure() const;
-
 private:
     virtual int increment(std::string column) override { return ++m_auto_increment_values[column]; }
 
