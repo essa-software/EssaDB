@@ -129,7 +129,7 @@ DbErrorOr<std::unique_ptr<Relation>> JoinExpression::evaluate(EvaluationContext&
             if (last->second.first == lhs.get() && it->second.first == rhs.get()) {
                 if (TRY(it->first == last->first)) {
                     auto row = create_joined_tuple(last->second.second, it->second.second);
-                    TRY(table->insert(row));
+                    TRY(table->insert_unchecked(row));
                     it++;
                     if (it == contents.end())
                         break;
@@ -146,7 +146,7 @@ DbErrorOr<std::unique_ptr<Relation>> JoinExpression::evaluate(EvaluationContext&
             if (last->second.first == lhs.get()) {
                 if (TRY(it->first == last->first)) {
                     auto row = create_joined_tuple(last->second.second, it->second.second);
-                    TRY(table->insert(row));
+                    TRY(table->insert_unchecked(row));
                     it++;
                     if (it == contents.end())
                         break;
@@ -157,7 +157,7 @@ DbErrorOr<std::unique_ptr<Relation>> JoinExpression::evaluate(EvaluationContext&
 
                     auto row = create_joined_tuple(last->second.second, dummy);
 
-                    TRY(table->insert(row));
+                    TRY(table->insert_unchecked(row));
                 }
             }
             last = it;
@@ -171,7 +171,7 @@ DbErrorOr<std::unique_ptr<Relation>> JoinExpression::evaluate(EvaluationContext&
             if (last->second.first == rhs.get() || it->second.first == rhs.get()) {
                 if (TRY(it->first == last->first)) {
                     auto row = create_joined_tuple(last->second.second, it->second.second);
-                    TRY(table->insert(row));
+                    TRY(table->insert_unchecked(row));
                     it++;
                     if (it == contents.end())
                         break;
@@ -184,7 +184,7 @@ DbErrorOr<std::unique_ptr<Relation>> JoinExpression::evaluate(EvaluationContext&
 
                     auto row = create_joined_tuple(dummy, it->second.second);
 
-                    TRY(table->insert(row));
+                    TRY(table->insert_unchecked(row));
                 }
             }
             last = it;
@@ -197,7 +197,7 @@ DbErrorOr<std::unique_ptr<Relation>> JoinExpression::evaluate(EvaluationContext&
         for (auto it = beg; it != contents.end(); it++) {
             if (last->second.first == lhs.get() && it->second.first == rhs.get() && TRY(it->first == last->first)) {
                 auto row = create_joined_tuple(last->second.second, it->second.second);
-                TRY(table->insert(row));
+                TRY(table->insert_unchecked(row));
                 it++;
                 if (it == contents.end())
                     break;
@@ -208,7 +208,7 @@ DbErrorOr<std::unique_ptr<Relation>> JoinExpression::evaluate(EvaluationContext&
 
                 auto row = create_joined_tuple(last->second.second, dummy);
 
-                TRY(table->insert(row));
+                TRY(table->insert_unchecked(row));
             }
             else if (last->second.first == rhs.get()) {
                 std::vector<Value> values(lhs->columns().size(), Value::null());
@@ -216,7 +216,7 @@ DbErrorOr<std::unique_ptr<Relation>> JoinExpression::evaluate(EvaluationContext&
 
                 auto row = create_joined_tuple(dummy, it->second.second);
 
-                TRY(table->insert(row));
+                TRY(table->insert_unchecked(row));
             }
             last = it;
         }
@@ -263,7 +263,7 @@ DbErrorOr<std::unique_ptr<Relation>> CrossJoinExpression::evaluate(EvaluationCon
     TRY(lhs->rows().try_for_each_row([&](auto const& lhs_row) -> DbErrorOr<void> {
         TRY(rhs->rows().try_for_each_row([&](auto const& rhs_row) -> DbErrorOr<void> {
             auto row = create_joined_tuple(lhs_row, rhs_row);
-            TRY(table->insert(row));
+            TRY(table->insert_unchecked(row));
             return {};
         }));
         return {};

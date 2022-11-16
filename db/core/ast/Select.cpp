@@ -7,13 +7,15 @@ namespace Db::Core::AST {
 DbErrorOr<Value> SelectExpression::evaluate(EvaluationContext& context) const {
     auto result_set = TRY(m_select.execute(context));
     if (!result_set.is_convertible_to_value()) {
-        // TODO: Store location info
-        return DbError { "Select expression must return a single row with a single value", 0 };
+        return DbError { "Select expression must return a single row with a single value", start() };
     }
     return result_set.as_value();
 }
 
 DbErrorOr<std::unique_ptr<Relation>> SelectTableExpression::evaluate(EvaluationContext& context) const {
+    if (!context.db) {
+        return DbError { "SELECT run as table expression requires a database", start() };
+    }
     auto result = TRY(m_select.execute(context));
 
     auto table = std::make_unique<MemoryBackedTable>(nullptr, "");
@@ -26,7 +28,7 @@ DbErrorOr<std::unique_ptr<Relation>> SelectTableExpression::evaluate(EvaluationC
     }
 
     for (const auto& row : result.rows()) {
-        TRY(table->insert(row));
+        TRY(table->insert(*context.db, row));
     }
 
     return table;
@@ -93,29 +95,22 @@ DbErrorOr<ValueOrResultSet> InsertInto::execute(Database& db) const {
     EvaluationContext context { .db = &db };
     if (m_select) {
         auto result = TRY(m_select.value().execute(context));
-
-        if (m_columns.size() != result.column_names().size())
-            return DbError { "Values doesn't have corresponding columns", start() };
-
         for (const auto& row : result.rows()) {
             std::vector<std::pair<std::string, Value>> values;
             for (size_t i = 0; i < m_columns.size(); i++) {
                 values.push_back({ m_columns[i], row.value(i) });
             }
 
-            TRY(table->insert(TRY(create_tuple_from_values(db, *table, values))));
+            TRY(table->insert(db, TRY(create_tuple_from_values(*table, values))));
         }
     }
     else {
-        if (m_columns.size() != m_values.size())
-            return DbError { "Values doesn't have corresponding columns", start() };
-
         std::vector<std::pair<std::string, Value>> values;
         for (size_t i = 0; i < m_columns.size(); i++) {
             values.push_back({ m_columns[i], TRY(m_values[i]->evaluate(context)) });
         }
 
-        TRY(table->insert(TRY(create_tuple_from_values(db, *table, values))));
+        TRY(table->insert(db, TRY(create_tuple_from_values(*table, values))));
     }
     return { Value::null() };
 }

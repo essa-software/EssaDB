@@ -11,6 +11,7 @@
 namespace Db::Core::AST {
 
 DbErrorOr<ValueOrResultSet> DeleteFrom::execute(Database& db) const {
+    // TODO: Check table type
     auto table = static_cast<MemoryBackedTable*>(TRY(db.table(m_from)));
 
     EvaluationContext context { .db = &db };

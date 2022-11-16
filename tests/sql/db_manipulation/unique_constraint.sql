@@ -1,7 +1,7 @@
 CREATE TABLE test (id INT UNIQUE, value INT DEFAULT 3000);
 INSERT INTO test (id, value) VALUES (2, 1000);
 INSERT INTO test (id) VALUES (5);
--- error: Not valid UNIQUE value.
+-- error: Column 'id' must contain unique values
 INSERT INTO test (id, value) VALUES (2, 1002);
 
 -- output:
