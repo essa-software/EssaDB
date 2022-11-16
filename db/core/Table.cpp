@@ -1,12 +1,13 @@
 #include "Table.hpp"
 
 #include <cstring>
-#include <db/core/Relation.hpp>
 #include <db/core/Column.hpp>
 #include <db/core/DbError.hpp>
 #include <db/core/ResultSet.hpp>
 #include <db/core/TupleFromValues.hpp>
+#include <db/core/ast/EvaluationContext.hpp>
 #include <db/core/ast/Expression.hpp>
+#include <db/core/ast/TableExpression.hpp>
 #include <fstream>
 #include <iostream>
 #include <memory>
@@ -16,6 +17,130 @@
 #include <vector>
 
 namespace Db::Core {
+
+DbErrorOr<void> Table::check_value_validity(Database&, Tuple const& row, size_t column_index) const {
+    auto const& column = columns()[column_index];
+    if (!row.value(column_index).is_null() && column.type() != row.value(column_index).type()) {
+        return DbError { fmt::format("Type mismatch, required {} but given {} for column '{}'",
+                             Value::type_to_string(column.type()),
+                             Value::type_to_string(row.value(column_index).type()),
+                             column.name()),
+            0 };
+    }
+
+    if (column.not_null() && row.value(column_index).is_null()) {
+        return DbError { fmt::format("NULL given for NOT NULL column '{}'", column.name()), 0 };
+    }
+
+    if (column.unique()) {
+        TRY(rows().try_for_each_row([&](Tuple const& other_row) -> DbErrorOr<void> {
+            if (TRY(other_row.value(column_index) == row.value(column_index)))
+                return DbError { fmt::format("Column '{}' must contain unique values", column.name()), 0 };
+            return {};
+        }));
+    }
+
+    return {};
+}
+
+DbErrorOr<void> Table::perform_table_integrity_checks(Database& db, Tuple const& row) const {
+    auto const& columns = this->columns();
+
+    // Column count
+    if (row.value_count() != columns.size()) {
+        return DbError { fmt::format("Column count does not match ({} given vs {} required)", row.value_count(), columns.size()), 0 };
+    }
+
+    // Primary key (NULL + duplicate check)
+    // For now, this is checked even if no constraint is explicitly defined.
+    if (primary_key()) {
+        auto const& pk = primary_key();
+        auto column = get_column(pk->local_column);
+        if (!column) {
+            return DbError { fmt::format("Internal error: Nonexistent column '{}' used as primary key", pk->local_column), 0 };
+        }
+        auto const& value = row.value(column->index);
+        if (value.is_null()) {
+            return DbError { "Primary key may not be null", 0 };
+        }
+        TRY(rows().try_for_each_row([&](Tuple const& other_row) -> DbErrorOr<void> {
+            if (TRY(other_row.value(column->index) == value))
+                return DbError { "Primary key must be unique", 0 };
+            return {};
+        }));
+    }
+
+    // Column types, NON NULL, UNIQUE
+    for (size_t s = 0; s < columns.size(); s++) {
+        TRY(check_value_validity(db, row, s));
+    }
+
+    return {};
+}
+
+DbErrorOr<void> Table::perform_database_integrity_checks(Database& db, Tuple const& row) const {
+    // Foreign keys (row existence in the foreign table)
+    // For now, this is checked even if no constraint is explicitly defined.
+    for (auto const& fk : foreign_keys()) {
+        auto local_column = get_column(fk.local_column);
+        if (!local_column) {
+            return DbError { fmt::format("Internal error: Nonexistent column '{}' used as foreign key", fk.local_column), 0 };
+        }
+        auto referenced_table = TRY(db.table(fk.referenced_table));
+        auto referenced_column = referenced_table->get_column(fk.referenced_column);
+        if (!referenced_column) {
+            return DbError { fmt::format("Internal error: Nonexistent column '{}' used as referenced table in foreign key", fk.referenced_column), 0 };
+        }
+
+        auto const& local_value = row.value(local_column->index);
+        if (local_value.is_null()) {
+            continue;
+        }
+
+        if (!referenced_table->find_first_matching_tuple(referenced_column->index, local_value)) {
+            return DbError { fmt::format("Foreign key '{}' requires matching value in referenced column '{}.{}'",
+                                 fk.local_column, fk.referenced_table, fk.referenced_column),
+                0 };
+        }
+    }
+
+    return {};
+}
+
+DbErrorOr<void> Table::insert(Database& db, Tuple const& row) {
+    auto const& columns = this->columns();
+
+    std::vector<std::string> columns_to_auto_increment;
+
+    // Filling (AUTO_INCREMENT and default values)
+    Tuple filled_row = row;
+    for (size_t s = 0; s < row.value_count(); s++) {
+        auto value = filled_row.value(s);
+        if (value.is_null()) {
+            if (columns[s].auto_increment()) {
+                if (columns[s].type() == Value::Type::Int) {
+                    filled_row.set_value(s, Value::create_int(next_auto_increment_value(columns[s].name())));
+                    columns_to_auto_increment.push_back(columns[s].name());
+                }
+                else
+                    return DbError { "Internal error: AUTO_INCREMENT used on non-int field", 0 };
+            }
+            else {
+                filled_row.set_value(s, columns[s].default_value());
+            }
+        }
+    }
+    // fmt::print("{}\n", filled_row.value(0).to_debug_string());
+
+    TRY(perform_table_integrity_checks(db, filled_row));
+    TRY(perform_database_integrity_checks(db, filled_row));
+
+    for (auto const& column : columns_to_auto_increment) {
+        increment(column);
+    }
+
+    return insert_unchecked(filled_row);
+}
 
 DbErrorOr<std::unique_ptr<MemoryBackedTable>> MemoryBackedTable::create_from_select_result(ResultSet const& select) {
     std::unique_ptr<MemoryBackedTable> table = std::make_unique<MemoryBackedTable>(nullptr, "");
@@ -82,33 +207,43 @@ DbErrorOr<void> MemoryBackedTable::drop_column(std::string const& column) {
     return {};
 }
 
-DbErrorOr<void> MemoryBackedTable::insert(Tuple const& row) {
-    if (row.value_count() != m_columns.size()) {
-        dump_structure();
-        return DbError { fmt::format("Internal error: insert(): Column count does not match ({} given vs {} required)", row.value_count(), m_columns.size()), 0 };
-    }
-    for (size_t s = 0; s < m_columns.size(); s++) {
-        if (m_columns[s].not_null() && row.value(s).is_null()) {
-            dump_structure();
-            return DbError { fmt::format("Internal error: insert(): Column {} is set to be null but is not NOT NULL", s), 0 };
+DbErrorOr<void> MemoryBackedTable::perform_database_integrity_checks(Database& db, Tuple const& row) const {
+    TRY(Table::perform_database_integrity_checks(db, row));
+
+    AST::SelectColumns columns_to_context;
+    {
+        std::vector<AST::SelectColumns::Column> all_columns;
+        for (auto const& column : columns()) {
+            all_columns.push_back(AST::SelectColumns::Column { .column = std::make_unique<AST::Identifier>(0, column.name(), std::optional<std::string> {}) });
         }
-        if (!row.value(s).is_null() && m_columns[s].type() != row.value(s).type()) {
-            dump_structure();
-            return DbError { fmt::format("Internal error: insert(): Type mismatch, required {} but given {} at index {}", Value::type_to_string(m_columns[s].type()), Value::type_to_string(row.value(s).type()), s), 0 };
-        }
-        // assert(m_columns[s].type() == row.value(s).type() || (!m_columns[s].not_null() && row.value(s).is_null()));
+        columns_to_context = AST::SelectColumns { std::move(all_columns) };
     }
-    m_rows.push_back(row);
+
+    AST::EvaluationContext context { .db = &db };
+
+    AST::SimpleTableExpression id { 0, *this };
+    context.frames.emplace_back(&id, columns_to_context);
+
+    // Checks and constraints
+    if (check()) {
+        if (check()->main_rule()) {
+            context.current_frame().row = { .tuple = Tuple { row }, .source = {} };
+            if (!TRY(TRY(check()->main_rule()->evaluate(context)).to_bool()))
+                return DbError { "Values doesn't match general check rule specified for this table", 0 };
+        }
+
+        for (const auto& expr : check()->constraints()) {
+            context.current_frame().row = { .tuple = Tuple { row }, .source = {} };
+            if (!TRY(TRY(expr.second->evaluate(context)).to_bool()))
+                return DbError { "Values doesn't match '" + expr.first + "' check rule specified for this table", 0 };
+        }
+    }
     return {};
 }
 
-void MemoryBackedTable::dump_structure() const {
-    fmt::print("MemoryBackedTable '{}' @{}\n", name(), fmt::ptr(this));
-    fmt::print("Rows: {}\n", raw_rows().size());
-    fmt::print("Columns:\n");
-    for (auto const& c : m_columns) {
-        fmt::print(" - {} {}\n", c.name(), Value::type_to_string(c.type()));
-    }
+DbErrorOr<void> MemoryBackedTable::insert_unchecked(Tuple const& row) {
+    m_rows.push_back(row);
+    return {};
 }
 
 void Table::export_to_csv(const std::string& path) const {
@@ -247,7 +382,7 @@ DbErrorOr<void> Table::import_from_csv(Database& db, const std::string& path) {
             tuple.push_back({ col.name(), std::move(created_value) });
         }
 
-        TRY(insert(TRY(create_tuple_from_values(db, *this, tuple))));
+        TRY(insert(db, TRY(create_tuple_from_values(*this, tuple))));
     }
 
     return {};

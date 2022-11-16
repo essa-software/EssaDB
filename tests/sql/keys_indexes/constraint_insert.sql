@@ -6,7 +6,7 @@ CREATE TABLE orders (order_id INT PRIMARY KEY, customer_id INT FOREIGN KEY REFER
 
 IMPORT CSV 'orders.csv' INTO orders;
 
--- error: Not valid UNIQUE value.
+-- error: Primary key must be unique
 INSERT INTO orders (order_id, customer_id, order_date) VALUES(15, 0, #2022-01-01#);
 
 -- error: Foreign key 'customer_id' requires matching value in referenced column 'customers.customer_id'

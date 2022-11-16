@@ -7,5 +7,5 @@ INSERT INTO test (value) VALUES (1002);
 -- output:
 -- | id | value |
 -- |  5 |  3000 |
--- |  2 |  1002 |
+-- |  1 |  1002 |
 SELECT * FROM test;

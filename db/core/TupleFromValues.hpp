@@ -4,9 +4,10 @@
 
 namespace Db::Core {
 
-class Database;
 class Table;
 
-DbErrorOr<Tuple> create_tuple_from_values(Database& db, Table& table, std::vector<std::pair<std::string, Value>> values);
+// Form a contiguous tuple from columns and their names as given
+// in INSERT. This doesn't perform integrity checks.
+DbErrorOr<Tuple> create_tuple_from_values(Table& table, std::vector<std::pair<std::string, Value>> values);
 
 }

@@ -1,7 +1,7 @@
 CREATE TABLE test (id INT NOT NULL, value INT DEFAULT 3000);
 INSERT INTO test (id, value) VALUES (2, 1000);
 INSERT INTO test (id) VALUES (5);
--- error: Value can't be null.
+-- error: NULL given for NOT NULL column 'id'
 INSERT INTO test (value) VALUES (1002);
 
 -- output:
