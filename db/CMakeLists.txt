@@ -20,6 +20,8 @@ add_library(
     sql/ast/Show.cpp
     sql/ast/Statement.cpp
     sql/ast/TableExpression.cpp
+
+    storage/Serializer.cpp
 )
 
 essautil_setup_target(essadb)
