@@ -76,6 +76,7 @@ public:
     bool is_null() const { return m_type == Value::Type::Null; }
 
     std::string to_debug_string() const;
+
     void repl_dump(std::ostream& out) const;
     friend std::ostream& operator<<(std::ostream& out, Value const&);
 

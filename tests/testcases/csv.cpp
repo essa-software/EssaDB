@@ -40,7 +40,7 @@ DbErrorOr<void> csv_export_import_with_aliases() {
     auto db = TRY(setup_db());
 
     auto result = TRY(Db::Sql::run_query(db, "SELECT id AS [ID], number AS [NUM], string AS [STR], integer AS [INT] FROM test;")).as_result_set();
-    result.dump(std::cout);
+    result.dump(std::cout, Db::Core::ResultSet::FancyDump::Yes);
     auto table = TRY(db.create_table_from_query(result, "test_from_query"));
     table->export_to_csv("test.csv");
 
@@ -48,7 +48,7 @@ DbErrorOr<void> csv_export_import_with_aliases() {
     TRY(new_table.import_from_csv(db, "test.csv"));
 
     result = TRY(Db::Sql::run_query(db, "SELECT * FROM [new_test];")).as_result_set();
-    result.dump(std::cout);
+    result.dump(std::cout, Db::Core::ResultSet::FancyDump::Yes);
 
     TRY(expect_equal(table->size(), new_table.size(), "original and imported tables have equal sizes"));
     TRY(expect(result.column_names() == std::vector<std::string> { "ID", "NUM", "STR", "INT" }, "columns have proper names"));
@@ -60,7 +60,7 @@ DbErrorOr<void> csv_import_statement() {
     auto db = TRY(setup_db());
 
     auto result = TRY(Db::Sql::run_query(db, "SELECT id AS [ID], number AS [NUM], string AS [STR], integer AS [INT] FROM test;")).as_result_set();
-    result.dump(std::cout);
+    result.dump(std::cout, Db::Core::ResultSet::FancyDump::Yes);
     auto table = TRY(db.create_table_from_query(result, "test_from_query"));
     table->export_to_csv("test.csv");
 
@@ -68,7 +68,7 @@ DbErrorOr<void> csv_import_statement() {
     TRY(Db::Sql::run_query(db, "IMPORT CSV 'test.csv' INTO new_test"));
 
     result = TRY(Db::Sql::run_query(db, "SELECT * FROM [new_test];")).as_result_set();
-    result.dump(std::cout);
+    result.dump(std::cout, Db::Core::ResultSet::FancyDump::Yes);
 
     TRY(expect_equal(table->size(), new_table.size(), "original and imported tables have equal sizes"));
     TRY(expect(result.column_names() == std::vector<std::string> { "ID", "NUM", "STR", "INT" }, "columns have proper names"));

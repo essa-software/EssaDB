@@ -28,7 +28,7 @@ void run_query(Db::Core::Database& db, std::string const& query) {
         Db::Sql::display_error(error, tokens[error.token()].start, query);
         return;
     }
-    result.release_value().repl_dump(std::cerr);
+    result.release_value().repl_dump(std::cerr, Db::Core::ResultSet::FancyDump::Yes);
 }
 
 int main() {
