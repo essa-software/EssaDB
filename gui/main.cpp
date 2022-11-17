@@ -79,7 +79,8 @@ int main() {
         }
         else {
             std::ostringstream oss;
-            result.release_value().repl_dump(oss);
+            // TODO: Support fancy dump
+            result.release_value().repl_dump(oss, Db::Core::ResultSet::FancyDump::No);
             console->append_content({ .color = Util::Colors::White, .text = Util::UString { oss.str() } });
         }
         update_db_model();

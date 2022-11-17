@@ -24,7 +24,11 @@ public:
     std::vector<std::string> column_names() const { return m_column_names; }
     DbErrorOr<bool> compare(ResultSet const&) const;
 
-    void dump(std::ostream& out) const;
+    enum class FancyDump {
+        Yes,
+        No
+    };
+    void dump(std::ostream& out, FancyDump) const;
 
     bool is_convertible_to_value() const;
     Value as_value() const;

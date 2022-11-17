@@ -27,12 +27,12 @@ public:
     bool is_result_set() const { return std::holds_alternative<ResultSet>(*this); }
     ResultSet as_result_set() const { return std::get<ResultSet>(*this); }
 
-    void repl_dump(std::ostream& out) const {
+    void repl_dump(std::ostream& out, ResultSet::FancyDump fancy) const {
         if (is_value()) {
             as_value().repl_dump(out);
         }
         else {
-            as_result_set().dump(out);
+            as_result_set().dump(out, fancy);
         }
     }
 };

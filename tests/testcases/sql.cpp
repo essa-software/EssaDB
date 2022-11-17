@@ -1,3 +1,4 @@
+#include "db/core/Value.hpp"
 #include <tests/setup.hpp>
 
 #include <db/sql/Lexer.hpp>
@@ -54,7 +55,7 @@ Db::Core::DbErrorOr<Db::Core::ValueOrResultSet> run_query(Db::Core::Database& db
         return error;
     }
     if (sql_statement.display)
-        result.value().repl_dump(std::cerr);
+        result.value().repl_dump(std::cerr, Db::Core::ResultSet::FancyDump::No);
 
     return result.release_value();
 }
@@ -78,12 +79,12 @@ bool display_error_if_error(Db::Core::DbErrorOr<Db::Core::ValueOrResultSet>&& qu
     else {
         if (statement.expected_error) {
             std::cout << "\r\x1b[2K[FAIL] Expected error, but got result:" << std::endl;
-            query_result.release_value().repl_dump(std::cout);
+            query_result.release_value().repl_dump(std::cout, Db::Core::ResultSet::FancyDump::No);
             return false;
         }
         if (statement.expected_output) {
             std::ostringstream output;
-            query_result.value().repl_dump(output);
+            query_result.value().repl_dump(output, Db::Core::ResultSet::FancyDump::No);
             if (output.str() != *statement.expected_output) {
                 std::cout << "\r\x1b[2K[FAIL] Expected result: " << std::endl;
                 std::cout << *statement.expected_output << std::endl;
