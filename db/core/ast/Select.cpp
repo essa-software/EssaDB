@@ -96,21 +96,38 @@ DbErrorOr<ValueOrResultSet> InsertInto::execute(Database& db) const {
     if (m_select) {
         auto result = TRY(m_select.value().execute(context));
         for (const auto& row : result.rows()) {
+            if (m_columns.empty()) {
+                std::vector<Value> values;
+                for (size_t s = 0; s < table->size(); s++) {
+                    values.push_back(row.value(s));
+                }
+                TRY(table->insert(db, Tuple { values }));
+            }
+            else {
+                std::vector<std::pair<std::string, Value>> values;
+                for (size_t i = 0; i < m_columns.size(); i++) {
+                    values.push_back({ m_columns[i], row.value(i) });
+                }
+                TRY(table->insert(db, TRY(create_tuple_from_values(*table, values))));
+            }
+        }
+    }
+    else {
+        if (m_columns.empty()) {
+            std::vector<Value> values;
+            for (size_t s = 0; s < m_values.size(); s++) {
+                values.push_back(TRY(m_values[s]->evaluate(context)));
+            }
+            TRY(table->insert(db, Tuple { values }));
+        }
+        else {
             std::vector<std::pair<std::string, Value>> values;
             for (size_t i = 0; i < m_columns.size(); i++) {
-                values.push_back({ m_columns[i], row.value(i) });
+                values.push_back({ m_columns[i], TRY(m_values[i]->evaluate(context)) });
             }
 
             TRY(table->insert(db, TRY(create_tuple_from_values(*table, values))));
         }
-    }
-    else {
-        std::vector<std::pair<std::string, Value>> values;
-        for (size_t i = 0; i < m_columns.size(); i++) {
-            values.push_back({ m_columns[i], TRY(m_values[i]->evaluate(context)) });
-        }
-
-        TRY(table->insert(db, TRY(create_tuple_from_values(*table, values))));
     }
     return { Value::null() };
 }
