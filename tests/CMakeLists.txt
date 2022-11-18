@@ -9,5 +9,4 @@ endfunction()
 
 add_test(arithmetic)
 add_test(csv)
-add_test(execution)
 add_test(sql)
