@@ -1,14 +1,27 @@
-#include "db/core/IndexedRelation.hpp"
-#include "db/core/Table.hpp"
-#include <EssaUtil/Config.hpp>
 #include <db/core/ast/Statement.hpp>
 
+#include <EssaUtil/Config.hpp>
 #include <EssaUtil/ScopeGuard.hpp>
 #include <db/core/Database.hpp>
+#include <db/core/IndexedRelation.hpp>
+#include <db/core/Table.hpp>
+#include <db/core/ValueOrResultSet.hpp>
 #include <db/core/ast/EvaluationContext.hpp>
 #include <db/core/ast/TableExpression.hpp>
 
 namespace Db::Core::AST {
+
+DbErrorOr<ValueOrResultSet> StatementList::execute(Database& db) const {
+    if (m_statements.empty()) {
+        return DbError { "Empty statement list", 0 };
+    }
+
+    std::optional<ValueOrResultSet> result;
+    for (auto const& stmt : m_statements) {
+        TRY(stmt->execute(db));
+    }
+    return *result;
+}
 
 DbErrorOr<ValueOrResultSet> DeleteFrom::execute(Database& db) const {
     // TODO: Check table type

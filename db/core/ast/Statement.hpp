@@ -30,6 +30,18 @@ public:
     virtual DbErrorOr<ValueOrResultSet> execute(Database&) const = 0;
 };
 
+class StatementList : public ASTNode {
+public:
+    explicit StatementList(ssize_t start, std::vector<std::unique_ptr<Statement>> statements)
+        : ASTNode(start)
+        , m_statements(std::move(statements)) { }
+
+    DbErrorOr<ValueOrResultSet> execute(Database&) const;
+
+private:
+    std::vector<std::unique_ptr<Statement>> m_statements;
+};
+
 class DeleteFrom : public Statement {
 public:
     DeleteFrom(ssize_t start, std::string from, std::unique_ptr<Expression> where = {})

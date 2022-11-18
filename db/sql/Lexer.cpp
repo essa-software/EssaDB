@@ -21,7 +21,7 @@ std::vector<Token> Lexer::lex() {
     auto consume_number = [&]() {
         std::string s;
 
-        bool has_decimal = 0;
+        bool has_decimal = false;
 
         if (m_in.peek() == '-')
             s += m_in.get();
@@ -31,7 +31,7 @@ std::vector<Token> Lexer::lex() {
             if (c == '.') {
                 if (has_decimal)
                     break;
-                has_decimal = 1;
+                has_decimal = true;
             }
             s += c;
         }
@@ -135,6 +135,17 @@ std::vector<Token> Lexer::lex() {
             m_in >> std::ws;
         }
         else if (std::isdigit(next) || next == '.' || next == '-') {
+            {
+                auto offset = m_in.tellg();
+                m_in.get();
+                if (m_in.get() == '-' && m_in.get() == ' ') {
+                    // Comment
+                    m_in.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+                    continue;
+                }
+                m_in.clear();
+                m_in.seekg(offset, std::ios::beg);
+            }
             auto number = consume_number();
 
             if (number == ".") {
@@ -253,5 +264,4 @@ std::vector<Token> Lexer::lex() {
         }
     }
 }
-
 }
