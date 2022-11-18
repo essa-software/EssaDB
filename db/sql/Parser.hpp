@@ -22,6 +22,7 @@ public:
         : m_tokens(std::move(tokens)) { }
 
     Core::DbErrorOr<std::unique_ptr<Core::AST::Statement>> parse_statement();
+    Core::DbErrorOr<Core::AST::StatementList> parse_statement_list();
     bool static compare_case_insensitive(std::string const& lhs, std::string const& rhs);
 
 private:

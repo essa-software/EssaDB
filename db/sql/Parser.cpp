@@ -113,48 +113,34 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Statement>> Parser::parse_statement()
     return expected("statement", keyword, m_offset);
 }
 
-Core::DbErrorOr<Core::AST::Select> Parser::parse_select() {
-    auto start = m_offset;
-    m_offset++;
-
-    // FROM
-    // FIXME: Extreme hack moment
-    std::unique_ptr<Core::AST::TableExpression> from_table = {};
-    int jmp_from = 0, depth = 0;
-    while (m_offset < m_tokens.size()) {
-        auto from = m_tokens[m_offset++];
-        if (from.type == Token::Type::ParenOpen) {
-            depth++;
-        }
-        else if (from.type == Token::Type::ParenClose) {
-            depth--;
-            if (depth < 0)
-                break;
-        }
-
-        if (depth > 0)
-            continue;
-
-        if (from.type == Token::Type::KeywordFrom) {
-            from_table = TRY(parse_table_expression());
-            jmp_from = m_offset;
-
+Core::DbErrorOr<Core::AST::StatementList> Parser::parse_statement_list() {
+    std::vector<std::unique_ptr<Core::AST::Statement>> statement_list;
+    while (true) {
+        if (m_tokens[m_offset].type == Token::Type::Eof) {
             break;
         }
-        else if (from.type == Token::Type::Eof) {
-            break;
+        statement_list.push_back(TRY(parse_statement()));
+        if (m_tokens[m_offset++].type != Token::Type::Semicolon) {
+            return expected("semicolon at the end of statement", m_tokens[m_offset - 1], m_offset - 2);
         }
     }
+    return Core::AST::StatementList { static_cast<ssize_t>(statement_list[0]->start()), std::move(statement_list) };
+}
 
-    m_offset = start + 1;
+Core::DbErrorOr<Core::AST::Select> Parser::parse_select() {
+    auto start = m_offset;
 
+    // SELECT
+    m_offset++;
+
+    // DISTINCT
     bool distinct = false;
-
     if (m_tokens[m_offset].type == Token::Type::KeywordDistinct) {
         m_offset++;
         distinct = true;
     }
 
+    // TOP
     std::optional<Core::AST::Top> top;
     if (m_tokens[m_offset].type == Token::Type::KeywordTop) {
         m_offset++;
@@ -172,6 +158,7 @@ Core::DbErrorOr<Core::AST::Select> Parser::parse_select() {
         }
     }
 
+    // Columns
     std::vector<Core::AST::SelectColumns::Column> columns;
 
     auto maybe_asterisk = m_tokens[m_offset];
@@ -218,7 +205,11 @@ Core::DbErrorOr<Core::AST::Select> Parser::parse_select() {
         select_into = table.value;
     }
 
-    m_offset = jmp_from;
+    // FROM
+    std::unique_ptr<Core::AST::TableExpression> from_table = {};
+    if (m_tokens[m_offset++].type == Token::Type::KeywordFrom) {
+        from_table = TRY(parse_table_expression());
+    }
 
     // WHERE
     std::unique_ptr<Core::AST::Expression> where;

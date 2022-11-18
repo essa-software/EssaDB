@@ -1,6 +1,6 @@
 IMPORT CSV 'data.csv' INTO test;
 
-UPDATE test SET id = id + 5
+UPDATE test SET id = id + 5;
 
 -- output:
 -- | id | number | string | integer |
