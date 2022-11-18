@@ -776,31 +776,34 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::InsertInto>> Parser::parse_insert_int
         return expected("table name", table_name, m_offset - 1);
 
     auto paren_open = m_tokens[m_offset];
-    if (paren_open.type != Token::Type::ParenOpen)
+    if (paren_open.type != Token::Type::ParenOpen && paren_open.type != Token::Type::KeywordValues)
         return std::make_unique<Core::AST::InsertInto>(start, table_name.value, std::vector<std::string> {}, std::vector<std::unique_ptr<Core::AST::Expression>> {});
-    m_offset++;
 
     std::vector<std::string> columns;
-    std::vector<std::unique_ptr<Core::AST::Expression>> values;
-    while (true) {
-        auto name = m_tokens[m_offset++];
-        if (name.type != Token::Type::Identifier)
-            return expected("column name", name, m_offset - 1);
-
-        columns.push_back(name.value);
-
-        auto comma = m_tokens[m_offset];
-        if (comma.type != Token::Type::Comma)
-            break;
+    if (paren_open.type == Token::Type::ParenOpen) {
         m_offset++;
-    }
+        while (true) {
+            auto name = m_tokens[m_offset++];
+            if (name.type != Token::Type::Identifier)
+                return expected("column name", name, m_offset - 1);
 
-    auto paren_close = m_tokens[m_offset++];
-    if (paren_close.type != Token::Type::ParenClose)
-        return expected("')' to close column list", paren_close, m_offset - 1);
+            columns.push_back(name.value);
+
+            auto comma = m_tokens[m_offset];
+            if (comma.type != Token::Type::Comma)
+                break;
+            m_offset++;
+        }
+
+        auto paren_close = m_tokens[m_offset++];
+        if (paren_close.type != Token::Type::ParenClose)
+            return expected("')' to close column list", paren_close, m_offset - 1);
+    }
 
     auto value_token = m_tokens[m_offset++];
     if (value_token.type == Token::Type::KeywordValues) {
+        std::vector<std::unique_ptr<Core::AST::Expression>> values;
+
         paren_open = m_tokens[m_offset];
         if (paren_open.type != Token::Type::ParenOpen)
             return std::make_unique<Core::AST::InsertInto>(start, table_name.value, std::vector<std::string> {}, std::vector<std::unique_ptr<Core::AST::Expression>> {});
@@ -815,7 +818,7 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::InsertInto>> Parser::parse_insert_int
             m_offset++;
         }
 
-        paren_close = m_tokens[m_offset++];
+        auto paren_close = m_tokens[m_offset++];
         if (paren_close.type != Token::Type::ParenClose)
             return expected("')' to close values list", paren_close, m_offset - 1);
         return std::make_unique<Core::AST::InsertInto>(start, table_name.value, std::move(columns), std::move(values));
