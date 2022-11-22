@@ -42,7 +42,7 @@ std::vector<Token> Lexer::lex() {
         char next = m_in.peek();
         if (next == EOF) {
             m_in.clear();
-            tokens.push_back(Token { .type = Token::Type::Eof, .value = "EOF", .start = m_in.tellg() });
+            tokens.push_back(Token { .type = Token::Type::Eof, .value = "EOF", .start = m_in.tellg(), .end = m_in.tellg() });
             return tokens;
         }
 
@@ -113,7 +113,7 @@ std::vector<Token> Lexer::lex() {
             bool found = false;
             for (auto const& pair : keyword_to_token_type) {
                 if (Parser::compare_case_insensitive(pair.first, id)) {
-                    tokens.push_back(Token { .type = pair.second, .value = pair.first, .start = start });
+                    tokens.push_back(Token { .type = pair.second, .value = pair.first, .start = start, .end = m_in.tellg() });
                     found = true;
                     break;
                 }
@@ -122,13 +122,13 @@ std::vector<Token> Lexer::lex() {
             if (found) {
             }
             else if (Db::Sql::Parser::compare_case_insensitive(id, "true") || Db::Sql::Parser::compare_case_insensitive(id, "false")) {
-                tokens.push_back(Token { .type = Token::Type::Bool, .value = id, .start = start });
+                tokens.push_back(Token { .type = Token::Type::Bool, .value = id, .start = start, .end = m_in.tellg() });
             }
             else if (Db::Sql::Parser::compare_case_insensitive(id, "ASC") || Db::Sql::Parser::compare_case_insensitive(id, "DESC")) {
-                tokens.push_back(Token { .type = Token::Type::OrderByParam, .value = id, .start = start });
+                tokens.push_back(Token { .type = Token::Type::OrderByParam, .value = id, .start = start, .end = m_in.tellg() });
             }
             else {
-                tokens.push_back(Token { .type = Token::Type::Identifier, .value = id, .start = start });
+                tokens.push_back(Token { .type = Token::Type::Identifier, .value = id, .start = start, .end = m_in.tellg() });
             }
         }
         else if (isspace(next)) {
@@ -149,11 +149,11 @@ std::vector<Token> Lexer::lex() {
             auto number = consume_number();
 
             if (number == ".") {
-                tokens.push_back(Token { .type = Token::Type::Period, .value = ".", .start = start });
+                tokens.push_back(Token { .type = Token::Type::Period, .value = ".", .start = start, .end = m_in.tellg() });
                 continue;
             }
             else if (number == "-") {
-                tokens.push_back(Token { .type = Token::Type::OpSub, .value = "-", .start = start });
+                tokens.push_back(Token { .type = Token::Type::OpSub, .value = "-", .start = start, .end = m_in.tellg() });
                 continue;
             }
 
@@ -163,23 +163,23 @@ std::vector<Token> Lexer::lex() {
                 type = Token::Type::Float;
             }
 
-            tokens.push_back(Token { .type = type, .value = number, .start = start });
+            tokens.push_back(Token { .type = type, .value = number, .start = start, .end = m_in.tellg() });
         }
         else if (next == '*') {
             m_in.get();
-            tokens.push_back(Token { .type = Token::Type::Asterisk, .value = "*", .start = start });
+            tokens.push_back(Token { .type = Token::Type::Asterisk, .value = "*", .start = start, .end = m_in.tellg() });
         }
         else if (next == ',') {
             m_in.get();
-            tokens.push_back(Token { .type = Token::Type::Comma, .value = ",", .start = start });
+            tokens.push_back(Token { .type = Token::Type::Comma, .value = ",", .start = start, .end = m_in.tellg() });
         }
         else if (next == '(') {
             m_in.get();
-            tokens.push_back(Token { .type = Token::Type::ParenOpen, .value = "(", .start = start });
+            tokens.push_back(Token { .type = Token::Type::ParenOpen, .value = "(", .start = start, .end = m_in.tellg() });
         }
         else if (next == ')') {
             m_in.get();
-            tokens.push_back(Token { .type = Token::Type::ParenClose, .value = ")", .start = start });
+            tokens.push_back(Token { .type = Token::Type::ParenClose, .value = ")", .start = start, .end = m_in.tellg() });
         }
         else if (next == '[') {
             m_in.get();
@@ -193,73 +193,73 @@ std::vector<Token> Lexer::lex() {
             while (isspace(id.back()))
                 id.pop_back();
 
-            tokens.push_back(Token { .type = Token::Type::Identifier, .value = id, .start = start });
+            tokens.push_back(Token { .type = Token::Type::Identifier, .value = id, .start = start, .end = m_in.tellg() });
         }
         else if (next == ';') {
             m_in.get();
-            tokens.push_back(Token { .type = Token::Type::Semicolon, .value = ";", .start = start });
+            tokens.push_back(Token { .type = Token::Type::Semicolon, .value = ";", .start = start, .end = m_in.tellg() });
         }
         else if (next == '+') {
             m_in.get();
-            tokens.push_back(Token { .type = Token::Type::OpAdd, .value = "+", .start = start });
+            tokens.push_back(Token { .type = Token::Type::OpAdd, .value = "+", .start = start, .end = m_in.tellg() });
         }
         else if (next == '-') {
             m_in.get();
-            tokens.push_back(Token { .type = Token::Type::OpSub, .value = "-", .start = start });
+            tokens.push_back(Token { .type = Token::Type::OpSub, .value = "-", .start = start, .end = m_in.tellg() });
         }
         else if (next == '*') {
             m_in.get();
-            tokens.push_back(Token { .type = Token::Type::OpMul, .value = "*", .start = start });
+            tokens.push_back(Token { .type = Token::Type::OpMul, .value = "*", .start = start, .end = m_in.tellg() });
         }
         else if (next == '/') {
             m_in.get();
-            tokens.push_back(Token { .type = Token::Type::OpDiv, .value = "/", .start = start });
+            tokens.push_back(Token { .type = Token::Type::OpDiv, .value = "/", .start = start, .end = m_in.tellg() });
         }
         else if (next == '=') {
             m_in.get();
-            tokens.push_back(Token { .type = Token::Type::OpEqual, .value = "=", .start = start });
+            tokens.push_back(Token { .type = Token::Type::OpEqual, .value = "=", .start = start, .end = m_in.tellg() });
         }
         else if (next == '<') {
             m_in.get();
-            tokens.push_back(Token { .type = Token::Type::OpLess, .value = "<", .start = start });
+            tokens.push_back(Token { .type = Token::Type::OpLess, .value = "<", .start = start, .end = m_in.tellg() });
         }
         else if (next == '>') {
             m_in.get();
-            tokens.push_back(Token { .type = Token::Type::OpGreater, .value = ">", .start = start });
+            tokens.push_back(Token { .type = Token::Type::OpGreater, .value = ">", .start = start, .end = m_in.tellg() });
         }
         else if (next == '!') {
             m_in.get();
             next = m_in.peek();
             if (next == '=') {
-                tokens.push_back(Token { .type = Token::Type::OpNotEqual, .value = "!=", .start = start });
+                tokens.push_back(Token { .type = Token::Type::OpNotEqual, .value = "!=", .start = start, .end = m_in.tellg() });
                 m_in.get();
             }
             else {
-                tokens.push_back(Token { .type = Token::Type::Exclamation, .value = "!", .start = start });
+                tokens.push_back(Token { .type = Token::Type::Exclamation, .value = "!", .start = start, .end = m_in.tellg() });
             }
         }
         else if (next == '\'') {
             m_in.get();
 
             std::string id;
-            while (m_in.peek() != '\'')
+            while (!m_in.eof() && m_in.peek() != '\'')
                 id += m_in.get();
             m_in.get();
 
-            tokens.push_back(Token { .type = Token::Type::String, .value = id, .start = start });
+            tokens.push_back(Token { .type = Token::Type::String, .value = id, .start = start, .end = m_in.tellg() });
         }
         else if (next == '#') {
             m_in.get();
             m_in >> std::ws;
             std::string id;
-            while (m_in.peek() != '#')
+            while (!m_in.eof() && m_in.peek() != '#')
                 id += m_in.get();
             m_in.get();
 
-            tokens.push_back(Token { .type = Token::Type::Date, .value = id, .start = start });
+            tokens.push_back(Token { .type = Token::Type::Date, .value = id, .start = start, .end = m_in.tellg() });
         }
         else {
-            tokens.push_back(Token { .type = Token::Type::Garbage, .value = { next }, .start = start });
+            tokens.push_back(Token { .type = Token::Type::Garbage, .value = { next }, .start = start, .end = m_in.tellg() });
             m_in.get();
         }
     }
