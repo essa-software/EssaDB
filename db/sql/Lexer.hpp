@@ -99,6 +99,8 @@ struct Token {
     Type type {};
     std::string value {};
     ssize_t start {};
+    ssize_t end {};
+
     bool is_keyword() const {
         return static_cast<int>(type) < static_cast<int>(Type::__KeywordCount);
     }
