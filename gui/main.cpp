@@ -1,9 +1,3 @@
-#include "DatabaseModel.hpp"
-#include "ImportCSVDialog.hpp"
-#include "gui/ConnectDialog.hpp"
-#include "gui/client/DatabaseClient.hpp"
-#include "gui/client/EssaDBDatabaseClient.hpp"
-#include "gui/client/MySQLDatabaseClient.hpp"
 #include <EssaGUI/eml/EMLResource.hpp>
 #include <EssaGUI/gui/Application.hpp>
 #include <EssaGUI/gui/Console.hpp>
@@ -14,6 +8,13 @@
 #include <db/core/Table.hpp>
 #include <db/core/Value.hpp>
 #include <db/sql/SQL.hpp>
+#include <gui/ConnectDialog.hpp>
+#include <gui/DatabaseModel.hpp>
+#include <gui/ImportCSVDialog.hpp>
+#include <gui/SQLSyntaxHighlighter.hpp>
+#include <gui/client/DatabaseClient.hpp>
+#include <gui/client/EssaDBDatabaseClient.hpp>
+#include <gui/client/MySQLDatabaseClient.hpp>
 #include <iomanip>
 #include <optional>
 #include <sstream>
@@ -49,6 +50,7 @@ int main() {
     tree_view->set_display_header(false);
 
     auto text_editor = container.find_widget_of_type_by_id_recursively<GUI::TextEditor>("sql_query_editor");
+    text_editor->set_syntax_highlighter(std::make_unique<EssaDB::SQLSyntaxHighlighter>());
     auto console = container.find_widget_of_type_by_id_recursively<GUI::Console>("sql_console");
 
     auto& db_model = tree_view->create_and_set_model<EssaDB::DatabaseModel>();
