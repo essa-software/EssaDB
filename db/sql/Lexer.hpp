@@ -65,6 +65,8 @@ struct Token {
         KeywordWhen,
         KeywordWhere,
 
+        __KeywordCount,
+
         Asterisk,
         Bool,
         Comma,
@@ -97,6 +99,9 @@ struct Token {
     Type type {};
     std::string value {};
     ssize_t start {};
+    bool is_keyword() const {
+        return static_cast<int>(type) < static_cast<int>(Type::__KeywordCount);
+    }
 };
 
 class Lexer {
