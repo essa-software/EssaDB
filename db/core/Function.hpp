@@ -39,10 +39,10 @@ public:
         Invalid
     };
 
-    explicit AggregateFunction(size_t start, Function function, std::unique_ptr<Identifier> column, std::optional<std::string> over)
+    explicit AggregateFunction(size_t start, Function function, std::unique_ptr<Expression> expression, std::optional<std::string> over)
         : Expression(start)
         , m_function(function)
-        , m_column(std::move(column))
+        , m_expression(std::move(expression))
         , m_over(std::move(over)) { }
 
     virtual DbErrorOr<Value> evaluate(EvaluationContext&) const override;
@@ -50,12 +50,12 @@ public:
 
     DbErrorOr<Value> aggregate(EvaluationContext&, std::span<Tuple const> rows) const;
 
-    virtual std::vector<std::string> referenced_columns() const override { return { m_column->id() }; }
+    virtual std::vector<std::string> referenced_columns() const override { return m_expression->referenced_columns(); }
     virtual bool contains_aggregate_function() const override { return true; }
 
 private:
     Function m_function {};
-    std::unique_ptr<Identifier> m_column;
+    std::unique_ptr<Expression> m_expression;
     std::optional<std::string> m_over;
 };
 

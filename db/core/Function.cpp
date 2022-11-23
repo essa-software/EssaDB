@@ -1,5 +1,6 @@
 #include "Function.hpp"
 
+#include <EssaUtil/ScopeGuard.hpp>
 #include <cctype>
 #include <cmath>
 #include <cstddef>
@@ -456,27 +457,25 @@ DbErrorOr<Value> Function::evaluate(EvaluationContext& context) const {
 
 DbErrorOr<Value> AggregateFunction::evaluate(EvaluationContext& context) const {
     auto& frame = context.current_frame();
-    if (!frame.row_group) {
-        // TODO: Store more information about where user can't use aggregate function.
-        return DbError { "Cannot use aggregate function here", start() };
+    if (frame.row_group) {
+        return TRY(aggregate(context, *frame.row_group));
     }
-    auto result = TRY(aggregate(context, *frame.row_group));
-    return result;
+
+    Tuple tuple { {} };
+    return TRY(aggregate(context, { &tuple, 1 }));
 }
 
 DbErrorOr<Value> AggregateFunction::aggregate(EvaluationContext& context, std::span<Tuple const> rows) const {
-    auto& frame = context.current_frame();
-    if (!frame.table)
-        return DbError { "Internal error: aggregate() called without table", start() };
-    auto column = TRY(frame.table->resolve_identifier(context.db, *m_column));
-    if (!column)
-        return DbError { "Invalid column '" + m_column->to_string() + "' used in aggregate function", start() };
+    auto& frame = context.frames.emplace_back(context.current_frame().table, context.current_frame().columns);
+    Util::ScopeGuard guard { [&] { context.frames.pop_back(); } };
 
     switch (m_function) {
     case Function::Count: {
         int count = 0;
         for (auto& row : rows) {
-            if (row.value(*column).type() != Value::Type::Null)
+            frame.row = { .tuple = row, .source = {} };
+            auto value = TRY(m_expression->evaluate(context));
+            if (value.type() != Value::Type::Null)
                 count += 1;
         }
         return Value::create_int(count);
@@ -484,7 +483,9 @@ DbErrorOr<Value> AggregateFunction::aggregate(EvaluationContext& context, std::s
     case Function::Sum: {
         float sum = 0;
         for (auto& row : rows) {
-            sum += TRY(row.value(*column).to_float());
+            frame.row = { .tuple = row, .source = {} };
+            auto value = TRY(m_expression->evaluate(context));
+            sum += TRY(value.to_float());
         }
 
         return Value::create_float(sum);
@@ -492,7 +493,9 @@ DbErrorOr<Value> AggregateFunction::aggregate(EvaluationContext& context, std::s
     case Function::Min: {
         float min = std::numeric_limits<float>::max();
         for (auto& row : rows) {
-            min = std::min(min, TRY(row.value(*column).to_float()));
+            frame.row = { .tuple = row, .source = {} };
+            auto value = TRY(m_expression->evaluate(context));
+            min = std::min(min, TRY(value.to_float()));
         }
 
         return Value::create_float(min);
@@ -500,7 +503,9 @@ DbErrorOr<Value> AggregateFunction::aggregate(EvaluationContext& context, std::s
     case Function::Max: {
         float max = std::numeric_limits<float>::min();
         for (auto& row : rows) {
-            max = std::max(max, TRY(row.value(*column).to_float()));
+            frame.row = { .tuple = row, .source = {} };
+            auto value = TRY(m_expression->evaluate(context));
+            max = std::max(max, TRY(value.to_float()));
         }
 
         return Value::create_float(max);
@@ -509,7 +514,9 @@ DbErrorOr<Value> AggregateFunction::aggregate(EvaluationContext& context, std::s
         float sum = 0;
         size_t count = 0;
         for (auto& row : rows) {
-            sum += TRY(row.value(*column).to_int());
+            frame.row = { .tuple = row, .source = {} };
+            auto value = TRY(m_expression->evaluate(context));
+            sum += TRY(value.to_int());
             count++;
         }
 

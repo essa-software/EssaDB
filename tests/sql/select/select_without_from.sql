@@ -19,5 +19,7 @@ SELECT *;
 -- error: Identifiers cannot be resolved without table
 SELECT test;
 
--- skip TODO: Support arbitrary expressions in aggregate functions, where they will behave like normal functions
+-- output:
+-- | AggregateFunction?(TODO) |
+-- |                        1 |
 SELECT COUNT(5);
