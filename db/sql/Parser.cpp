@@ -992,7 +992,7 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Literal>> Parser::parse_literal() {
     }
     else if (token.type == Token::Type::Date) {
         m_offset++;
-        return std::make_unique<Core::AST::Literal>(start, Core::Value::create_time(token.value, Util::SimulationClock::Format::NO_CLOCK_AMERICAN));
+        return std::make_unique<Core::AST::Literal>(start, Core::Value::create_time(TRY(Core::Date::from_iso8601_string(token.value))));
     }
     else if (token.type == Token::Type::KeywordNull) {
         m_offset++;

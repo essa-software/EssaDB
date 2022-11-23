@@ -412,24 +412,18 @@ static void setup_sql_functions() {
 
     // Time functions
     register_sql_function("DATEDIFF", [](ArgumentList args) -> DbErrorOr<Value> {
-        auto start = TRY(TRY(args.get_required(0, "start")).to_time());
-        auto end = TRY(TRY(args.get_required(1, "end")).to_time());
-        return Value::create_int((end - start) / std::chrono::days { 1 });
+        auto start = TRY(TRY(args.get_required(0, "start")).to_time()).to_utc_epoch();
+        auto end = TRY(TRY(args.get_required(1, "end")).to_time()).to_utc_epoch();
+        return Value::create_int((end - start) / (24 * 60 * 60));
     });
     register_sql_function("DAY", [](ArgumentList args) -> DbErrorOr<Value> {
-        auto date = TRY(TRY(args.get_required(0, "date")).to_time()).time_since_epoch().count();
-        tm* t = localtime(&date);
-        return Value::create_int(t->tm_mday);
+        return Value::create_int(TRY(TRY(args.get_required(0, "date")).to_time()).day);
     });
     register_sql_function("MONTH", [](ArgumentList args) -> DbErrorOr<Value> {
-        auto date = TRY(TRY(args.get_required(0, "date")).to_time()).time_since_epoch().count();
-        tm* t = localtime(&date);
-        return Value::create_int(t->tm_mon + 1);
+        return Value::create_int(TRY(TRY(args.get_required(0, "date")).to_time()).month);
     });
     register_sql_function("YEAR", [](ArgumentList args) -> DbErrorOr<Value> {
-        auto date = TRY(TRY(args.get_required(0, "date")).to_time()).time_since_epoch().count();
-        tm* t = localtime(&date);
-        return Value::create_int(t->tm_year + 1900);
+        return Value::create_int(TRY(TRY(args.get_required(0, "date")).to_time()).year);
     });
 }
 
