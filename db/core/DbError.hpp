@@ -22,4 +22,17 @@ private:
 template<class T>
 using DbErrorOr = Util::ErrorOr<T, DbError>;
 
+class DbErrorAddToken {
+public:
+    DbErrorAddToken(size_t t)
+        : m_token(t) { }
+
+    DbError operator()(DbError&& d) {
+        return DbError { d.message(), m_token };
+    }
+
+private:
+    size_t m_token;
+};
+
 }
