@@ -1,3 +1,4 @@
+#include "db/core/DbError.hpp"
 #include <db/core/ast/Statement.hpp>
 
 #include <EssaUtil/Config.hpp>
@@ -192,7 +193,7 @@ DbErrorOr<ValueOrResultSet> AlterTable::execute(Database& db) const {
 }
 
 DbErrorOr<ValueOrResultSet> Import::execute(Database& db) const {
-    TRY(db.import_to_table(m_filename, m_table, m_mode));
+    TRY(db.import_to_table(m_filename, m_table, m_mode).map_error(DbErrorAddToken { start() }));
     return Value::null();
 }
 
