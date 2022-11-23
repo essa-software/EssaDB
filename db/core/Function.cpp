@@ -19,7 +19,6 @@ public:
 
     DbErrorOr<Value> get_required(size_t index, std::string const& name) const {
         if (size() <= index) {
-            // TODO: Store location info
             return DbError { "Required argument " + std::to_string(index) + " `" + name + "` not given", 0 };
         }
         return (*this)[index];
@@ -72,7 +71,6 @@ static void setup_sql_functions() {
             return Value::null();
         auto string_ = TRY(arg.to_string());
         if (string_.size() < 1) {
-            // TODO: Store location info
             return DbError { "Input string must be at least 1 character long", 0 };
         }
         return Value::create_int(static_cast<int>(string_[0]));
@@ -443,7 +441,7 @@ DbErrorOr<Value> Function::evaluate(EvaluationContext& context) const {
         std::vector<Value> args;
         for (auto const& arg : m_args)
             args.push_back(TRY(arg->evaluate(context)));
-        return function->second(ArgumentList { std::move(args) });
+        return function->second(ArgumentList { std::move(args) }).map_error(DbErrorAddToken { start() });
     }
 
     return DbError { "Undefined function: '" + m_name + "'", start() };

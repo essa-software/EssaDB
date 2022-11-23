@@ -269,7 +269,7 @@ DbErrorOr<std::vector<TupleWithSource>> Select::collect_rows(EvaluationContext& 
                 }
                 else {
                     // "All columns must be either aggregate or occur in GROUP BY clause"
-                    // TODO: Store location info
+                    // TODO: Store (better) location info
                     return DbError { "Column '" + column.column->to_string() + "' must be either aggregate or occur in GROUP BY clause", m_start };
                 }
             }

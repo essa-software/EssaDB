@@ -380,6 +380,7 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Update>> Parser::parse_update() {
 }
 
 Core::DbErrorOr<std::unique_ptr<Core::AST::Import>> Parser::parse_import() {
+    auto start = m_offset;
     m_offset++; // IMPORT
 
     auto mode_token = m_tokens[m_offset++];
@@ -408,7 +409,7 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Import>> Parser::parse_import() {
         return expected("table name", table_name, m_offset - 1);
     }
 
-    return std::make_unique<Core::AST::Import>(m_offset, mode, file_name.value, table_name.value);
+    return std::make_unique<Core::AST::Import>(start, mode, file_name.value, table_name.value);
 }
 
 Core::DbErrorOr<std::unique_ptr<Core::AST::DeleteFrom>> Parser::parse_delete_from() {
