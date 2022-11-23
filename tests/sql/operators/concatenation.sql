@@ -1,4 +1,4 @@
 -- output:
--- | ArithmeticOperator(a,b) |
--- |                      ab |
+-- | (a + b) |
+-- |      ab |
 SELECT 'a' + 'b';
