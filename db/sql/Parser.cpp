@@ -1175,7 +1175,7 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Expression>> Parser::parse_operand(st
         auto current_operator = peek_operator();
         if (!is_binary_operator(current_operator) && !is_arithmetic_operator(current_operator))
             return lhs;
-        if (operator_precedence(current_operator) < min_precedence)
+        if (operator_precedence(current_operator) <= min_precedence)
             return lhs;
         m_offset++;
 
@@ -1202,7 +1202,7 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Expression>> Parser::parse_operand(st
 
         auto next_precedence = operator_precedence(next_operator);
 
-        if (current_precedence > next_precedence) {
+        if (current_precedence >= next_precedence) {
             if (current_operator == Token::Type::KeywordBetween) {
                 auto rhs_between_range = std::move(std::get<BetweenRange>(rhs));
                 lhs = std::make_unique<Core::AST::BetweenExpression>(std::move(lhs), std::move(rhs_between_range.min), std::move(rhs_between_range.max));

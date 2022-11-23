@@ -75,3 +75,9 @@ SELECT NULL / 5;
 -- division
 -- error: Cannot divide by 0
 SELECT 69 / 0;
+
+-- precedence
+-- output:
+-- | ArithmeticOperator(ArithmeticOperator(5,5),2) |
+-- |                                            -2 |
+SELECT 5 - 5 - 2;
