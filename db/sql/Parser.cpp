@@ -207,7 +207,8 @@ Core::DbErrorOr<Core::AST::Select> Parser::parse_select() {
 
     // FROM
     std::unique_ptr<Core::AST::TableExpression> from_table = {};
-    if (m_tokens[m_offset++].type == Token::Type::KeywordFrom) {
+    if (m_tokens[m_offset].type == Token::Type::KeywordFrom) {
+        m_offset++;
         from_table = TRY(parse_table_expression());
     }
 
