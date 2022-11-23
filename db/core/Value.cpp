@@ -1,16 +1,39 @@
 #include "Value.hpp"
 
 #include "DbError.hpp"
+#include "Regex.hpp"
 #include "ResultSet.hpp"
 #include "Tuple.hpp"
 #include <EssaUtil/SimulationClock.hpp>
 
 #include <cctype>
 #include <chrono>
+#include <ctime>
+#include <limits>
 #include <ostream>
+#include <regex>
 #include <sstream>
 
 namespace Db::Core {
+
+time_t Date::to_utc_epoch() const {
+    tm tm {};
+    tm.tm_year = year - 1900;
+    tm.tm_mon = month - 1;
+    tm.tm_mday = day;
+    tm.tm_zone = "UTC";
+    return mktime(&tm);
+}
+
+Date Date::from_utc_epoch(time_t time) {
+    auto tm = gmtime(&time);
+
+    return {
+        .year = tm->tm_year + 1900,
+        .month = tm->tm_mon + 1,
+        .day = tm->tm_mday,
+    };
+}
 
 Value::Type find_type(const std::string& str) {
     if (str == "null")
@@ -22,6 +45,25 @@ Value::Type find_type(const std::string& str) {
     }
 
     return Value::Type::Int;
+}
+
+DbErrorOr<Date> Date::from_iso8601_string(std::string const& string) {
+    std::regex regex { "^(\\d{4})-(\\d{2})-(\\d{2})$" };
+    std::smatch match;
+    if (!std::regex_search(string, match, regex)) {
+        return DbError { "Invalid ISO8601 date", 0 };
+    }
+    Date date;
+    date.year = std::stoi(match[1]);
+    date.month = std::stoi(match[2]);
+    if (date.month < 1 || date.month > 12) {
+        return DbError { fmt::format("Date must be in range 1..12, {} given", date.month), 0 };
+    }
+    date.day = std::stoi(match[3]);
+    if (date.day < 1 || date.day > 31) {
+        return DbError { fmt::format("Date must be in range 1..31, {} given", date.day), 0 };
+    }
+    return date;
 }
 
 DbErrorOr<Value> Value::from_string(Type type, std::string const& string) {
@@ -49,7 +91,7 @@ DbErrorOr<Value> Value::from_string(Type type, std::string const& string) {
             return Value::create_bool(false);
         return DbError { "Bool value must be either 'true' or 'false', got '" + string + "'", 0 };
     case Type::Time:
-        return Value::create_time(string, Util::SimulationClock::Format::NO_CLOCK_AMERICAN);
+        return Value::create_time(TRY(Date::from_iso8601_string(string)));
     }
     __builtin_unreachable();
 }
@@ -74,45 +116,8 @@ Value Value::create_bool(bool b) {
     return Value { b, Type::Bool };
 }
 
-Value Value::create_time(Util::SimulationClock::time_point t) {
+Value Value::create_time(Date t) {
     return Value { t, Type::Time };
-}
-
-Value Value::create_time(std::string time, Util::SimulationClock::Format format) {
-    // FIXME: Add some ate format checking ASAP
-    switch (format) {
-    case Util::SimulationClock::Format::NO_CLOCK_AMERICAN: {
-        size_t year = 0, month = 0, day = 0, counter = 0;
-        std::string str = "";
-
-        for (const auto& t : time) {
-            if (t == '-') {
-                if (counter == 0)
-                    year = std::stoi(str);
-                else if (counter == 1)
-                    month = std::stoi(str);
-                else if (counter == 2)
-                    day = std::stoi(str);
-                else
-                    break;
-                str = "";
-                counter++;
-            }
-            else {
-                if (isdigit(t))
-                    str += t;
-                else
-                    return Value::null();
-            }
-        }
-
-        if (!str.empty())
-            day = std::stoi(str);
-        return Value(Util::SimulationTime::create(year, month, day), Type::Time);
-    }
-    default:
-        return Value::null();
-    }
 }
 
 DbErrorOr<int> Value::to_int() const {
@@ -135,8 +140,14 @@ DbErrorOr<int> Value::to_int() const {
     }
     case Type::Bool:
         return std::get<bool>(*this) ? 1 : 0;
-    case Type::Time:
-        return static_cast<int>(std::get<Util::SimulationClock::time_point>(*this).time_since_epoch().count());
+    case Type::Time: {
+        auto range = std::get<Date>(*this).to_utc_epoch();
+        if (range > std::numeric_limits<int>::max()) {
+            // Fix your database until it hits y2k38...
+            return DbError { "Timestamp out of range for int type", 0 };
+        }
+        return static_cast<int>(range);
+    }
     }
     __builtin_unreachable();
 }
@@ -180,11 +191,8 @@ DbErrorOr<std::string> Value::to_string() const {
     case Type::Bool:
         return std::get<bool>(*this) ? "true" : "false";
     case Type::Time: {
-        Util::SimulationClock::time_format = Util::SimulationClock::Format::NO_CLOCK_AMERICAN;
-        auto time_point = std::get<Util::SimulationClock::time_point>(*this);
-        std::ostringstream stream;
-        stream << time_point;
-        return stream.str();
+        auto time_point = std::get<Date>(*this);
+        return fmt::format("{:04}-{:02}-{:02}", time_point.year, time_point.month, time_point.day);
     }
     }
     __builtin_unreachable();
@@ -194,11 +202,11 @@ DbErrorOr<bool> Value::to_bool() const {
     return TRY(to_int()) != 0;
 }
 
-DbErrorOr<Util::SimulationClock::time_point> Value::to_time() const {
+DbErrorOr<Date> Value::to_time() const {
     if (type() != Type::Time) {
         return DbError { "Cannot convert value to time", 0 };
     }
-    return std::get<Util::SimulationClock::time_point>(*this);
+    return std::get<Date>(*this);
 }
 
 std::string Value::to_debug_string() const {
@@ -246,9 +254,9 @@ DbErrorOr<Value> operator+(Value const& lhs, Value const& rhs) {
     case Value::Type::Varchar:
         return Value::create_varchar(TRY(lhs.to_string()) + TRY(rhs.to_string()));
     case Value::Type::Time: {
-        time_t time = TRY(lhs.to_int()) + TRY(rhs.to_int());
-        Util::SimulationClock::duration dur(time);
-        return Value::create_time(Util::SimulationClock::time_point(dur));
+        time_t time = std::get<Date>(lhs).to_utc_epoch();
+        time += TRY(rhs.to_int());
+        return Value::create_time(Date::from_utc_epoch(time));
     }
     }
     __builtin_unreachable();
@@ -269,9 +277,9 @@ DbErrorOr<Value> operator-(Value const& lhs, Value const& rhs) {
     case Value::Type::Varchar:
         return DbError { "No matching operator '-' for 'VARCHAR' type.", 0 };
     case Value::Type::Time: {
-        time_t time = TRY(lhs.to_int()) - TRY(rhs.to_int());
-        Util::SimulationClock::duration dur(time);
-        return Value::create_time(Util::SimulationClock::time_point(dur));
+        time_t time = std::get<Date>(lhs).to_utc_epoch();
+        time -= TRY(rhs.to_int());
+        return Value::create_time(Date::from_utc_epoch(time));
     }
     }
     __builtin_unreachable();

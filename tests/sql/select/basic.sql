@@ -10,13 +10,13 @@ INSERT INTO test (id, number, integer, date) VALUES (3, 420, 100, #1990-02-12#);
 -- Select all
 -- output:
 -- | id | number | string | integer |       date |
--- |  0 |     69 |   test |      48 | 1990-02-11 |
--- |  1 |   2137 |   null |      65 | 1990-02-11 |
--- |  2 |   null |   null |      89 | 1990-02-11 |
--- |  3 |    420 |   null |     100 | 1990-02-11 |
--- |  4 |     69 |  test1 |     122 | 1990-02-11 |
--- |  5 |     69 |  test2 |      58 | 1990-02-11 |
--- |  3 |    420 |   null |     100 | 1990-02-11 |
+-- |  0 |     69 |   test |      48 | 1990-02-12 |
+-- |  1 |   2137 |   null |      65 | 1990-02-12 |
+-- |  2 |   null |   null |      89 | 1990-02-12 |
+-- |  3 |    420 |   null |     100 | 1990-02-12 |
+-- |  4 |     69 |  test1 |     122 | 1990-02-12 |
+-- |  5 |     69 |  test2 |      58 | 1990-02-12 |
+-- |  3 |    420 |   null |     100 | 1990-02-12 |
 SELECT * FROM test;
 
 -- Select specific
@@ -34,18 +34,18 @@ SELECT number, string FROM test;
 -- Top X
 -- output:
 -- | id | number | string | integer |       date |
--- |  0 |     69 |   test |      48 | 1990-02-11 |
--- |  1 |   2137 |   null |      65 | 1990-02-11 |
+-- |  0 |     69 |   test |      48 | 1990-02-12 |
+-- |  1 |   2137 |   null |      65 | 1990-02-12 |
 SELECT TOP 2 * FROM test;
 
 -- Top perc
 -- output:
 -- | id | number | string | integer |       date |
--- |  0 |     69 |   test |      48 | 1990-02-11 |
--- |  1 |   2137 |   null |      65 | 1990-02-11 |
--- |  2 |   null |   null |      89 | 1990-02-11 |
--- |  3 |    420 |   null |     100 | 1990-02-11 |
--- |  4 |     69 |  test1 |     122 | 1990-02-11 |
+-- |  0 |     69 |   test |      48 | 1990-02-12 |
+-- |  1 |   2137 |   null |      65 | 1990-02-12 |
+-- |  2 |   null |   null |      89 | 1990-02-12 |
+-- |  3 |    420 |   null |     100 | 1990-02-12 |
+-- |  4 |     69 |  test1 |     122 | 1990-02-12 |
 SELECT TOP 75 PERC * FROM test;
 
 -- Aliases

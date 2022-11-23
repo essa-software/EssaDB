@@ -11,7 +11,17 @@ namespace Db::Core {
 
 class ResultSet;
 
-using ValueBase = std::variant<std::monostate, int, float, std::string, bool, Util::SimulationClock::time_point>;
+struct Date {
+    int year;
+    int month;
+    int day;
+
+    time_t to_utc_epoch() const;
+    static Date from_utc_epoch(time_t d);
+    static DbErrorOr<Date> from_iso8601_string(std::string const& string);
+};
+
+using ValueBase = std::variant<std::monostate, int, float, std::string, bool, Date>;
 
 class Value : public ValueBase {
 public:
@@ -63,14 +73,13 @@ public:
     static Value create_float(float f);
     static Value create_varchar(std::string s);
     static Value create_bool(bool b);
-    static Value create_time(Util::SimulationClock::time_point clock);
-    static Value create_time(std::string str, Util::SimulationClock::Format format);
+    static Value create_time(Date);
 
     DbErrorOr<int> to_int() const;
     DbErrorOr<float> to_float() const;
     DbErrorOr<std::string> to_string() const;
     DbErrorOr<bool> to_bool() const;
-    DbErrorOr<Util::SimulationClock::time_point> to_time() const;
+    DbErrorOr<Date> to_time() const;
 
     Type type() const { return m_type; }
     bool is_null() const { return m_type == Value::Type::Null; }
