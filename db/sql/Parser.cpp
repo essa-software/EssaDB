@@ -1318,7 +1318,7 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Expression>> Parser::parse_function(s
 
         auto aggregate_function = to_aggregate_function(name);
         if (aggregate_function != Core::AST::AggregateFunction::Function::Invalid) {
-            auto column = TRY(parse_identifier());
+            auto expression = TRY(parse_expression());
 
             if (m_tokens[m_offset++].type != Token::Type::ParenClose)
                 return expected("')' to close aggregate function", m_tokens[m_offset], m_offset - 1);
@@ -1347,7 +1347,7 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Expression>> Parser::parse_function(s
                     return expected("')' to close 'OVER' clause", m_tokens[m_offset], m_offset - 1);
             }
 
-            return { std::make_unique<Core::AST::AggregateFunction>(m_offset, aggregate_function, std::move(column), std::move(over)) };
+            return { std::make_unique<Core::AST::AggregateFunction>(m_offset, aggregate_function, std::move(expression), std::move(over)) };
         }
 
         auto expression = TRY(parse_expression());
