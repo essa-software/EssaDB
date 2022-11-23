@@ -44,14 +44,14 @@ Db::Core::DbErrorOr<Db::Core::ValueOrResultSet> run_query(Db::Core::Database& db
     if (statement.is_error()) {
         auto error = statement.release_error();
         if (sql_statement.display)
-            Db::Sql::display_error(error, tokens[error.token()].start, sql_statement.statement);
+            Db::Sql::display_error(error, tokens[error.token()].start, tokens[error.token()].end, sql_statement.statement);
         return error;
     }
     auto result = statement.release_value()->execute(db);
     if (result.is_error()) {
         auto error = result.release_error();
         if (sql_statement.display)
-            Db::Sql::display_error(error, tokens[error.token()].start, sql_statement.statement);
+            Db::Sql::display_error(error, tokens[error.token()].start, tokens[error.token()].end, sql_statement.statement);
         return error;
     }
     if (sql_statement.display)
