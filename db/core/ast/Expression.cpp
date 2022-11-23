@@ -274,6 +274,32 @@ DbErrorOr<Value> ArithmeticOperator::evaluate(EvaluationContext& context) const 
     __builtin_unreachable();
 }
 
+std::string ArithmeticOperator::to_string() const {
+    std::string string;
+    string += "(" + m_lhs->to_string();
+
+    switch(m_operation) {
+        case Operation::Add:
+            string += " + ";
+            break;
+        case Operation::Sub:
+            string += " - ";
+            break;
+        case Operation::Mul:
+            string += " * ";
+            break;
+        case Operation::Div:
+            string += " / ";
+            break;
+        case Operation::Invalid:
+            string += " AO? ";
+            break;
+    }
+
+    string += m_rhs->to_string() + ")";
+    return string;
+}
+
 DbErrorOr<Value> UnaryOperator::evaluate(EvaluationContext& context) const {
     switch (m_operation) {
     case Operation::Minus:

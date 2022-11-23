@@ -4,8 +4,8 @@
 SELECT 1
 
 -- output:
--- | ArithmeticOperator(1,4) |
--- |                       5 |
+-- | (1 + 4) |
+-- |       5 |
 SELECT 1 + 4;
 
 -- output:
