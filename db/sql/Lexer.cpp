@@ -23,9 +23,6 @@ std::vector<Token> Lexer::lex() {
 
         bool has_decimal = false;
 
-        if (m_in.peek() == '-')
-            s += m_in.get();
-
         while (isdigit(m_in.peek()) || m_in.peek() == '.') {
             char c = m_in.get();
             if (c == '.') {
@@ -134,26 +131,11 @@ std::vector<Token> Lexer::lex() {
         else if (isspace(next)) {
             m_in >> std::ws;
         }
-        else if (std::isdigit(next) || next == '.' || next == '-') {
-            {
-                auto offset = m_in.tellg();
-                m_in.get();
-                if (m_in.get() == '-' && m_in.get() == ' ') {
-                    // Comment
-                    m_in.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-                    continue;
-                }
-                m_in.clear();
-                m_in.seekg(offset, std::ios::beg);
-            }
+        else if (std::isdigit(next) || next == '.') {
             auto number = consume_number();
 
             if (number == ".") {
                 tokens.push_back(Token { .type = Token::Type::Period, .value = ".", .start = start, .end = m_in.tellg() });
-                continue;
-            }
-            else if (number == "-") {
-                tokens.push_back(Token { .type = Token::Type::OpSub, .value = "-", .start = start, .end = m_in.tellg() });
                 continue;
             }
 
@@ -164,6 +146,21 @@ std::vector<Token> Lexer::lex() {
             }
 
             tokens.push_back(Token { .type = type, .value = number, .start = start, .end = m_in.tellg() });
+        }
+        else if (next == '-') {
+            {
+                m_in.get();
+                auto offset = m_in.tellg();
+                if (m_in.get() == '-' && m_in.get() == ' ') {
+                    // Comment
+                    m_in.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+                    continue;
+                }
+                m_in.clear();
+                m_in.seekg(offset, std::ios::beg);
+                tokens.push_back(Token { .type = Token::Type::OpSub, .value = "-", .start = start, .end = m_in.tellg() });
+                continue;
+            }
         }
         else if (next == '*') {
             m_in.get();
@@ -185,7 +182,7 @@ std::vector<Token> Lexer::lex() {
             m_in.get();
             m_in >> std::ws;
             std::string id;
-            while (m_in.peek() != ']')
+            while (!m_in.eof() && m_in.peek() != ']')
                 id += m_in.get();
             m_in.get(); // closing ']'
 
