@@ -839,6 +839,10 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Expression>> Parser::parse_expression
             lhs = TRY(parse_identifier());
         }
     }
+    else if (token.type == Token::Type::OpSub) {
+        m_offset++;
+        lhs = std::make_unique<Core::AST::UnaryOperator>(Core::AST::UnaryOperator::Operation::Minus, TRY(parse_expression(501)));
+    }
     else if (token.type == Token::Type::ParenOpen) {
         auto postfix = m_tokens[m_offset + 1];
         if (postfix.type == Token::Type::KeywordSelect) {

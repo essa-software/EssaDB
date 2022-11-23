@@ -167,11 +167,37 @@ public:
     virtual bool contains_aggregate_function() const override { return m_lhs->contains_aggregate_function() || m_rhs->contains_aggregate_function(); }
 
 private:
-    DbErrorOr<bool> is_true(EvaluationContext&, Tuple const&) const;
-
     std::unique_ptr<Expression> m_lhs;
     Operation m_operation {};
     std::unique_ptr<Expression> m_rhs;
+};
+
+class UnaryOperator : public Expression {
+public:
+    enum class Operation {
+        Minus
+    };
+
+    UnaryOperator(Operation op, std::unique_ptr<Expression> operand)
+        : Expression(operand->start() - 1)
+        , m_operation(op)
+        , m_operand(std::move(operand)) { }
+
+    virtual DbErrorOr<Value> evaluate(EvaluationContext& context) const override;
+
+    virtual std::string to_string() const override { return "UnaryOperator(" + m_operand->to_string() + ")"; }
+
+    virtual std::vector<std::string> referenced_columns() const override {
+        return m_operand->referenced_columns();
+    }
+
+    virtual bool contains_aggregate_function() const override {
+        return m_operand->contains_aggregate_function();
+    }
+
+private:
+    Operation m_operation {};
+    std::unique_ptr<Expression> m_operand;
 };
 
 class BetweenExpression : public Expression {

@@ -274,6 +274,14 @@ DbErrorOr<Value> ArithmeticOperator::evaluate(EvaluationContext& context) const 
     __builtin_unreachable();
 }
 
+DbErrorOr<Value> UnaryOperator::evaluate(EvaluationContext& context) const {
+    switch (m_operation) {
+    case Operation::Minus:
+        return Value::create_int(0) - TRY(m_operand->evaluate(context));
+    }
+    ESSA_UNREACHABLE;
+}
+
 DbErrorOr<Value> BetweenExpression::evaluate(EvaluationContext& context) const {
     // TODO: Implement this for strings etc
     auto value = TRY(m_lhs->evaluate(context));
