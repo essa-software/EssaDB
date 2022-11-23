@@ -22,25 +22,25 @@ void run_query(Db::Core::Database& db, std::string const& query) {
     auto statement = parser.parse_statement();
     if (statement.is_error()) {
         auto error = statement.release_error();
-        Db::Sql::display_error(error, tokens[error.token()].start, query);
+        Db::Sql::display_error(error, tokens[error.token()].start, tokens[error.token()].end, query);
         return;
     }
     auto result = statement.release_value()->execute(db);
     if (result.is_error()) {
         auto error = result.release_error();
-        Db::Sql::display_error(error, tokens[error.token()].start, query);
+        Db::Sql::display_error(error, tokens[error.token()].start, tokens[error.token()].end, query);
         return;
     }
     result.release_value().repl_dump(std::cerr, Db::Core::ResultSet::FancyDump::Yes);
 }
 
-void display_error(Db::Core::DbError const& error, ssize_t error_start, std::string const& file_name) {
+void display_error(Db::Core::DbError const& error, ssize_t error_start, ssize_t error_end, std::string const& file_name) {
     auto stream = MUST(Util::ReadableFileStream::open(file_name));
     Util::display_error(stream,
         Util::DisplayedError {
             .message = Util::UString { error.message() },
             .start_offset = static_cast<size_t>(error_start),
-            .end_offset = static_cast<size_t>(error_start + 1),
+            .end_offset = static_cast<size_t>(error_end),
         });
 }
 
@@ -60,13 +60,13 @@ int run_sql_file(Db::Core::Database& db, std::string const& file_name) {
     auto statement_list = parser.parse_statement_list();
     if (statement_list.is_error()) {
         auto error = statement_list.release_error();
-        display_error(error, tokens[error.token()].start, file_name);
+        display_error(error, tokens[error.token()].start, tokens[error.token()].end, file_name);
         return 1;
     }
     auto result = statement_list.release_value().execute(db);
     if (result.is_error()) {
         auto error = result.release_error();
-        display_error(error, tokens[error.token()].start, file_name);
+        display_error(error, tokens[error.token()].start, tokens[error.token()].end, file_name);
         return 1;
     }
     result.release_value().repl_dump(std::cerr, Db::Core::ResultSet::FancyDump::Yes);
