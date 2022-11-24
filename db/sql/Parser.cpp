@@ -1,4 +1,5 @@
 #include "Parser.hpp"
+#include "db/sql/SQLError.hpp"
 
 #include <db/core/Column.hpp>
 #include <db/core/DbError.hpp>
@@ -33,7 +34,7 @@ bool Parser::compare_case_insensitive(const std::string& lhs, const std::string&
     return true;
 }
 
-Core::DbErrorOr<std::unique_ptr<AST::Statement>> Parser::parse_statement() {
+SQLErrorOr<std::unique_ptr<AST::Statement>> Parser::parse_statement() {
     auto keyword = m_tokens[m_offset];
     // std::cout << keyword.value << "\n";
     if (keyword.type == Token::Type::KeywordSelect) {
@@ -113,7 +114,7 @@ Core::DbErrorOr<std::unique_ptr<AST::Statement>> Parser::parse_statement() {
     return expected("statement", keyword, m_offset);
 }
 
-Core::DbErrorOr<AST::StatementList> Parser::parse_statement_list() {
+SQLErrorOr<AST::StatementList> Parser::parse_statement_list() {
     std::vector<std::unique_ptr<AST::Statement>> statement_list;
     while (true) {
         if (m_tokens[m_offset].type == Token::Type::Eof) {
@@ -127,7 +128,7 @@ Core::DbErrorOr<AST::StatementList> Parser::parse_statement_list() {
     return AST::StatementList { static_cast<ssize_t>(statement_list[0]->start()), std::move(statement_list) };
 }
 
-Core::DbErrorOr<AST::Select> Parser::parse_select() {
+SQLErrorOr<AST::Select> Parser::parse_select() {
     auto start = m_offset;
 
     // SELECT
@@ -154,7 +155,7 @@ Core::DbErrorOr<AST::Select> Parser::parse_select() {
             else
                 top = AST::Top { .unit = AST::Top::Unit::Val, .value = value };
         } catch (...) {
-            return Core::DbError { "Invalid argument for TOP", m_offset };
+            return SQLError { "Invalid argument for TOP", m_offset };
         }
     }
 
@@ -249,7 +250,7 @@ Core::DbErrorOr<AST::Select> Parser::parse_select() {
     if (m_tokens[m_offset].type == Token::Type::KeywordPartition) {
         m_offset++;
         if (group)
-            Core::DbError { "'PARTITION BY' can't be used with 'GROUP BY'", m_offset - 1 };
+            SQLError { "'PARTITION BY' can't be used with 'GROUP BY'", m_offset - 1 };
 
         if (m_tokens[m_offset++].type != Token::Type::KeywordBy)
             return expected("'BY' after 'GROUP", m_tokens[m_offset], m_offset - 1);
@@ -340,7 +341,7 @@ static bool is_literal(Token::Type token) {
     }
 }
 
-Core::DbErrorOr<std::unique_ptr<AST::Update>> Parser::parse_update() {
+SQLErrorOr<std::unique_ptr<AST::Update>> Parser::parse_update() {
     auto start = m_offset;
     m_offset++;
 
@@ -379,7 +380,7 @@ Core::DbErrorOr<std::unique_ptr<AST::Update>> Parser::parse_update() {
     return std::make_unique<AST::Update>(start, table_name.value, std::move(to_update));
 }
 
-Core::DbErrorOr<std::unique_ptr<AST::Import>> Parser::parse_import() {
+SQLErrorOr<std::unique_ptr<AST::Import>> Parser::parse_import() {
     auto start = m_offset;
     m_offset++; // IMPORT
 
@@ -388,10 +389,10 @@ Core::DbErrorOr<std::unique_ptr<AST::Import>> Parser::parse_import() {
         return expected("mode ('CSV')", mode_token, m_offset - 1);
     }
 
-    Core::ImportMode mode = TRY([&]() -> Core::DbErrorOr<Core::ImportMode> {
+    Core::ImportMode mode = TRY([&]() -> SQLErrorOr<Core::ImportMode> {
         if (compare_case_insensitive(mode_token.value, "CSV"))
             return Core::ImportMode::Csv;
-        return Core::DbError { "Invalid import mode", m_offset - 1 };
+        return SQLError { "Invalid import mode", m_offset - 1 };
     }());
 
     auto file_name = m_tokens[m_offset++];
@@ -412,7 +413,7 @@ Core::DbErrorOr<std::unique_ptr<AST::Import>> Parser::parse_import() {
     return std::make_unique<AST::Import>(start, mode, file_name.value, table_name.value);
 }
 
-Core::DbErrorOr<std::unique_ptr<AST::DeleteFrom>> Parser::parse_delete_from() {
+SQLErrorOr<std::unique_ptr<AST::DeleteFrom>> Parser::parse_delete_from() {
     auto start = m_offset;
     m_offset++;
 
@@ -439,7 +440,7 @@ Core::DbErrorOr<std::unique_ptr<AST::DeleteFrom>> Parser::parse_delete_from() {
         std::move(where));
 }
 
-Core::DbErrorOr<AST::ParsedColumn> Parser::parse_column() {
+SQLErrorOr<AST::ParsedColumn> Parser::parse_column() {
     auto name = m_tokens[m_offset++];
     if (name.type != Token::Type::Identifier)
         return expected("column name", name, m_offset - 1);
@@ -450,7 +451,7 @@ Core::DbErrorOr<AST::ParsedColumn> Parser::parse_column() {
 
     auto type = Core::Value::type_from_string(type_token.value);
     if (!type.has_value())
-        return Core::DbError { "Invalid type: '" + type_token.value + "'", m_offset - 1 };
+        return SQLError { "Invalid type: '" + type_token.value + "'", m_offset - 1 };
 
     bool auto_increment = false;
     bool unique = false;
@@ -472,36 +473,36 @@ Core::DbErrorOr<AST::ParsedColumn> Parser::parse_column() {
             auto_increment = true;
         else if (param.type == Token::Type::KeywordUnique) {
             if (unique)
-                return Core::DbError { "Column is already 'UNIQUE'", m_offset };
+                return SQLError { "Column is already 'UNIQUE'", m_offset };
 
             unique = true;
         }
         else if (param.type == Token::Type::KeywordNot) {
             if (m_tokens[m_offset].type != Token::Type::KeywordNull)
-                return Core::DbError { "Expected 'NULL' after 'NOT'", m_offset };
+                return SQLError { "Expected 'NULL' after 'NOT'", m_offset };
             m_offset++;
 
             if (not_null)
-                return Core::DbError { "Column is already 'NOT NULL'", m_offset };
+                return SQLError { "Column is already 'NOT NULL'", m_offset };
 
             not_null = true;
         }
         else if (param.type == Token::Type::KeywordDefault) {
             if (!is_literal(m_tokens[m_offset].type))
-                return Core::DbError { "Expected value after `DEFAULT`", m_offset };
+                return SQLError { "Expected value after `DEFAULT`", m_offset };
             auto default_ptr = TRY(parse_literal());
 
             if (default_value)
-                return Core::DbError { "Column already has its default value!", m_offset };
+                return SQLError { "Column already has its default value!", m_offset };
             default_value = default_ptr->value();
         }
         else if (param.type == Token::Type::KeywordPrimary) {
             if (m_tokens[m_offset].type != Token::Type::KeywordKey)
-                return Core::DbError { "Expected 'KEY' after 'PRIMARY'", m_offset };
+                return SQLError { "Expected 'KEY' after 'PRIMARY'", m_offset };
             m_offset++;
 
             if (unique || not_null)
-                return Core::DbError { "Column is already 'UNIQUE' or 'NOT NULL'", m_offset };
+                return SQLError { "Column is already 'UNIQUE' or 'NOT NULL'", m_offset };
 
             unique = true;
             not_null = true;
@@ -509,9 +510,9 @@ Core::DbErrorOr<AST::ParsedColumn> Parser::parse_column() {
         }
         else if (param.type == Token::Type::KeywordForeign) {
             if (m_tokens[m_offset++].type != Token::Type::KeywordKey)
-                return Core::DbError { "Expected 'KEY' after 'FOREIGN'", m_offset - 1 };
+                return SQLError { "Expected 'KEY' after 'FOREIGN'", m_offset - 1 };
             if (m_tokens[m_offset++].type != Token::Type::KeywordReferences)
-                return Core::DbError { "Expected 'REFERENCES' after 'FOREIGN KEY'", m_offset - 1 };
+                return SQLError { "Expected 'REFERENCES' after 'FOREIGN KEY'", m_offset - 1 };
 
             auto referenced_table = m_tokens[m_offset++];
             if (referenced_table.type != Token::Type::Identifier) {
@@ -534,7 +535,7 @@ Core::DbErrorOr<AST::ParsedColumn> Parser::parse_column() {
             key = Core::ForeignKey { .local_column = name.value, .referenced_table = referenced_table.value, .referenced_column = referenced_column.value };
         }
         else
-            return Core::DbError { "Invalid param for column: '" + param.value + "'", m_offset };
+            return SQLError { "Invalid param for column: '" + param.value + "'", m_offset };
     }
     return AST::ParsedColumn {
         .column = Core::Column { name.value, *type, auto_increment, unique, not_null, std::move(default_value) },
@@ -542,7 +543,7 @@ Core::DbErrorOr<AST::ParsedColumn> Parser::parse_column() {
     };
 }
 
-Core::DbErrorOr<std::unique_ptr<AST::CreateTable>> Parser::parse_create_table() {
+SQLErrorOr<std::unique_ptr<AST::CreateTable>> Parser::parse_create_table() {
     auto start = m_offset;
     m_offset += 2; // CREATE TABLE
 
@@ -568,7 +569,7 @@ Core::DbErrorOr<std::unique_ptr<AST::CreateTable>> Parser::parse_create_table() 
             if (keyword.type == Token::Type::KeywordCheck) {
                 m_offset++;
                 if (check->main_rule())
-                    Core::DbError { "Default rule already exists!", m_offset - 1 };
+                    SQLError { "Default rule already exists!", m_offset - 1 };
 
                 auto expr = TRY(parse_expression());
                 TRY(check->add_check(std::move(expr)));
@@ -583,7 +584,7 @@ Core::DbErrorOr<std::unique_ptr<AST::CreateTable>> Parser::parse_create_table() 
                 m_offset++;
 
                 if (check->constraints().find(identifier.value) != check->constraints().end())
-                    return Core::DbError { "Constraint with name '" + identifier.value + "' already exists!", m_offset - 1 };
+                    return SQLError { "Constraint with name '" + identifier.value + "' already exists!", m_offset - 1 };
 
                 if (m_tokens[m_offset].type != Token::Type::KeywordCheck)
                     return expected("'CHECK' after identifier", identifier, m_offset - 1);
@@ -609,7 +610,7 @@ Core::DbErrorOr<std::unique_ptr<AST::CreateTable>> Parser::parse_create_table() 
     return std::make_unique<AST::CreateTable>(start, table_name.value, std::move(columns), std::move(check));
 }
 
-Core::DbErrorOr<std::unique_ptr<AST::DropTable>> Parser::parse_drop_table() {
+SQLErrorOr<std::unique_ptr<AST::DropTable>> Parser::parse_drop_table() {
     auto start = m_offset;
     m_offset += 2; // DROP TABLE
 
@@ -620,7 +621,7 @@ Core::DbErrorOr<std::unique_ptr<AST::DropTable>> Parser::parse_drop_table() {
     return std::make_unique<AST::DropTable>(start, table_name.value);
 }
 
-Core::DbErrorOr<std::unique_ptr<AST::TruncateTable>> Parser::parse_truncate_table() {
+SQLErrorOr<std::unique_ptr<AST::TruncateTable>> Parser::parse_truncate_table() {
     auto start = m_offset;
     m_offset += 2; // TRUNCATE TABLE
 
@@ -631,7 +632,7 @@ Core::DbErrorOr<std::unique_ptr<AST::TruncateTable>> Parser::parse_truncate_tabl
     return std::make_unique<AST::TruncateTable>(start, table_name.value);
 }
 
-Core::DbErrorOr<std::unique_ptr<AST::AlterTable>> Parser::parse_alter_table() {
+SQLErrorOr<std::unique_ptr<AST::AlterTable>> Parser::parse_alter_table() {
     auto start = m_offset;
     m_offset += 2; // ALTER TABLE
 
@@ -661,7 +662,7 @@ Core::DbErrorOr<std::unique_ptr<AST::AlterTable>> Parser::parse_alter_table() {
             }
             else if (thing_to_add.type == Token::Type::KeywordCheck) {
                 if (check_to_add)
-                    Core::DbError { "Check already added!", m_offset };
+                    SQLError { "Check already added!", m_offset };
                 check_to_add = TRY(parse_expression());
             }
             else if (thing_to_add.type == Token::Type::KeywordConstraint) {
@@ -691,7 +692,7 @@ Core::DbErrorOr<std::unique_ptr<AST::AlterTable>> Parser::parse_alter_table() {
             }
             else if (thing_to_alter.type == Token::Type::KeywordCheck) {
                 if (check_to_alter)
-                    Core::DbError { "Check already altered!", m_offset };
+                    SQLError { "Check already altered!", m_offset };
                 check_to_alter = TRY(parse_expression());
             }
             else if (thing_to_alter.type == Token::Type::KeywordConstraint) {
@@ -732,7 +733,7 @@ Core::DbErrorOr<std::unique_ptr<AST::AlterTable>> Parser::parse_alter_table() {
             }
             else if (thing_to_drop.type == Token::Type::KeywordCheck) {
                 if (check_to_drop)
-                    Core::DbError { "Check already dropped!", m_offset };
+                    SQLError { "Check already dropped!", m_offset };
                 check_to_drop = true;
             }
             else if (thing_to_drop.type == Token::Type::KeywordConstraint) {
@@ -747,7 +748,7 @@ Core::DbErrorOr<std::unique_ptr<AST::AlterTable>> Parser::parse_alter_table() {
             }
         }
         else {
-            return Core::DbError { "Unrecognized option", m_offset - 1 };
+            return SQLError { "Unrecognized option", m_offset - 1 };
         }
         if (m_tokens[m_offset].type != Token::Type::Comma)
             break;
@@ -760,7 +761,7 @@ Core::DbErrorOr<std::unique_ptr<AST::AlterTable>> Parser::parse_alter_table() {
         std::move(constraint_to_add), std::move(constraint_to_alter), std::move(constraint_to_drop));
 }
 
-Core::DbErrorOr<std::unique_ptr<AST::InsertInto>> Parser::parse_insert_into() {
+SQLErrorOr<std::unique_ptr<AST::InsertInto>> Parser::parse_insert_into() {
     auto start = m_offset;
     m_offset += 2; // INSERT INTO
 
@@ -825,7 +826,7 @@ Core::DbErrorOr<std::unique_ptr<AST::InsertInto>> Parser::parse_insert_into() {
     return expected("'VALUES' or 'SELECT'", value_token, m_offset - 1);
 }
 
-Core::DbErrorOr<std::unique_ptr<AST::Expression>> Parser::parse_expression(int min_precedence) {
+SQLErrorOr<std::unique_ptr<AST::Expression>> Parser::parse_expression(int min_precedence) {
     std::unique_ptr<AST::Expression> lhs;
 
     auto start = m_offset;
@@ -917,7 +918,7 @@ Core::DbErrorOr<std::unique_ptr<AST::Expression>> Parser::parse_expression(int m
     return maybe_operator;
 }
 
-Core::DbErrorOr<std::unique_ptr<AST::TableExpression>> Parser::parse_table_expression() {
+SQLErrorOr<std::unique_ptr<AST::TableExpression>> Parser::parse_table_expression() {
     std::unique_ptr<AST::TableExpression> lhs;
 
     auto start = m_offset;
@@ -952,26 +953,26 @@ Core::DbErrorOr<std::unique_ptr<AST::TableExpression>> Parser::parse_table_expre
     return maybe_operator;
 }
 
-Core::DbErrorOr<std::unique_ptr<AST::Expression>> Parser::parse_expression_or_index(AST::SelectColumns const& select_columns) {
+SQLErrorOr<std::unique_ptr<AST::Expression>> Parser::parse_expression_or_index(AST::SelectColumns const& select_columns) {
     auto token = m_tokens[m_offset];
     if (token.type == Token::Type::Int) {
         m_offset++;
         auto index = std::stoi(token.value);
         if (select_columns.select_all()) {
-            return Core::DbError { "Index is not allowed when using SELECT *", m_offset - 1 };
+            return SQLError { "Index is not allowed when using SELECT *", m_offset - 1 };
         }
         if (index < 1) {
-            return Core::DbError { "Index must be positive, " + token.value + " given", m_offset - 1 };
+            return SQLError { "Index must be positive, " + token.value + " given", m_offset - 1 };
         }
         if (static_cast<size_t>(index) > select_columns.columns().size()) {
-            return Core::DbError { "Index is out of range", m_offset - 1 };
+            return SQLError { "Index is out of range", m_offset - 1 };
         }
         return std::make_unique<AST::NonOwningExpressionProxy>(m_offset - 1, *select_columns.columns()[index - 1].column);
     }
     return parse_expression();
 }
 
-Core::DbErrorOr<std::unique_ptr<AST::Literal>> Parser::parse_literal() {
+SQLErrorOr<std::unique_ptr<AST::Literal>> Parser::parse_literal() {
     auto token = m_tokens[m_offset];
     auto start = m_offset;
 
@@ -994,7 +995,7 @@ Core::DbErrorOr<std::unique_ptr<AST::Literal>> Parser::parse_literal() {
     else if (token.type == Token::Type::Date) {
         m_offset++;
         return std::make_unique<AST::Literal>(start,
-            Core::Value::create_time(TRY(Core::Date::from_iso8601_string(token.value).map_error(Core::DbErrorAddToken { m_offset - 1 }))));
+            Core::Value::create_time(TRY(Core::Date::from_iso8601_string(token.value).map_error(DbToSQLError { m_offset }))));
     }
     else if (token.type == Token::Type::KeywordNull) {
         m_offset++;
@@ -1032,7 +1033,7 @@ static int operator_precedence(Token::Type op) {
     }
 }
 
-Core::DbErrorOr<Parser::BetweenRange> Parser::parse_between_range() {
+SQLErrorOr<Parser::BetweenRange> Parser::parse_between_range() {
     auto min = TRY(parse_expression(operator_precedence(Token::Type::KeywordBetween) + 1));
 
     if (m_tokens[m_offset++].type != Token::Type::KeywordAnd)
@@ -1163,7 +1164,7 @@ static AST::JoinExpression::Type token_to_join_operation(Token token) {
     }
 }
 
-Core::DbErrorOr<std::unique_ptr<AST::Expression>> Parser::parse_operand(std::unique_ptr<AST::Expression> lhs, int min_precedence) {
+SQLErrorOr<std::unique_ptr<AST::Expression>> Parser::parse_operand(std::unique_ptr<AST::Expression> lhs, int min_precedence) {
     auto peek_operator = [this]() {
         return m_tokens[m_offset].type;
     };
@@ -1189,7 +1190,7 @@ Core::DbErrorOr<std::unique_ptr<AST::Expression>> Parser::parse_operand(std::uni
 
         using Variant = std::variant<BetweenRange, InArgs, IsArgs, std::unique_ptr<AST::Expression>>;
 
-        Variant rhs = TRY([&]() -> Core::DbErrorOr<Variant> {
+        Variant rhs = TRY([&]() -> SQLErrorOr<Variant> {
             if (current_operator == Token::Type::KeywordBetween)
                 return TRY(parse_between_range());
             if (current_operator == Token::Type::KeywordIn)
@@ -1251,7 +1252,7 @@ Core::DbErrorOr<std::unique_ptr<AST::Expression>> Parser::parse_operand(std::uni
     }
 }
 
-Core::DbErrorOr<std::unique_ptr<AST::TableExpression>> Parser::parse_join_expression(std::unique_ptr<AST::TableExpression> lhs) {
+SQLErrorOr<std::unique_ptr<AST::TableExpression>> Parser::parse_join_expression(std::unique_ptr<AST::TableExpression> lhs) {
     while (true) {
         auto current = m_tokens[m_offset];
         if (!is_join_expression(current))
@@ -1310,7 +1311,7 @@ AST::AggregateFunction::Function to_aggregate_function(std::string const& name) 
     return AST::AggregateFunction::Function::Invalid;
 }
 
-Core::DbErrorOr<std::unique_ptr<AST::Expression>> Parser::parse_function(std::string name) {
+SQLErrorOr<std::unique_ptr<AST::Expression>> Parser::parse_function(std::string name) {
     auto start = m_offset - 1;
     m_offset++; // (
 
@@ -1367,7 +1368,7 @@ Core::DbErrorOr<std::unique_ptr<AST::Expression>> Parser::parse_function(std::st
     return std::make_unique<AST::Function>(start, std::move(name), std::move(args));
 }
 
-Core::DbErrorOr<Parser::InArgs> Parser::parse_in() {
+SQLErrorOr<Parser::InArgs> Parser::parse_in() {
     std::vector<std::unique_ptr<AST::Expression>> args;
     auto paren_open = m_tokens[m_offset++];
 
@@ -1390,7 +1391,7 @@ Core::DbErrorOr<Parser::InArgs> Parser::parse_in() {
     return { std::move(args) };
 }
 
-Core::DbErrorOr<Parser::IsArgs> Parser::parse_is() {
+SQLErrorOr<Parser::IsArgs> Parser::parse_is() {
     auto token = m_tokens[m_offset++];
     if (token.type == Token::Type::KeywordNull) {
         return Parser::IsArgs { AST::IsExpression::What::Null };
@@ -1404,7 +1405,7 @@ Core::DbErrorOr<Parser::IsArgs> Parser::parse_is() {
     return expected("'NULL' or 'NOT NULL' after 'IS'", token, m_offset - 1);
 }
 
-Core::DbErrorOr<std::unique_ptr<AST::Identifier>> Parser::parse_identifier() {
+SQLErrorOr<std::unique_ptr<AST::Identifier>> Parser::parse_identifier() {
     auto name = m_tokens[m_offset++];
     std::optional<std::string> table = {};
 
@@ -1426,7 +1427,7 @@ Core::DbErrorOr<std::unique_ptr<AST::Identifier>> Parser::parse_identifier() {
     return std::make_unique<AST::Identifier>(m_offset - 1, name.value, std::move(table));
 }
 
-Core::DbErrorOr<std::unique_ptr<AST::TableIdentifier>> Parser::parse_table_identifier() {
+SQLErrorOr<std::unique_ptr<AST::TableIdentifier>> Parser::parse_table_identifier() {
     auto name = m_tokens[m_offset++];
     std::optional<std::string> alias = {};
 
@@ -1451,8 +1452,8 @@ Core::DbErrorOr<std::unique_ptr<AST::TableIdentifier>> Parser::parse_table_ident
     return std::make_unique<AST::TableIdentifier>(m_offset - 1, name.value, alias);
 }
 
-Core::DbError Parser::expected(std::string what, Token got, size_t offset) {
-    return Core::DbError { "Expected " + what + ", got '" + got.value + "'", offset };
+SQLError Parser::expected(std::string what, Token got, size_t offset) {
+    return SQLError { "Expected " + what + ", got '" + got.value + "'", offset };
 }
 
 }

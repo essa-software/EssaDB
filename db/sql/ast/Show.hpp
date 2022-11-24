@@ -14,7 +14,7 @@ public:
         : Statement(start)
         , m_type(type) { }
 
-    virtual Core::DbErrorOr<Core::ValueOrResultSet> execute(Core::Database&) const override;
+    virtual SQLErrorOr<Core::ValueOrResultSet> execute(Core::Database&) const override;
 
 private:
     Type m_type;

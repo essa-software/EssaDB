@@ -28,7 +28,7 @@ public:
         : ASTNode(start) { }
 
     virtual ~Statement() = default;
-    virtual Core::DbErrorOr<Core::ValueOrResultSet> execute(Core::Database&) const = 0;
+    virtual SQLErrorOr<Core::ValueOrResultSet> execute(Core::Database&) const = 0;
 };
 
 class StatementList : public ASTNode {
@@ -37,7 +37,7 @@ public:
         : ASTNode(start)
         , m_statements(std::move(statements)) { }
 
-    Core::DbErrorOr<Core::ValueOrResultSet> execute(Core::Database&) const;
+    SQLErrorOr<Core::ValueOrResultSet> execute(Core::Database&) const;
 
 private:
     std::vector<std::unique_ptr<Statement>> m_statements;
@@ -50,7 +50,7 @@ public:
         , m_from(std::move(from))
         , m_where(std::move(where)) { }
 
-    virtual Core::DbErrorOr<Core::ValueOrResultSet> execute(Core::Database&) const override;
+    virtual SQLErrorOr<Core::ValueOrResultSet> execute(Core::Database&) const override;
 
 private:
     std::string m_from;
@@ -69,7 +69,7 @@ public:
         , m_table(table)
         , m_to_update(std::move(to_update)) { }
 
-    virtual Core::DbErrorOr<Core::ValueOrResultSet> execute(Core::Database&) const override;
+    virtual SQLErrorOr<Core::ValueOrResultSet> execute(Core::Database&) const override;
 
 private:
     std::string m_table;
@@ -84,7 +84,7 @@ public:
         , m_filename(std::move(filename))
         , m_table(std::move(table)) { }
 
-    virtual Core::DbErrorOr<Core::ValueOrResultSet> execute(Core::Database&) const override;
+    virtual SQLErrorOr<Core::ValueOrResultSet> execute(Core::Database&) const override;
 
 private:
     Core::ImportMode m_mode;
@@ -100,7 +100,7 @@ public:
         , m_columns(std::move(columns))
         , m_check(std::move(check)) { }
 
-    virtual Core::DbErrorOr<Core::ValueOrResultSet> execute(Core::Database&) const override;
+    virtual SQLErrorOr<Core::ValueOrResultSet> execute(Core::Database&) const override;
 
 private:
     std::string m_name;
@@ -115,7 +115,7 @@ public:
         : Statement(start)
         , m_name(std::move(name)) { }
 
-    virtual Core::DbErrorOr<Core::ValueOrResultSet> execute(Core::Database&) const override;
+    virtual SQLErrorOr<Core::ValueOrResultSet> execute(Core::Database&) const override;
 
 private:
     std::string m_name;
@@ -127,7 +127,7 @@ public:
         : Statement(start)
         , m_name(std::move(name)) { }
 
-    virtual Core::DbErrorOr<Core::ValueOrResultSet> execute(Core::Database&) const override;
+    virtual SQLErrorOr<Core::ValueOrResultSet> execute(Core::Database&) const override;
 
 private:
     std::string m_name;
@@ -150,7 +150,7 @@ public:
         , m_constraint_to_alter(std::move(constraint_to_alter))
         , m_constraint_to_drop(std::move(constraint_to_drop)) { }
 
-    virtual Core::DbErrorOr<Core::ValueOrResultSet> execute(Core::Database&) const override;
+    virtual SQLErrorOr<Core::ValueOrResultSet> execute(Core::Database&) const override;
 
 private:
     std::string m_name;

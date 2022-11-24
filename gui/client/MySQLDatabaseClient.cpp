@@ -19,7 +19,7 @@ MySQLDatabaseClient::~MySQLDatabaseClient() {
 Db::Core::DbErrorOr<void> MySQLDatabaseClient::connect() {
     m_mysql_connection = mysql_init(NULL);
     if (m_mysql_connection == NULL) {
-        return Db::Core::DbError { fmt::format("Failed to initialize: {}", mysql_error(m_mysql_connection)), 0 };
+        return Db::Core::DbError { fmt::format("Failed to initialize: {}", mysql_error(m_mysql_connection)) };
     }
 
     if (!mysql_real_connect(m_mysql_connection,
@@ -29,18 +29,18 @@ Db::Core::DbErrorOr<void> MySQLDatabaseClient::connect() {
             m_connection_data.database.data(),
             m_connection_data.port, NULL, 0)) {
 
-        return Db::Core::DbError { fmt::format("Failed to connect to server: {}", mysql_error(m_mysql_connection)), 0 };
+        return Db::Core::DbError { fmt::format("Failed to connect to server: {}", mysql_error(m_mysql_connection)) };
     }
     return {};
 }
 
-Db::Core::DbErrorOr<Db::Core::ValueOrResultSet> MySQLDatabaseClient::run_query(std::string const& query) {
+Db::Sql::SQLErrorOr<Db::Core::ValueOrResultSet> MySQLDatabaseClient::run_query(std::string const& query) {
     MYSQL_RES* result;
     MYSQL_FIELD* field;
     MYSQL_ROW row;
 
     if (mysql_query(m_mysql_connection, query.data())) {
-        return Db::Core::DbError { fmt::format("Error querying server: {}", mysql_error(m_mysql_connection)), 0 };
+        return Db::Sql::SQLError { fmt::format("Error querying server: {}", mysql_error(m_mysql_connection)), 0 };
     }
 
     if (Db::Sql::Parser::compare_case_insensitive(query.substr(0, 4), "USE ")) {
@@ -83,7 +83,7 @@ Db::Core::DbErrorOr<Structure::Database> MySQLDatabaseClient::structure() const 
     MYSQL_ROW row;
 
     if (mysql_query(m_mysql_connection, ("SELECT * FROM information_schema.columns WHERE table_schema LIKE '" + m_connection_data.database + "' ORDER BY table_name;").data())) {
-        return Db::Core::DbError { fmt::format("Error querying table schema: {}", mysql_error(m_mysql_connection)), 0 };
+        return Db::Core::DbError { fmt::format("Error querying table schema: {}", mysql_error(m_mysql_connection)) };
     }
 
     result = mysql_use_result(m_mysql_connection);
@@ -182,7 +182,7 @@ Db::Core::DbErrorOr<void> MySQLDatabaseClient::import(std::string const& filenam
     std::cout << create_query << "\n";
 
     if (mysql_query(m_mysql_connection, create_query.data())) {
-        return Db::Core::DbError { fmt::format("Error querying server: {}", mysql_error(m_mysql_connection)), 0 };
+        return Db::Core::DbError { fmt::format("Error querying server: {}", mysql_error(m_mysql_connection)) };
     }
 
     // TODO: Actually insert the data

@@ -11,7 +11,7 @@ public:
         : Expression(start)
         , m_select(std::move(select)) { }
 
-    virtual Core::DbErrorOr<Core::Value> evaluate(EvaluationContext&) const override;
+    virtual SQLErrorOr<Core::Value> evaluate(EvaluationContext&) const override;
     virtual std::string to_string() const override { return "(SELECT TODO)"; }
 
 private:
@@ -24,10 +24,10 @@ public:
         : TableExpression(start)
         , m_select(std::move(select)) { }
 
-    virtual Core::DbErrorOr<std::unique_ptr<Core::Relation>> evaluate(EvaluationContext& context) const override;
+    virtual SQLErrorOr<std::unique_ptr<Core::Relation>> evaluate(EvaluationContext& context) const override;
     virtual std::string to_string() const override { return "(SELECT TODO)"; }
-    virtual Core::DbErrorOr<std::optional<size_t>> resolve_identifier(Core::Database* db, Identifier const&) const override;
-    virtual Core::DbErrorOr<size_t> column_count(Core::Database* db) const override;
+    virtual SQLErrorOr<std::optional<size_t>> resolve_identifier(Core::Database* db, Identifier const&) const override;
+    virtual SQLErrorOr<size_t> column_count(Core::Database* db) const override;
 
 private:
     Select m_select;
@@ -39,7 +39,7 @@ public:
         : Statement(start)
         , m_select(std::move(select)) { }
 
-    virtual Core::DbErrorOr<Core::ValueOrResultSet> execute(Core::Database&) const override;
+    virtual SQLErrorOr<Core::ValueOrResultSet> execute(Core::Database&) const override;
 
 private:
     Select m_select;
@@ -53,7 +53,7 @@ public:
         , m_rhs(std::move(rhs))
         , m_distinct(distinct) { }
 
-    virtual Core::DbErrorOr<Core::ValueOrResultSet> execute(Core::Database&) const override;
+    virtual SQLErrorOr<Core::ValueOrResultSet> execute(Core::Database&) const override;
 
 private:
     Select m_lhs;
@@ -75,7 +75,7 @@ public:
         , m_columns(std::move(columns))
         , m_select(std::move(select)) { }
 
-    virtual Core::DbErrorOr<Core::ValueOrResultSet> execute(Core::Database&) const override;
+    virtual SQLErrorOr<Core::ValueOrResultSet> execute(Core::Database&) const override;
 
 private:
     std::string m_name;

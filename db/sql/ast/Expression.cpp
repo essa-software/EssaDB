@@ -1,4 +1,5 @@
 #include "Expression.hpp"
+#include "db/sql/SQLError.hpp"
 
 #include <cstddef>
 #include <db/core/Column.hpp>
@@ -15,13 +16,13 @@
 
 namespace Db::Sql::AST {
 
-Core::DbErrorOr<Core::Value> Check::evaluate(EvaluationContext& context) const {
-    if (TRY(TRY(m_main_check->evaluate(context)).to_bool())) {
+SQLErrorOr<Core::Value> Check::evaluate(EvaluationContext& context) const {
+    if (TRY(TRY(m_main_check->evaluate(context)).to_bool().map_error(DbToSQLError { start() }))) {
         return Core::Value::create_bool(false);
     }
 
     for (const auto& check : m_constraints) {
-        if (TRY(TRY(check.second->evaluate(context)).to_bool())) {
+        if (TRY(TRY(check.second->evaluate(context)).to_bool().map_error(DbToSQLError { start() }))) {
             return Core::Value::create_bool(false);
         }
     }
@@ -29,27 +30,27 @@ Core::DbErrorOr<Core::Value> Check::evaluate(EvaluationContext& context) const {
     return Core::Value::create_bool(true);
 }
 
-Core::DbErrorOr<void> Check::add_check(std::shared_ptr<AST::Expression> expr) {
+SQLErrorOr<void> Check::add_check(std::shared_ptr<AST::Expression> expr) {
     if (m_main_check)
-        return Core::DbError { "Check already exists", 0 };
+        return SQLError { "Check already exists", start() };
 
     m_main_check = std::move(expr);
 
     return {};
 }
 
-Core::DbErrorOr<void> Check::alter_check(std::shared_ptr<AST::Expression> expr) {
+SQLErrorOr<void> Check::alter_check(std::shared_ptr<AST::Expression> expr) {
     if (!m_main_check)
-        return Core::DbError { "No check to alter!", 0 };
+        return SQLError { "No check to alter!", start() };
 
     m_main_check = std::move(expr);
 
     return {};
 }
 
-Core::DbErrorOr<void> Check::drop_check() {
+SQLErrorOr<void> Check::drop_check() {
     if (!m_main_check)
-        return Core::DbError { "No check to drop!", 0 };
+        return SQLError { "No check to drop!", start() };
 
     delete m_main_check.get();
     m_main_check = nullptr;
@@ -57,42 +58,42 @@ Core::DbErrorOr<void> Check::drop_check() {
     return {};
 }
 
-Core::DbErrorOr<void> Check::add_constraint(const std::string& name, std::shared_ptr<AST::Expression> expr) {
+SQLErrorOr<void> Check::add_constraint(const std::string& name, std::shared_ptr<AST::Expression> expr) {
     auto constraint = m_constraints.find(name);
 
     if (constraint != m_constraints.end())
-        return Core::DbError { "Constraint with name " + name + " already exists", 0 };
+        return SQLError { "Constraint with name " + name + " already exists", start() };
 
     m_constraints.insert({ name, std::move(expr) });
 
     return {};
 }
 
-Core::DbErrorOr<void> Check::alter_constraint(const std::string& name, std::shared_ptr<AST::Expression> expr) {
+SQLErrorOr<void> Check::alter_constraint(const std::string& name, std::shared_ptr<AST::Expression> expr) {
     auto constraint = m_constraints.find(name);
 
     if (constraint == m_constraints.end())
-        return Core::DbError { "Constraint with name " + name + " not found", 0 };
+        return SQLError { "Constraint with name " + name + " not found", start() };
 
     constraint->second = std::move(expr);
 
     return {};
 }
 
-Core::DbErrorOr<void> Check::drop_constraint(const std::string& name) {
+SQLErrorOr<void> Check::drop_constraint(const std::string& name) {
     auto constraint = m_constraints.find(name);
 
     if (constraint == m_constraints.end())
-        return Core::DbError { "Constraint with name " + name + " not found", 0 };
+        return SQLError { "Constraint with name " + name + " not found", start() };
 
     m_constraints.erase(name);
 
     return {};
 }
 
-Core::DbErrorOr<Core::Value> Identifier::evaluate(EvaluationContext& context) const {
+SQLErrorOr<Core::Value> Identifier::evaluate(EvaluationContext& context) const {
     if (!context.db) {
-        return Core::DbError { "Identifiers cannot be resolved without database", start() };
+        return SQLError { "Identifiers cannot be resolved without database", start() };
     }
 
     if (context.current_frame().row_type == EvaluationContextFrame::RowType::FromTable) {
@@ -101,7 +102,7 @@ Core::DbErrorOr<Core::Value> Identifier::evaluate(EvaluationContext& context) co
         for (auto it = context.frames.rbegin(); it != context.frames.rend(); it++) {
             auto const& frame = *it;
             if (!frame.table) {
-                return Core::DbError { "Identifiers cannot be resolved without table", start() };
+                return SQLError { "Identifiers cannot be resolved without table", start() };
             }
             index = TRY(frame.table->resolve_identifier(context.db, *this));
             if (index) {
@@ -110,7 +111,7 @@ Core::DbErrorOr<Core::Value> Identifier::evaluate(EvaluationContext& context) co
             }
         }
         if (!index) {
-            return Core::DbError { "Invalid identifier", start() };
+            return SQLError { "Invalid identifier", start() };
         }
         return row->tuple.value(*index);
     }
@@ -215,38 +216,48 @@ static Core::DbErrorOr<bool> wildcard_parser(std::string const& lhs, std::string
     return result;
 }
 
-Core::DbErrorOr<bool> BinaryOperator::is_true(EvaluationContext& context) const {
+SQLErrorOr<bool> BinaryOperator::is_true(EvaluationContext& context) const {
     // TODO: Implement proper comparison
     switch (m_operation) {
     case Operation::Equal:
-        return TRY(m_lhs->evaluate(context)) == TRY(m_rhs->evaluate(context));
+        return (TRY(m_lhs->evaluate(context)) == TRY(m_rhs->evaluate(context)))
+            .map_error(DbToSQLError { start() });
     case Operation::NotEqual:
-        return TRY(m_lhs->evaluate(context)) != TRY(m_rhs->evaluate(context));
+        return (TRY(m_lhs->evaluate(context)) != TRY(m_rhs->evaluate(context)))
+            .map_error(DbToSQLError { start() });
     case Operation::Greater:
-        return TRY(m_lhs->evaluate(context)) > TRY(m_rhs->evaluate(context));
+        return (TRY(m_lhs->evaluate(context)) > TRY(m_rhs->evaluate(context)))
+            .map_error(DbToSQLError { start() });
     case Operation::GreaterEqual:
-        return TRY(m_lhs->evaluate(context)) >= TRY(m_rhs->evaluate(context));
+        return (TRY(m_lhs->evaluate(context)) >= TRY(m_rhs->evaluate(context)))
+            .map_error(DbToSQLError { start() });
     case Operation::Less:
-        return TRY(m_lhs->evaluate(context)) < TRY(m_rhs->evaluate(context));
+        return (TRY(m_lhs->evaluate(context)) < TRY(m_rhs->evaluate(context)))
+            .map_error(DbToSQLError { start() });
     case Operation::LessEqual:
-        return TRY(m_lhs->evaluate(context)) <= TRY(m_rhs->evaluate(context));
+        return (TRY(m_lhs->evaluate(context)) <= TRY(m_rhs->evaluate(context)))
+            .map_error(DbToSQLError { start() });
     case Operation::And:
-        return TRY(TRY(m_lhs->evaluate(context)).to_bool()) && TRY(TRY(m_rhs->evaluate(context)).to_bool());
+        return (TRY(TRY(m_lhs->evaluate(context)).to_bool().map_error(DbToSQLError { start() }))
+            && TRY(TRY(m_rhs->evaluate(context)).to_bool().map_error(DbToSQLError { start() })));
     case Operation::Or:
-        return TRY(TRY(m_lhs->evaluate(context)).to_bool()) || TRY(TRY(m_rhs->evaluate(context)).to_bool());
+        return (TRY(TRY(m_lhs->evaluate(context)).to_bool().map_error(DbToSQLError { start() }))
+            || TRY(TRY(m_rhs->evaluate(context)).to_bool().map_error(DbToSQLError { start() })));
     case Operation::Not:
-        return TRY(TRY(m_lhs->evaluate(context)).to_bool());
+        return (TRY(TRY(m_lhs->evaluate(context)).to_bool().map_error(DbToSQLError { start() })));
     case Operation::Like: {
-        return wildcard_parser(TRY(TRY(m_lhs->evaluate(context)).to_string()), TRY(TRY(m_rhs->evaluate(context)).to_string()));
+        return wildcard_parser(TRY(TRY(m_lhs->evaluate(context)).to_string().map_error(DbToSQLError { start() })),
+            TRY(TRY(m_rhs->evaluate(context)).to_string().map_error(DbToSQLError { start() })))
+            .map_error(DbToSQLError { start() });
     }
     case Operation::Match: {
-        auto value = TRY(TRY(m_lhs->evaluate(context)).to_string());
-        auto pattern = TRY(TRY(m_rhs->evaluate(context)).to_string());
+        auto value = TRY(TRY(m_lhs->evaluate(context)).to_string().map_error(DbToSQLError { start() }));
+        auto pattern = TRY(TRY(m_rhs->evaluate(context)).to_string().map_error(DbToSQLError { start() }));
         try {
             std::regex regex { pattern };
             return std::regex_match(value, regex);
         } catch (std::regex_error const& error) {
-            return Core::DbError { error.what(), start() };
+            return SQLError { error.what(), start() };
         }
     }
     case Operation::Invalid:
@@ -255,19 +266,19 @@ Core::DbErrorOr<bool> BinaryOperator::is_true(EvaluationContext& context) const 
     __builtin_unreachable();
 }
 
-Core::DbErrorOr<Core::Value> ArithmeticOperator::evaluate(EvaluationContext& context) const {
+SQLErrorOr<Core::Value> ArithmeticOperator::evaluate(EvaluationContext& context) const {
     auto lhs = TRY(m_lhs->evaluate(context));
     auto rhs = TRY(m_rhs->evaluate(context));
 
     switch (m_operation) {
     case Operation::Add:
-        return lhs + rhs;
+        return (lhs + rhs).map_error(DbToSQLError { start() });
     case Operation::Sub:
-        return lhs - rhs;
+        return (lhs - rhs).map_error(DbToSQLError { start() });
     case Operation::Mul:
-        return lhs * rhs;
+        return (lhs * rhs).map_error(DbToSQLError { start() });
     case Operation::Div:
-        return lhs / rhs;
+        return (lhs / rhs).map_error(DbToSQLError { start() });
     case Operation::Invalid:
         break;
     }
@@ -300,27 +311,28 @@ std::string ArithmeticOperator::to_string() const {
     return string;
 }
 
-Core::DbErrorOr<Core::Value> UnaryOperator::evaluate(EvaluationContext& context) const {
+SQLErrorOr<Core::Value> UnaryOperator::evaluate(EvaluationContext& context) const {
     switch (m_operation) {
     case Operation::Minus:
-        return Core::Value::create_int(0) - TRY(m_operand->evaluate(context));
+        return (Core::Value::create_int(0) - TRY(m_operand->evaluate(context))).map_error(DbToSQLError { start() });
     }
     ESSA_UNREACHABLE;
 }
 
-Core::DbErrorOr<Core::Value> BetweenExpression::evaluate(EvaluationContext& context) const {
+SQLErrorOr<Core::Value> BetweenExpression::evaluate(EvaluationContext& context) const {
     // TODO: Implement this for strings etc
     auto value = TRY(m_lhs->evaluate(context));
     auto min = TRY(m_min->evaluate(context));
     auto max = TRY(m_max->evaluate(context));
-    return Core::Value::create_bool(TRY(value >= min) && TRY(value <= max));
+    return Core::Value::create_bool(TRY((value >= min).map_error(DbToSQLError { start() }))
+        && TRY((value <= max).map_error(DbToSQLError { start() })));
 }
 
-Core::DbErrorOr<Core::Value> InExpression::evaluate(EvaluationContext& context) const {
+SQLErrorOr<Core::Value> InExpression::evaluate(EvaluationContext& context) const {
     // TODO: Implement this for strings etc
-    auto value = TRY(TRY(m_lhs->evaluate(context)).to_string());
+    auto value = TRY(TRY(m_lhs->evaluate(context)).to_string().map_error(DbToSQLError { start() }));
     for (const auto& arg : m_args) {
-        auto to_compare = TRY(TRY(arg->evaluate(context)).to_string());
+        auto to_compare = TRY(TRY(arg->evaluate(context)).to_string().map_error(DbToSQLError { start() }));
 
         if (value == to_compare)
             return Core::Value::create_bool(true);
@@ -328,7 +340,7 @@ Core::DbErrorOr<Core::Value> InExpression::evaluate(EvaluationContext& context) 
     return Core::Value::create_bool(false);
 }
 
-Core::DbErrorOr<Core::Value> IsExpression::evaluate(EvaluationContext& context) const {
+SQLErrorOr<Core::Value> IsExpression::evaluate(EvaluationContext& context) const {
     auto lhs = TRY(m_lhs->evaluate(context));
     switch (m_what) {
     case What::Null:
@@ -339,9 +351,9 @@ Core::DbErrorOr<Core::Value> IsExpression::evaluate(EvaluationContext& context) 
     __builtin_unreachable();
 }
 
-Core::DbErrorOr<Core::Value> CaseExpression::evaluate(EvaluationContext& context) const {
+SQLErrorOr<Core::Value> CaseExpression::evaluate(EvaluationContext& context) const {
     for (const auto& case_expression : m_cases) {
-        if (TRY(TRY(case_expression.expr->evaluate(context)).to_bool()))
+        if (TRY(TRY(case_expression.expr->evaluate(context)).to_bool().map_error(DbToSQLError { start() })))
             return TRY(case_expression.value->evaluate(context));
     }
 
@@ -350,7 +362,7 @@ Core::DbErrorOr<Core::Value> CaseExpression::evaluate(EvaluationContext& context
     return Core::Value::null();
 }
 
-Core::DbErrorOr<Core::Value> NonOwningExpressionProxy::evaluate(EvaluationContext& context) const {
+SQLErrorOr<Core::Value> NonOwningExpressionProxy::evaluate(EvaluationContext& context) const {
     return m_expression.evaluate(context);
 }
 
@@ -366,10 +378,10 @@ bool NonOwningExpressionProxy::contains_aggregate_function() const {
     return m_expression.contains_aggregate_function();
 }
 
-Core::DbErrorOr<Core::Value> IndexExpression::evaluate(EvaluationContext& context) const {
+SQLErrorOr<Core::Value> IndexExpression::evaluate(EvaluationContext& context) const {
     auto const& tuple = context.current_frame().row.tuple;
     if (m_index >= tuple.value_count()) {
-        return Core::DbError { "Internal error: index expression overflow", start() };
+        return SQLError { "Internal error: index expression overflow", start() };
     }
     return tuple.value(m_index);
 }

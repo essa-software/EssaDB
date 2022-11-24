@@ -35,7 +35,7 @@ public:
     }
 
     template<class Callback>
-    DbErrorOr<void> try_for_each_row(Callback&& callback) {
+    auto try_for_each_row(Callback&& callback) -> decltype(callback(std::declval<Tuple>())) {
         for (auto row = next(); row; row = next()) {
             TRY(callback(*row));
         }

@@ -17,11 +17,11 @@ Db::Core::DbErrorOr<uint16_t> port_from_string(std::string const& input) {
     try {
         auto number = std::stoi(input);
         if (number < 0 || number > 65536) {
-            return Db::Core::DbError { "Port number out of range", 0 };
+            return Db::Core::DbError { "Port number out of range" };
         }
         return static_cast<uint16_t>(number);
     } catch (...) {
-        return Db::Core::DbError { "Port is not a number", 0 };
+        return Db::Core::DbError { "Port is not a number" };
     }
 }
 

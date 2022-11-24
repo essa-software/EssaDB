@@ -1,3 +1,4 @@
+#include "db/sql/SQLError.hpp"
 #include <db/sql/ast/Statement.hpp>
 
 #include <EssaUtil/Config.hpp>
@@ -12,9 +13,9 @@
 
 namespace Db::Sql::AST {
 
-Core::DbErrorOr<Core::ValueOrResultSet> StatementList::execute(Core::Database& db) const {
+SQLErrorOr<Core::ValueOrResultSet> StatementList::execute(Core::Database& db) const {
     if (m_statements.empty()) {
-        return Core::DbError { "Empty statement list", 0 };
+        return SQLError { "Empty statement list", 0 };
     }
 
     std::optional<Core::ValueOrResultSet> result;
@@ -24,20 +25,20 @@ Core::DbErrorOr<Core::ValueOrResultSet> StatementList::execute(Core::Database& d
     return *result;
 }
 
-Core::DbErrorOr<Core::ValueOrResultSet> DeleteFrom::execute(Core::Database& db) const {
+SQLErrorOr<Core::ValueOrResultSet> DeleteFrom::execute(Core::Database& db) const {
     // TODO: Check table type
-    auto table = static_cast<Core::MemoryBackedTable*>(TRY(db.table(m_from)));
+    auto table = static_cast<Core::MemoryBackedTable*>(TRY(db.table(m_from).map_error(DbToSQLError { start() })));
 
     EvaluationContext context { .db = &db };
     AST::SimpleTableExpression id { 0, *table };
     SelectColumns columns;
     context.frames.emplace_back(&id, columns);
 
-    auto should_include_row = [&](Core::Tuple const& row) -> Core::DbErrorOr<bool> {
+    auto should_include_row = [&](Core::Tuple const& row) -> SQLErrorOr<bool> {
         if (!m_where)
             return true;
         context.current_frame().row = { .tuple = row, .source = {} };
-        return TRY(m_where->evaluate(context)).to_bool();
+        return TRY(m_where->evaluate(context)).to_bool().map_error(DbToSQLError { start() });
     };
 
     // TODO: Maintain integrity on error
@@ -45,7 +46,7 @@ Core::DbErrorOr<Core::ValueOrResultSet> DeleteFrom::execute(Core::Database& db) 
     std::vector<size_t> rows_to_remove;
 
     size_t idx = 0;
-    TRY(table->rows().try_for_each_row([&](auto const& row) -> Core::DbErrorOr<void> {
+    TRY(table->rows().try_for_each_row([&](auto const& row) -> SQLErrorOr<void> {
         Util::ScopeGuard guard {
             [&idx] { idx++; }
         };
@@ -62,8 +63,8 @@ Core::DbErrorOr<Core::ValueOrResultSet> DeleteFrom::execute(Core::Database& db) 
     return Core::Value::null();
 }
 
-Core::DbErrorOr<Core::ValueOrResultSet> Update::execute(Core::Database& db) const {
-    auto table = static_cast<Core::MemoryBackedTable*>(TRY(db.table(m_table)));
+SQLErrorOr<Core::ValueOrResultSet> Update::execute(Core::Database& db) const {
+    auto table = static_cast<Core::MemoryBackedTable*>(TRY(db.table(m_table).map_error(DbToSQLError { start() })));
     EvaluationContext context { .db = &db };
     AST::SimpleTableExpression id { 0, *table };
     SelectColumns columns;
@@ -81,10 +82,10 @@ Core::DbErrorOr<Core::ValueOrResultSet> Update::execute(Core::Database& db) cons
     return Core::Value::null();
 }
 
-Core::DbErrorOr<Core::ValueOrResultSet> CreateTable::execute(Core::Database& db) const {
+SQLErrorOr<Core::ValueOrResultSet> CreateTable::execute(Core::Database& db) const {
     auto& table = db.create_table(m_name, m_check);
     for (auto const& column : m_columns) {
-        TRY(table.add_column(column.column));
+        TRY(table.add_column(column.column).map_error(DbToSQLError { start() }));
         std::visit(
             Util::Overloaded {
                 [](std::monostate) {},
@@ -100,24 +101,24 @@ Core::DbErrorOr<Core::ValueOrResultSet> CreateTable::execute(Core::Database& db)
     return { Core::Value::null() };
 }
 
-Core::DbErrorOr<Core::ValueOrResultSet> DropTable::execute(Core::Database& db) const {
-    TRY(db.drop_table(m_name));
+SQLErrorOr<Core::ValueOrResultSet> DropTable::execute(Core::Database& db) const {
+    TRY(db.drop_table(m_name).map_error(DbToSQLError { start() }));
 
     return { Core::Value::null() };
 }
 
-Core::DbErrorOr<Core::ValueOrResultSet> TruncateTable::execute(Core::Database& db) const {
-    auto table = TRY(db.table(m_name));
-    TRY(table->truncate());
+SQLErrorOr<Core::ValueOrResultSet> TruncateTable::execute(Core::Database& db) const {
+    auto table = TRY(db.table(m_name).map_error(DbToSQLError { start() }));
+    TRY(table->truncate().map_error(DbToSQLError { start() }));
 
     return { Core::Value::null() };
 }
 
-Core::DbErrorOr<Core::ValueOrResultSet> AlterTable::execute(Core::Database& db) const {
-    auto table = TRY(db.table(m_name));
+SQLErrorOr<Core::ValueOrResultSet> AlterTable::execute(Core::Database& db) const {
+    auto table = TRY(db.table(m_name).map_error(DbToSQLError { start() }));
 
     for (const auto& to_add : m_to_add) {
-        TRY(table->add_column(to_add.column));
+        TRY(table->add_column(to_add.column).map_error(DbToSQLError { start() }));
         std::visit(
             Util::Overloaded {
                 [](std::monostate) {},
@@ -132,7 +133,7 @@ Core::DbErrorOr<Core::ValueOrResultSet> AlterTable::execute(Core::Database& db) 
     }
 
     for (const auto& to_alter : m_to_alter) {
-        TRY(table->alter_column(to_alter.column));
+        TRY(table->alter_column(to_alter.column).map_error(DbToSQLError { start() }));
         std::visit(
             Util::Overloaded {
                 [](std::monostate) {},
@@ -147,7 +148,7 @@ Core::DbErrorOr<Core::ValueOrResultSet> AlterTable::execute(Core::Database& db) 
     }
 
     for (const auto& to_drop : m_to_drop) {
-        TRY(table->drop_column(to_drop));
+        TRY(table->drop_column(to_drop).map_error(DbToSQLError { start() }));
         if (table->primary_key() && table->primary_key()->local_column == to_drop) {
             table->set_primary_key({});
         }
@@ -157,12 +158,12 @@ Core::DbErrorOr<Core::ValueOrResultSet> AlterTable::execute(Core::Database& db) 
     auto memory_backed_table = dynamic_cast<Core::MemoryBackedTable*>(table);
 
     if (!memory_backed_table)
-        return Core::DbError { "Table with invalid type!", 0 };
+        return SQLError { "Table with invalid type", start() };
 
-    auto check_exists = [&]() -> Core::DbErrorOr<bool> {
+    auto check_exists = [&]() -> SQLErrorOr<bool> {
         if (memory_backed_table->check())
             return true;
-        return Core::DbError { "No check to alter!", 0 };
+        return SQLError { "No check to alter", start() };
     };
 
     if (m_check_to_add && TRY(check_exists()))
@@ -192,8 +193,8 @@ Core::DbErrorOr<Core::ValueOrResultSet> AlterTable::execute(Core::Database& db) 
     return { Core::Value::null() };
 }
 
-Core::DbErrorOr<Core::ValueOrResultSet> Import::execute(Core::Database& db) const {
-    TRY(db.import_to_table(m_filename, m_table, m_mode).map_error(Core::DbErrorAddToken { start() }));
+SQLErrorOr<Core::ValueOrResultSet> Import::execute(Core::Database& db) const {
+    TRY(db.import_to_table(m_filename, m_table, m_mode).map_error(DbToSQLError { start() }));
     return Core::Value::null();
 }
 

@@ -24,7 +24,7 @@ SelectColumns::ResolvedAlias const* SelectColumns::resolve_alias(std::string con
     return &it->second;
 }
 
-Core::DbErrorOr<Core::Value> SelectColumns::resolve_value(EvaluationContext& context, Identifier const& identifier) const {
+SQLErrorOr<Core::Value> SelectColumns::resolve_value(EvaluationContext& context, Identifier const& identifier) const {
     auto const& tuple = context.current_frame().row;
     if (!identifier.table()) {
         auto resolved_alias = resolve_alias(identifier.id());
@@ -32,8 +32,9 @@ Core::DbErrorOr<Core::Value> SelectColumns::resolve_value(EvaluationContext& con
             return tuple.tuple.value(resolved_alias->index);
     }
 
-    if (!tuple.source)
-        return Core::DbError { "Cannot use table columns on aggregated rows", 0 };
+    if (!tuple.source) {
+        return SQLError { "Cannot use table columns on aggregated rows", identifier.start() };
+    }
 
     std::optional<size_t> index;
     for (auto it = context.frames.rbegin(); it != context.frames.rend(); it++) {
@@ -44,7 +45,7 @@ Core::DbErrorOr<Core::Value> SelectColumns::resolve_value(EvaluationContext& con
         }
     }
     if (!index) {
-        return Core::DbError { "Invalid identifier", identifier.start() };
+        return SQLError { "Invalid identifier", identifier.start() };
     }
     return tuple.source->value(*index);
 }

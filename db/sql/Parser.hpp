@@ -4,7 +4,7 @@
 
 #include <db/core/Column.hpp>
 #include <db/core/Database.hpp>
-#include <db/core/DbError.hpp>
+#include <db/sql/SQLError.hpp>
 #include <db/sql/Select.hpp>
 #include <db/sql/ast/Expression.hpp>
 #include <db/sql/ast/Function.hpp>
@@ -21,22 +21,22 @@ public:
     explicit Parser(std::vector<Token> const& tokens)
         : m_tokens(std::move(tokens)) { }
 
-    Core::DbErrorOr<std::unique_ptr<AST::Statement>> parse_statement();
-    Core::DbErrorOr<AST::StatementList> parse_statement_list();
+    SQLErrorOr<std::unique_ptr<AST::Statement>> parse_statement();
+    SQLErrorOr<AST::StatementList> parse_statement_list();
     bool static compare_case_insensitive(std::string const& lhs, std::string const& rhs);
 
 private:
-    Core::DbErrorOr<AST::Select> parse_select();
-    Core::DbErrorOr<std::unique_ptr<AST::CreateTable>> parse_create_table();
-    Core::DbErrorOr<std::unique_ptr<AST::DropTable>> parse_drop_table();
-    Core::DbErrorOr<std::unique_ptr<AST::TruncateTable>> parse_truncate_table();
-    Core::DbErrorOr<std::unique_ptr<AST::AlterTable>> parse_alter_table();
-    Core::DbErrorOr<std::unique_ptr<AST::InsertInto>> parse_insert_into();
-    Core::DbErrorOr<std::unique_ptr<AST::DeleteFrom>> parse_delete_from();
-    Core::DbErrorOr<std::unique_ptr<AST::Update>> parse_update();
-    Core::DbErrorOr<std::unique_ptr<AST::Import>> parse_import();
-    Core::DbErrorOr<std::unique_ptr<AST::Expression>> parse_expression(int min_precedence = 0);
-    Core::DbErrorOr<std::unique_ptr<AST::Expression>> parse_expression_or_index(Sql::AST::SelectColumns const&);
+    SQLErrorOr<AST::Select> parse_select();
+    SQLErrorOr<std::unique_ptr<AST::CreateTable>> parse_create_table();
+    SQLErrorOr<std::unique_ptr<AST::DropTable>> parse_drop_table();
+    SQLErrorOr<std::unique_ptr<AST::TruncateTable>> parse_truncate_table();
+    SQLErrorOr<std::unique_ptr<AST::AlterTable>> parse_alter_table();
+    SQLErrorOr<std::unique_ptr<AST::InsertInto>> parse_insert_into();
+    SQLErrorOr<std::unique_ptr<AST::DeleteFrom>> parse_delete_from();
+    SQLErrorOr<std::unique_ptr<AST::Update>> parse_update();
+    SQLErrorOr<std::unique_ptr<AST::Import>> parse_import();
+    SQLErrorOr<std::unique_ptr<AST::Expression>> parse_expression(int min_precedence = 0);
+    SQLErrorOr<std::unique_ptr<AST::Expression>> parse_expression_or_index(Sql::AST::SelectColumns const&);
 
     struct BetweenRange {
         std::unique_ptr<Sql::AST::Expression> min;
@@ -61,21 +61,21 @@ private:
             : what(what) { }
     };
 
-    Core::DbErrorOr<Parser::BetweenRange> parse_between_range();                                                                        // (BETWEEN) x AND y
-    Core::DbErrorOr<std::unique_ptr<AST::Expression>> parse_operand(std::unique_ptr<Sql::AST::Expression> lhs, int min_precedence = 0); // parses operator + rhs
-    Core::DbErrorOr<std::unique_ptr<AST::Expression>> parse_function(std::string name);
-    Core::DbErrorOr<Parser::InArgs> parse_in();
-    Core::DbErrorOr<Parser::IsArgs> parse_is();
-    Core::DbErrorOr<std::unique_ptr<AST::Identifier>> parse_identifier();
-    Core::DbErrorOr<std::unique_ptr<AST::Literal>> parse_literal();
-    Core::DbErrorOr<AST::ParsedColumn> parse_column();
-    Core::DbErrorOr<std::unique_ptr<AST::TableExpression>> parse_table_expression();
-    Core::DbErrorOr<std::unique_ptr<AST::TableIdentifier>> parse_table_identifier();
-    Core::DbErrorOr<std::unique_ptr<AST::TableExpression>> parse_join_expression(std::unique_ptr<AST::TableExpression> lhs);
+    SQLErrorOr<Parser::BetweenRange> parse_between_range();                                                                        // (BETWEEN) x AND y
+    SQLErrorOr<std::unique_ptr<AST::Expression>> parse_operand(std::unique_ptr<Sql::AST::Expression> lhs, int min_precedence = 0); // parses operator + rhs
+    SQLErrorOr<std::unique_ptr<AST::Expression>> parse_function(std::string name);
+    SQLErrorOr<Parser::InArgs> parse_in();
+    SQLErrorOr<Parser::IsArgs> parse_is();
+    SQLErrorOr<std::unique_ptr<AST::Identifier>> parse_identifier();
+    SQLErrorOr<std::unique_ptr<AST::Literal>> parse_literal();
+    SQLErrorOr<AST::ParsedColumn> parse_column();
+    SQLErrorOr<std::unique_ptr<AST::TableExpression>> parse_table_expression();
+    SQLErrorOr<std::unique_ptr<AST::TableIdentifier>> parse_table_identifier();
+    SQLErrorOr<std::unique_ptr<AST::TableExpression>> parse_join_expression(std::unique_ptr<AST::TableExpression> lhs);
 
     std::vector<Token> const& m_tokens;
 
-    static Core::DbError expected(std::string what, Token got, size_t offset);
+    static SQLError expected(std::string what, Token got, size_t offset);
 
     size_t m_offset = 0;
 };

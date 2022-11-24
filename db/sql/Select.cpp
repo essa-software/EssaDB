@@ -1,3 +1,4 @@
+#include "db/sql/SQLError.hpp"
 #include <db/sql/Select.hpp>
 
 #include <EssaUtil/Is.hpp>
@@ -11,7 +12,7 @@
 
 namespace Db::Sql::AST {
 
-Core::DbErrorOr<Core::ResultSet> Select::execute(EvaluationContext& context) const {
+SQLErrorOr<Core::ResultSet> Select::execute(EvaluationContext& context) const {
     // Comments specify SQL Conceptional Evaluation:
     // https://docs.microsoft.com/en-us/sql/t-sql/queries/select-transact-sql#logical-processing-order-of-the-select-statement
     // FROM
@@ -20,10 +21,10 @@ Core::DbErrorOr<Core::ResultSet> Select::execute(EvaluationContext& context) con
 
     SelectColumns select_all_columns;
 
-    SelectColumns const& columns = *TRY([this, table = relation.get(), &select_all_columns]() -> Core::DbErrorOr<SelectColumns const*> {
+    SelectColumns const& columns = *TRY([this, table = relation.get(), &select_all_columns]() -> SQLErrorOr<SelectColumns const*> {
         if (m_options.columns.select_all()) {
             if (!table) {
-                return Core::DbError { "You need a table to do SELECT *", m_start };
+                return SQLError { "You need a table to do SELECT *", m_start };
             }
             std::vector<SelectColumns::Column> all_columns;
             for (size_t s = 0; s < table->columns().size(); s++) {
@@ -38,7 +39,7 @@ Core::DbErrorOr<Core::ResultSet> Select::execute(EvaluationContext& context) con
     auto& frame = context.frames.emplace_back(m_options.from.get(), columns);
     Util::ScopeGuard guard { [&] { context.frames.pop_back(); } };
 
-    auto rows = TRY([&]() -> Core::DbErrorOr<std::vector<Core::TupleWithSource>> {
+    auto rows = TRY([&]() -> SQLErrorOr<std::vector<Core::TupleWithSource>> {
         if (m_options.from) {
             // SELECT etc.
             // TODO: Make use of iterator capabilities of this instead of
@@ -63,7 +64,7 @@ Core::DbErrorOr<Core::ResultSet> Select::execute(EvaluationContext& context) con
         for (const auto& row : rows) {
             bool distinct = true;
             for (const auto& to_compare : occurences) {
-                if (TRY(row == to_compare)) {
+                if (TRY((row == to_compare).map_error(DbToSQLError { m_start }))) {
                     distinct = false;
                     break;
                 }
@@ -78,7 +79,7 @@ Core::DbErrorOr<Core::ResultSet> Select::execute(EvaluationContext& context) con
 
     // ORDER BY
     if (m_options.order_by) {
-        auto generate_tuple_pair_for_ordering = [&](Core::TupleWithSource const& lhs, Core::TupleWithSource const& rhs) -> Core::DbErrorOr<std::pair<Core::Tuple, Core::Tuple>> {
+        auto generate_tuple_pair_for_ordering = [&](Core::TupleWithSource const& lhs, Core::TupleWithSource const& rhs) -> SQLErrorOr<std::pair<Core::Tuple, Core::Tuple>> {
             std::vector<Core::Value> lhs_values;
             std::vector<Core::Value> rhs_values;
 
@@ -101,7 +102,7 @@ Core::DbErrorOr<Core::ResultSet> Select::execute(EvaluationContext& context) con
             return std::pair<Core::Tuple, Core::Tuple> { Core::Tuple { lhs_values }, Core::Tuple { rhs_values } };
         };
 
-        std::optional<Core::DbError> error;
+        std::optional<SQLError> error;
         std::stable_sort(rows.begin(), rows.end(), [&](Core::TupleWithSource const& lhs, Core::TupleWithSource const& rhs) -> bool {
             auto pair = generate_tuple_pair_for_ordering(lhs, rhs);
             if (pair.is_error()) {
@@ -143,27 +144,27 @@ Core::DbErrorOr<Core::ResultSet> Select::execute(EvaluationContext& context) con
     if (context.db && m_options.select_into) {
         // TODO: Insert, not overwrite records
         if (context.db->exists(*m_options.select_into))
-            TRY(context.db->drop_table(*m_options.select_into));
-        TRY(context.db->create_table_from_query(std::move(result), *m_options.select_into));
+            TRY(context.db->drop_table(*m_options.select_into).map_error(DbToSQLError { m_start }));
+        TRY(context.db->create_table_from_query(std::move(result), *m_options.select_into).map_error(DbToSQLError { m_start }));
     }
     return result;
 }
 
-Core::DbErrorOr<std::vector<Core::TupleWithSource>> Select::collect_rows(EvaluationContext& context, Core::Relation& table) const {
+SQLErrorOr<std::vector<Core::TupleWithSource>> Select::collect_rows(EvaluationContext& context, Core::Relation& table) const {
     auto& frame = context.current_frame();
 
-    auto should_include_row = [&](Core::Tuple const& row) -> Core::DbErrorOr<bool> {
+    auto should_include_row = [&](Core::Tuple const& row) -> SQLErrorOr<bool> {
         if (!m_options.where)
             return true;
         frame.row = { .tuple = row, .source = {} };
-        return TRY(m_options.where->evaluate(context)).to_bool();
+        return TRY(m_options.where->evaluate(context)).to_bool().map_error(DbToSQLError { m_start });
     };
 
     // Collect all rows that should be included (applying WHERE and GROUP BY)
     // There rows are not yet SELECT'ed - they contain columns from table, no aliases etc.
     std::map<Core::Tuple, std::vector<Core::Tuple>> nonaggregated_row_groups;
 
-    TRY(table.rows().try_for_each_row([&](Core::Tuple const& row) -> Core::DbErrorOr<void> {
+    TRY(table.rows().try_for_each_row([&](Core::Tuple const& row) -> SQLErrorOr<void> {
         // WHERE
         if (!TRY(should_include_row(row)))
             return {};
@@ -176,11 +177,10 @@ Core::DbErrorOr<std::vector<Core::TupleWithSource>> Select::collect_rows(Evaluat
                 // https://docs.microsoft.com/en-us/sql/t-sql/queries/select-transact-sql?view=sql-server-ver16#g-using-group-by-with-an-expression
                 auto column = table.get_column(column_name);
                 if (!column) {
-                    // TODO: Store source location info
                     if (m_options.group_by->type == GroupBy::GroupOrPartition::GROUP)
-                        return Core::DbError { "Nonexistent column used in GROUP BY: '" + column_name + "'", m_start };
+                        return SQLError { "Nonexistent column used in GROUP BY: '" + column_name + "'", m_start };
                     else if (m_options.group_by->type == GroupBy::GroupOrPartition::PARTITION)
-                        return Core::DbError { "Nonexistent column used in PARTITION BY: '" + column_name + "'", m_start };
+                        return SQLError { "Nonexistent column used in PARTITION BY: '" + column_name + "'", m_start };
                 }
                 group_key.push_back(row.value(column->index));
             }
@@ -235,11 +235,11 @@ Core::DbErrorOr<std::vector<Core::TupleWithSource>> Select::collect_rows(Evaluat
     // Group + aggregate rows if needed, otherwise just evaluate column expressions
     std::vector<Core::TupleWithSource> aggregated_rows;
     if (should_group) {
-        auto should_include_group = [&](EvaluationContext& context, Core::TupleWithSource const& row) -> Core::DbErrorOr<bool> {
+        auto should_include_group = [&](EvaluationContext& context, Core::TupleWithSource const& row) -> SQLErrorOr<bool> {
             if (!m_options.having)
                 return true;
             frame.row = row;
-            return TRY(m_options.having->evaluate(context)).to_bool();
+            return TRY(m_options.having->evaluate(context)).to_bool().map_error(DbToSQLError { m_start });
         };
 
         auto is_in_group_by = [&](SelectColumns::Column const& column) {
@@ -269,7 +269,7 @@ Core::DbErrorOr<std::vector<Core::TupleWithSource>> Select::collect_rows(Evaluat
                 else {
                     // "All columns must be either aggregate or occur in GROUP BY clause"
                     // TODO: Store (better) location info
-                    return Core::DbError { "Column '" + column.column->to_string() + "' must be either aggregate or occur in GROUP BY clause", m_start };
+                    return SQLError { "Column '" + column.column->to_string() + "' must be either aggregate or occur in GROUP BY clause", m_start };
                 }
             }
 

@@ -28,7 +28,7 @@ struct SQLStatement {
     std::optional<std::string> expected_error;
 };
 
-Db::Core::DbErrorOr<Db::Core::ValueOrResultSet> run_query(Db::Core::Database& db, SQLStatement const& sql_statement) {
+Db::Sql::SQLErrorOr<Db::Core::ValueOrResultSet> run_query(Db::Core::Database& db, SQLStatement const& sql_statement) {
     if (sql_statement.display)
         std::cout << "> \e[32m" << sql_statement.statement << "\e[m" << std::endl;
 
@@ -60,7 +60,7 @@ Db::Core::DbErrorOr<Db::Core::ValueOrResultSet> run_query(Db::Core::Database& db
     return result.release_value();
 }
 
-bool display_error_if_error(Db::Core::DbErrorOr<Db::Core::ValueOrResultSet>&& query_result, SQLStatement const& statement) {
+bool display_error_if_error(Db::Sql::SQLErrorOr<Db::Core::ValueOrResultSet>&& query_result, SQLStatement const& statement) {
     if (query_result.is_error()) {
         auto error = query_result.error();
         if (statement.expected_error) {
@@ -220,7 +220,7 @@ std::map<std::string, TestFunc> get_tests() {
                 success &= this_success;
             }
             if (!success)
-                return Db::Core::DbError { "SQL failed", 0 };
+                return Db::Core::DbError { "SQL failed" };
             return {};
         };
 
