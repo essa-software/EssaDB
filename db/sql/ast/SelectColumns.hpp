@@ -28,7 +28,7 @@ public:
     };
 
     ResolvedAlias const* resolve_alias(std::string const& alias) const;
-    Core::DbErrorOr<Core::Value> resolve_value(EvaluationContext&, Identifier const&) const;
+    SQLErrorOr<Core::Value> resolve_value(EvaluationContext&, Identifier const&) const;
 
 private:
     std::vector<Column> m_columns;

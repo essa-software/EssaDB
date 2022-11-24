@@ -5,7 +5,7 @@
 
 namespace Db::Sql::AST {
 
-Core::DbErrorOr<Core::ValueOrResultSet> Show::execute(Core::Database& db) const {
+SQLErrorOr<Core::ValueOrResultSet> Show::execute(Core::Database& db) const {
     std::vector<Core::Tuple> tuples;
     switch (m_type) {
     case Type::Tables: {

@@ -12,8 +12,7 @@ DbErrorOr<Tuple> create_tuple_from_values(Table& table, std::vector<std::pair<st
     for (auto const& value : values) {
         auto column = table.get_column(value.first);
         if (!column) {
-            // TODO: Save location info
-            return DbError { "No such column in table: " + value.first, 0 };
+            return DbError { "No such column in table: " + value.first };
         }
         row[column->index] = std::move(value.second);
     }

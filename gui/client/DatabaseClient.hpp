@@ -21,7 +21,7 @@ public:
 class DatabaseClient {
 public:
     virtual ~DatabaseClient() = default;
-    virtual Db::Core::DbErrorOr<Db::Core::ValueOrResultSet> run_query(std::string const& source) = 0;
+    virtual Db::Sql::SQLErrorOr<Db::Core::ValueOrResultSet> run_query(std::string const& source) = 0;
     virtual Db::Core::DbErrorOr<Structure::Database> structure() const = 0;
     virtual Db::Core::DbErrorOr<void> import(std::string const& source, std::string const& table_name, Db::Core::ImportMode) = 0;
     virtual Util::UString status_string() const = 0;

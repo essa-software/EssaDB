@@ -11,7 +11,7 @@
 
 namespace Db::Sql {
 
-Core::DbErrorOr<Core::ValueOrResultSet> run_query(Core::Database& db, std::string const& query) {
+SQLErrorOr<Core::ValueOrResultSet> run_query(Core::Database& db, std::string const& query) {
     std::istringstream in { query };
     Db::Sql::Lexer lexer { in };
     auto tokens = lexer.lex();
@@ -26,7 +26,7 @@ Core::DbErrorOr<Core::ValueOrResultSet> run_query(Core::Database& db, std::strin
     return result;
 }
 
-void display_error(Db::Core::DbError const& error, ssize_t error_start, ssize_t error_end, std::string const& query) {
+void display_error(SQLError const& error, ssize_t error_start, ssize_t error_end, std::string const& query) {
     Util::ReadableMemoryStream stream { { reinterpret_cast<uint8_t const*>(query.c_str()), query.size() } };
     Util::display_error(stream,
         Util::DisplayedError {

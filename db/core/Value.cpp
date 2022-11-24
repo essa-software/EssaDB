@@ -49,17 +49,17 @@ DbErrorOr<Date> Date::from_iso8601_string(std::string const& string) {
     std::regex regex { "^(\\d{4})-(\\d{2})-(\\d{2})$" };
     std::smatch match;
     if (!std::regex_search(string, match, regex)) {
-        return DbError { "Invalid ISO8601 date", 0 };
+        return DbError { "Invalid ISO8601 date" };
     }
     Date date;
     date.year = std::stoi(match[1]);
     date.month = std::stoi(match[2]);
     if (date.month < 1 || date.month > 12) {
-        return DbError { fmt::format("Date must be in range 1..12, {} given", date.month), 0 };
+        return DbError { fmt::format("Date must be in range 1..12, {} given", date.month) };
     }
     date.day = std::stoi(match[3]);
     if (date.day < 1 || date.day > 31) {
-        return DbError { fmt::format("Date must be in range 1..31, {} given", date.day), 0 };
+        return DbError { fmt::format("Date must be in range 1..31, {} given", date.day) };
     }
     return date;
 }
@@ -67,18 +67,18 @@ DbErrorOr<Date> Date::from_iso8601_string(std::string const& string) {
 DbErrorOr<Value> Value::from_string(Type type, std::string const& string) {
     switch (type) {
     case Type::Null:
-        return DbError { "Internal error: trying to parse string into null type", 0 };
+        return DbError { "Internal error: trying to parse string into null type" };
     case Type::Int:
         try {
             return Value::create_int(std::stoi(string));
         } catch (...) {
-            return DbError { "Cannot convert '" + string + "' to int", 0 };
+            return DbError { "Cannot convert '" + string + "' to int" };
         }
     case Type::Float:
         try {
             return Value::create_float(std::stof(string));
         } catch (...) {
-            return DbError { "Cannot convert '" + string + "' to float", 0 };
+            return DbError { "Cannot convert '" + string + "' to float" };
         }
     case Type::Varchar:
         return Value::create_varchar(string);
@@ -87,7 +87,7 @@ DbErrorOr<Value> Value::from_string(Type type, std::string const& string) {
             return Value::create_bool(true);
         else if (string == "false")
             return Value::create_bool(false);
-        return DbError { "Bool value must be either 'true' or 'false', got '" + string + "'", 0 };
+        return DbError { "Bool value must be either 'true' or 'false', got '" + string + "'" };
     case Type::Time:
         return Value::create_time(TRY(Date::from_iso8601_string(string)));
     }
@@ -132,8 +132,7 @@ DbErrorOr<int> Value::to_int() const {
         try {
             return std::stoi(str);
         } catch (...) {
-            // TODO: Save location info
-            return DbError { "'" + str + "' is not a valid int", 0 };
+            return DbError { "'" + str + "' is not a valid int" };
         }
     }
     case Type::Bool:
@@ -142,7 +141,7 @@ DbErrorOr<int> Value::to_int() const {
         auto range = std::get<Date>(*this).to_utc_epoch();
         if (range > std::numeric_limits<int>::max()) {
             // Fix your database until it hits y2k38...
-            return DbError { "Timestamp out of range for int type", 0 };
+            return DbError { "Timestamp out of range for int type" };
         }
         return static_cast<int>(range);
     }
@@ -164,14 +163,13 @@ DbErrorOr<float> Value::to_float() const {
         try {
             return std::stof(str);
         } catch (...) {
-            // TODO: Save location info
-            return DbError { "'" + str + "' is not a valid float", 0 };
+            return DbError { "'" + str + "' is not a valid float" };
         }
     }
     case Type::Bool:
         return std::get<bool>(*this) ? 1.f : 0.f;
     case Type::Time:
-        return DbError { "Time is not convertible to float", 0 };
+        return DbError { "Time is not convertible to float" };
     }
     __builtin_unreachable();
 }
@@ -202,7 +200,7 @@ DbErrorOr<bool> Value::to_bool() const {
 
 DbErrorOr<Date> Value::to_time() const {
     if (type() != Type::Time) {
-        return DbError { "Cannot convert value to time", 0 };
+        return DbError { "Cannot convert value to time" };
     }
     return std::get<Date>(*this);
 }
@@ -273,7 +271,7 @@ DbErrorOr<Value> operator-(Value const& lhs, Value const& rhs) {
     case Value::Type::Null:
         return Value::null();
     case Value::Type::Varchar:
-        return DbError { "No matching operator '-' for 'VARCHAR' type.", 0 };
+        return DbError { "No matching operator '-' for 'VARCHAR' type." };
     case Value::Type::Time: {
         time_t time = std::get<Date>(lhs).to_utc_epoch();
         time -= TRY(rhs.to_int());
@@ -297,9 +295,9 @@ DbErrorOr<Value> operator*(Value const& lhs, Value const& rhs) {
     case Value::Type::Null:
         return Value::null();
     case Value::Type::Varchar:
-        return DbError { "No matching operator '*' for 'VARCHAR' type.", 0 };
+        return DbError { "No matching operator '*' for 'VARCHAR' type." };
     case Value::Type::Time:
-        return DbError { "No matching operator '*' for 'TIME' type.", 0 };
+        return DbError { "No matching operator '*' for 'TIME' type." };
     }
     __builtin_unreachable();
 }
@@ -313,21 +311,21 @@ DbErrorOr<Value> operator/(Value const& lhs, Value const& rhs) {
     case Value::Type::Int: {
         auto rhs_int = TRY(rhs.to_int());
         if (rhs_int == 0)
-            return DbError { "Cannot divide by 0", 0 };
+            return DbError { "Cannot divide by 0" };
         return Value::create_int(TRY(lhs.to_int()) / rhs_int);
     }
     case Value::Type::Float: {
         auto rhs_float = TRY(rhs.to_float());
         if (rhs_float == 0)
-            return DbError { "Cannot divide by 0", 0 };
+            return DbError { "Cannot divide by 0" };
         return Value::create_float(TRY(lhs.to_float()) / rhs_float);
     }
     case Value::Type::Null:
         return Value::null();
     case Value::Type::Varchar:
-        return DbError { "No matching operator '/' for 'VARCHAR' type.", 0 };
+        return DbError { "No matching operator '/' for 'VARCHAR' type." };
     case Value::Type::Time:
-        return DbError { "No matching operator '/' for 'TIME' type.", 0 };
+        return DbError { "No matching operator '/' for 'TIME' type." };
     }
     __builtin_unreachable();
 }

@@ -69,12 +69,12 @@ public:
         : m_start(start)
         , m_options(std::move(options)) { }
 
-    Core::DbErrorOr<Core::ResultSet> execute(EvaluationContext&) const;
+    SQLErrorOr<Core::ResultSet> execute(EvaluationContext&) const;
 
     auto const& from() const { return m_options.from; }
 
 private:
-    Core::DbErrorOr<std::vector<Core::TupleWithSource>> collect_rows(EvaluationContext&, Core::Relation&) const;
+    SQLErrorOr<std::vector<Core::TupleWithSource>> collect_rows(EvaluationContext&, Core::Relation&) const;
 
     size_t m_start {};
     SelectOptions m_options;

@@ -19,7 +19,7 @@ public:
 
     Core::DbErrorOr<Core::Value> get_required(size_t index, std::string const& name) const {
         if (size() <= index) {
-            return Core::DbError { "Required argument " + std::to_string(index) + " `" + name + "` not given", 0 };
+            return Core::DbError { "Required argument " + std::to_string(index) + " `" + name + "` not given" };
         }
         return (*this)[index];
     }
@@ -71,7 +71,7 @@ static void setup_sql_functions() {
             return Core::Value::null();
         auto string_ = TRY(arg.to_string());
         if (string_.size() < 1) {
-            return Core::DbError { "Input string must be at least 1 character long", 0 };
+            return Core::DbError { "Input string must be at least 1 character long" };
         }
         return Core::Value::create_int(static_cast<int>(string_[0]));
     });
@@ -94,7 +94,7 @@ static void setup_sql_functions() {
     });
     register_sql_function("CONCAT", [](ArgumentList args) -> Core::DbErrorOr<Core::Value> {
         if (args.size() == 0)
-            return Core::DbError { "No arguments were provided!", 0 };
+            return Core::DbError { "CONCAT requires at least one argument" };
         std::string result = "";
 
         for (size_t i = 0; i < args.size(); i++) {
@@ -286,7 +286,7 @@ static void setup_sql_functions() {
             return Core::Value::create_float(std::fabs(TRY(value.to_float())));
         if (value.is_null())
             return Core::Value::null();
-        return Core::DbError(TRY(value.to_string()) + " is not a valid type!", 0);
+        return Core::DbError(TRY(value.to_string()) + " is not a valid type!");
     });
     register_sql_function("ACOS", [](ArgumentList args) -> Core::DbErrorOr<Core::Value> {
         auto a = TRY(TRY(args.get_required(0, "number")).to_float());
@@ -351,7 +351,7 @@ static void setup_sql_functions() {
     });
     register_sql_function("PI", [](ArgumentList args) -> Core::DbErrorOr<Core::Value> {
         if (args.size() > 0)
-            Core::DbError("Arguments for 'PI' function are not valid!", 0);
+            return Core::DbError("Arguments for 'PI' function are not valid!");
         return Core::Value::create_float(M_PI);
     });
     register_sql_function("POWER", [](ArgumentList args) -> Core::DbErrorOr<Core::Value> {
@@ -425,7 +425,7 @@ static void setup_sql_functions() {
     });
 }
 
-Core::DbErrorOr<Core::Value> Function::evaluate(EvaluationContext& context) const {
+SQLErrorOr<Core::Value> Function::evaluate(EvaluationContext& context) const {
     static bool sql_functions_setup = false;
     if (!sql_functions_setup) {
         setup_sql_functions();
@@ -441,13 +441,13 @@ Core::DbErrorOr<Core::Value> Function::evaluate(EvaluationContext& context) cons
         std::vector<Core::Value> args;
         for (auto const& arg : m_args)
             args.push_back(TRY(arg->evaluate(context)));
-        return function->second(ArgumentList { std::move(args) }).map_error(Core::DbErrorAddToken { start() });
+        return function->second(ArgumentList { std::move(args) }).map_error(DbToSQLError { start() });
     }
 
-    return Core::DbError { "Undefined function: '" + m_name + "'", start() };
+    return SQLError { "Undefined function: '" + m_name + "'", start() };
 }
 
-Core::DbErrorOr<Core::Value> AggregateFunction::evaluate(EvaluationContext& context) const {
+SQLErrorOr<Core::Value> AggregateFunction::evaluate(EvaluationContext& context) const {
     auto& frame = context.current_frame();
     if (frame.row_group) {
         return TRY(aggregate(context, *frame.row_group));
@@ -457,7 +457,7 @@ Core::DbErrorOr<Core::Value> AggregateFunction::evaluate(EvaluationContext& cont
     return TRY(aggregate(context, { &tuple, 1 }));
 }
 
-Core::DbErrorOr<Core::Value> AggregateFunction::aggregate(EvaluationContext& context, std::span<Core::Tuple const> rows) const {
+SQLErrorOr<Core::Value> AggregateFunction::aggregate(EvaluationContext& context, std::span<Core::Tuple const> rows) const {
     auto& frame = context.frames.emplace_back(context.current_frame().table, context.current_frame().columns);
     Util::ScopeGuard guard { [&] { context.frames.pop_back(); } };
 
@@ -477,7 +477,7 @@ Core::DbErrorOr<Core::Value> AggregateFunction::aggregate(EvaluationContext& con
         for (auto& row : rows) {
             frame.row = { .tuple = row, .source = {} };
             auto value = TRY(m_expression->evaluate(context));
-            sum += TRY(value.to_float());
+            sum += TRY(value.to_float().map_error(DbToSQLError { start() }));
         }
 
         return Core::Value::create_float(sum);
@@ -487,7 +487,7 @@ Core::DbErrorOr<Core::Value> AggregateFunction::aggregate(EvaluationContext& con
         for (auto& row : rows) {
             frame.row = { .tuple = row, .source = {} };
             auto value = TRY(m_expression->evaluate(context));
-            min = std::min(min, TRY(value.to_float()));
+            min = std::min(min, TRY(value.to_float().map_error(DbToSQLError { start() })));
         }
 
         return Core::Value::create_float(min);
@@ -497,7 +497,7 @@ Core::DbErrorOr<Core::Value> AggregateFunction::aggregate(EvaluationContext& con
         for (auto& row : rows) {
             frame.row = { .tuple = row, .source = {} };
             auto value = TRY(m_expression->evaluate(context));
-            max = std::max(max, TRY(value.to_float()));
+            max = std::max(max, TRY(value.to_float().map_error(DbToSQLError { start() })));
         }
 
         return Core::Value::create_float(max);
@@ -508,7 +508,7 @@ Core::DbErrorOr<Core::Value> AggregateFunction::aggregate(EvaluationContext& con
         for (auto& row : rows) {
             frame.row = { .tuple = row, .source = {} };
             auto value = TRY(m_expression->evaluate(context));
-            sum += TRY(value.to_int());
+            sum += TRY(value.to_int().map_error(DbToSQLError { start() }));
             count++;
         }
 

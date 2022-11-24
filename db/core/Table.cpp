@@ -24,21 +24,22 @@ namespace Db::Core {
 DbErrorOr<void> Table::check_value_validity(Database&, Tuple const& row, size_t column_index) const {
     auto const& column = columns()[column_index];
     if (!row.value(column_index).is_null() && column.type() != row.value(column_index).type()) {
-        return DbError { fmt::format("Type mismatch, required {} but given {} for column '{}'",
-                             Value::type_to_string(column.type()),
-                             Value::type_to_string(row.value(column_index).type()),
-                             column.name()),
-            0 };
+        return DbError {
+            fmt::format("Type mismatch, required {} but given {} for column '{}'",
+                Value::type_to_string(column.type()),
+                Value::type_to_string(row.value(column_index).type()),
+                column.name()),
+        };
     }
 
     if (column.not_null() && row.value(column_index).is_null()) {
-        return DbError { fmt::format("NULL given for NOT NULL column '{}'", column.name()), 0 };
+        return DbError { fmt::format("NULL given for NOT NULL column '{}'", column.name()) };
     }
 
     if (column.unique()) {
         TRY(rows().try_for_each_row([&](Tuple const& other_row) -> DbErrorOr<void> {
             if (TRY(other_row.value(column_index) == row.value(column_index)))
-                return DbError { fmt::format("Column '{}' must contain unique values", column.name()), 0 };
+                return DbError { fmt::format("Column '{}' must contain unique values", column.name()) };
             return {};
         }));
     }
@@ -51,7 +52,7 @@ DbErrorOr<void> Table::perform_table_integrity_checks(Database& db, Tuple const&
 
     // Column count
     if (row.value_count() != columns.size()) {
-        return DbError { fmt::format("Column count does not match ({} given vs {} required)", row.value_count(), columns.size()), 0 };
+        return DbError { fmt::format("Column count does not match ({} given vs {} required)", row.value_count(), columns.size()) };
     }
 
     // Primary key (NULL + duplicate check)
@@ -60,15 +61,15 @@ DbErrorOr<void> Table::perform_table_integrity_checks(Database& db, Tuple const&
         auto const& pk = primary_key();
         auto column = get_column(pk->local_column);
         if (!column) {
-            return DbError { fmt::format("Internal error: Nonexistent column '{}' used as primary key", pk->local_column), 0 };
+            return DbError { fmt::format("Internal error: Nonexistent column '{}' used as primary key", pk->local_column) };
         }
         auto const& value = row.value(column->index);
         if (value.is_null()) {
-            return DbError { "Primary key may not be null", 0 };
+            return DbError { "Primary key may not be null" };
         }
         TRY(rows().try_for_each_row([&](Tuple const& other_row) -> DbErrorOr<void> {
             if (TRY(other_row.value(column->index) == value))
-                return DbError { "Primary key must be unique", 0 };
+                return DbError { "Primary key must be unique" };
             return {};
         }));
     }
@@ -87,12 +88,12 @@ DbErrorOr<void> Table::perform_database_integrity_checks(Database& db, Tuple con
     for (auto const& fk : foreign_keys()) {
         auto local_column = get_column(fk.local_column);
         if (!local_column) {
-            return DbError { fmt::format("Internal error: Nonexistent column '{}' used as foreign key", fk.local_column), 0 };
+            return DbError { fmt::format("Internal error: Nonexistent column '{}' used as foreign key", fk.local_column) };
         }
         auto referenced_table = TRY(db.table(fk.referenced_table));
         auto referenced_column = referenced_table->get_column(fk.referenced_column);
         if (!referenced_column) {
-            return DbError { fmt::format("Internal error: Nonexistent column '{}' used as referenced table in foreign key", fk.referenced_column), 0 };
+            return DbError { fmt::format("Internal error: Nonexistent column '{}' used as referenced table in foreign key", fk.referenced_column) };
         }
 
         auto const& local_value = row.value(local_column->index);
@@ -101,9 +102,10 @@ DbErrorOr<void> Table::perform_database_integrity_checks(Database& db, Tuple con
         }
 
         if (!referenced_table->find_first_matching_tuple(referenced_column->index, local_value)) {
-            return DbError { fmt::format("Foreign key '{}' requires matching value in referenced column '{}.{}'",
-                                 fk.local_column, fk.referenced_table, fk.referenced_column),
-                0 };
+            return DbError {
+                fmt::format("Foreign key '{}' requires matching value in referenced column '{}.{}'",
+                    fk.local_column, fk.referenced_table, fk.referenced_column),
+            };
         }
     }
 
@@ -126,7 +128,7 @@ DbErrorOr<void> Table::insert(Database& db, Tuple const& row) {
                     columns_to_auto_increment.push_back(columns[s].name());
                 }
                 else
-                    return DbError { "Internal error: AUTO_INCREMENT used on non-int field", 0 };
+                    return DbError { "Internal error: AUTO_INCREMENT used on non-int field" };
             }
             else {
                 filled_row.set_value(s, columns[s].default_value());
@@ -174,8 +176,7 @@ DbErrorOr<void> MemoryBackedTable::add_column(Column column) {
 
 DbErrorOr<void> MemoryBackedTable::alter_column(Column column) {
     if (!get_column(column.name())) {
-        // TODO: Save location info
-        return DbError { "Couldn't find column '" + column.name() + "'", 0 };
+        return DbError { "Couldn't find column '" + column.name() + "'" };
     }
 
     for (size_t i = 0; i < m_columns.size(); i++) {
@@ -188,8 +189,7 @@ DbErrorOr<void> MemoryBackedTable::alter_column(Column column) {
 
 DbErrorOr<void> MemoryBackedTable::drop_column(std::string const& column) {
     if (!get_column(column)) {
-        // TODO: Save location info
-        return DbError { "Couldn't find column '" + column + "'", 0 };
+        return DbError { "Couldn't find column '" + column + "'" };
     }
 
     std::vector<Column> vec;
@@ -231,14 +231,18 @@ DbErrorOr<void> MemoryBackedTable::perform_database_integrity_checks(Database& d
     if (check()) {
         if (check()->main_rule()) {
             context.current_frame().row = { .tuple = Tuple { row }, .source = {} };
-            if (!TRY(TRY(check()->main_rule()->evaluate(context)).to_bool()))
-                return DbError { "Values doesn't match general check rule specified for this table", 0 };
+            if (!TRY(TRY(check()->main_rule()->evaluate(context).map_error([](Sql::SQLError&& e) {
+                    return DbError { e.message() };
+                })).to_bool()))
+                return DbError { "Values doesn't match general check rule specified for this table" };
         }
 
         for (const auto& expr : check()->constraints()) {
             context.current_frame().row = { .tuple = Tuple { row }, .source = {} };
-            if (!TRY(TRY(expr.second->evaluate(context)).to_bool()))
-                return DbError { "Values doesn't match '" + expr.first + "' check rule specified for this table", 0 };
+            if (!TRY(TRY(expr.second->evaluate(context).map_error([](Sql::SQLError&& e) {
+                    return DbError { e.message() };
+                })).to_bool()))
+                return DbError { "Values doesn't match '" + expr.first + "' check rule specified for this table" };
         }
     }
     return {};
@@ -284,7 +288,7 @@ DbErrorOr<void> Table::import_from_csv(Database& db, const std::string& path) {
     std::ifstream f_in(path);
     f_in >> std::ws;
     if (!f_in.good())
-        return DbError { "Failed to open CSV file '" + path + "': " + std::string(strerror(errno)), 0 };
+        return DbError { "Failed to open CSV file '" + path + "': " + std::string(strerror(errno)) };
 
     std::vector<std::string> column_names;
     std::vector<std::vector<std::string>> rows;
@@ -328,14 +332,14 @@ DbErrorOr<void> Table::import_from_csv(Database& db, const std::string& path) {
 
     column_names = read_line();
     if (column_names.empty())
-        return DbError { "CSV file contains no columns", 0 };
+        return DbError { "CSV file contains no columns" };
 
     while (true) {
         auto row_line = read_line();
         if (row_line.empty())
             break;
         if (row_line.size() != column_names.size()) {
-            return DbError { "Invalid value count in row, expected " + std::to_string(column_names.size()) + ", got " + std::to_string(row_line.size()), 0 };
+            return DbError { "Invalid value count in row, expected " + std::to_string(column_names.size()) + ", got " + std::to_string(row_line.size()) };
         }
         rows.push_back(std::move(row_line));
     }
@@ -366,7 +370,7 @@ DbErrorOr<void> Table::import_from_csv(Database& db, const std::string& path) {
     else {
         // std::cout << "Reading CSV into existing table" << std::endl;
         if (column_names.size() != columns().size())
-            return DbError { "Column count differs in CSV file and in table", 0 };
+            return DbError { "Column count differs in CSV file and in table" };
     }
 
     auto columns = this->columns();

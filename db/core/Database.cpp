@@ -23,8 +23,7 @@ DbErrorOr<Table*> Database::create_table_from_query(ResultSet select, std::strin
 DbErrorOr<Table*> Database::table(std::string name) {
     auto it = m_tables.find(name);
     if (it == m_tables.end()) {
-        // TODO: Save location info
-        return DbError { "Nonexistent table: " + name, 0 };
+        return DbError { "Nonexistent table: " + name };
     }
     return it->second.get();
 }

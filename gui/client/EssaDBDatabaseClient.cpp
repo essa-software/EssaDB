@@ -5,7 +5,7 @@
 
 namespace EssaDB {
 
-Db::Core::DbErrorOr<Db::Core::ValueOrResultSet> EssaDBDatabaseClient::run_query(std::string const& source) {
+Db::Sql::SQLErrorOr<Db::Core::ValueOrResultSet> EssaDBDatabaseClient::run_query(std::string const& source) {
     return Db::Sql::run_query(m_db, source);
 }
 
