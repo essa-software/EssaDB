@@ -1,36 +1,36 @@
 #include "TableExpression.hpp"
-#include "db/core/DbError.hpp"
 
 #include <EssaUtil/Config.hpp>
 #include <db/core/Database.hpp>
+#include <db/core/DbError.hpp>
 
-namespace Db::Core::AST {
+namespace Db::Sql::AST {
 
-Tuple TableExpression::create_joined_tuple(const Tuple& lhs_row, const Tuple& rhs_row) {
-    std::vector<Value> row;
+Core::Tuple TableExpression::create_joined_tuple(const Core::Tuple& lhs_row, const Core::Tuple& rhs_row) {
+    std::vector<Core::Value> row;
     for (size_t i = 0; i < lhs_row.value_count(); i++) {
         row.push_back(lhs_row.value(i));
     }
     for (size_t i = 0; i < rhs_row.value_count(); i++) {
         row.push_back(rhs_row.value(i));
     }
-    return Tuple(row);
+    return Core::Tuple(row);
 }
 
-class NonOwningTableWrapper : public Relation {
+class NonOwningTableWrapper : public Core::Relation {
 public:
-    NonOwningTableWrapper(Relation const& other)
+    NonOwningTableWrapper(Core::Relation const& other)
         : m_other(other) { }
 
-    virtual std::vector<Column> const& columns() const { return m_other.columns(); }
-    virtual RelationIterator rows() const { return m_other.rows(); }
+    virtual std::vector<Core::Column> const& columns() const { return m_other.columns(); }
+    virtual Core::RelationIterator rows() const { return m_other.rows(); }
     virtual size_t size() const { return m_other.size(); }
 
 private:
-    Relation const& m_other;
+    Core::Relation const& m_other;
 };
 
-DbErrorOr<std::unique_ptr<Relation>> SimpleTableExpression::evaluate(EvaluationContext&) const {
+Core::DbErrorOr<std::unique_ptr<Core::Relation>> SimpleTableExpression::evaluate(EvaluationContext&) const {
     return std::make_unique<NonOwningTableWrapper>(m_table);
 }
 
@@ -38,30 +38,30 @@ std::string SimpleTableExpression::to_string() const {
     return "<SimpleTableExpression>";
 }
 
-DbErrorOr<std::optional<size_t>> SimpleTableExpression::resolve_identifier(Database*, Identifier const& id) const {
+Core::DbErrorOr<std::optional<size_t>> SimpleTableExpression::resolve_identifier(Core::Database*, Identifier const& id) const {
     auto column = m_table.get_column(id.id());
     if (!column) {
-        return DbError { "Column '" + id.id() + "' does not exist in table '" + m_table.name() + "'", start() };
+        return Core::DbError { "Column '" + id.id() + "' does not exist in table '" + m_table.name() + "'", start() };
     }
     return column->index;
 }
 
-DbErrorOr<size_t> SimpleTableExpression::column_count(Database*) const {
+Core::DbErrorOr<size_t> SimpleTableExpression::column_count(Core::Database*) const {
     return m_table.columns().size();
 }
 
-DbErrorOr<std::unique_ptr<Relation>> TableIdentifier::evaluate(EvaluationContext& context) const {
+Core::DbErrorOr<std::unique_ptr<Core::Relation>> TableIdentifier::evaluate(EvaluationContext& context) const {
     if (!context.db) {
         // FIXME: The message should mention calling USE db; when this is implemented.
-        return DbError { "Cannot evaluate table identifier without database", start() };
+        return Core::DbError { "Cannot evaluate table identifier without database", start() };
     }
 
     return std::make_unique<NonOwningTableWrapper>(*TRY(context.db->table(m_id)));
 }
 
-DbErrorOr<std::optional<size_t>> TableIdentifier::resolve_identifier(Database* db, Identifier const& id) const {
+Core::DbErrorOr<std::optional<size_t>> TableIdentifier::resolve_identifier(Core::Database* db, Identifier const& id) const {
     if (!db) {
-        return DbError { "Table identifiers cannot be resolved without a database", start() };
+        return Core::DbError { "Table identifiers cannot be resolved without a database", start() };
     }
     auto requested_table_name = id.table().has_value() ? id.table().value() : m_id;
     if (requested_table_name != m_id && requested_table_name != m_alias) {
@@ -75,28 +75,28 @@ DbErrorOr<std::optional<size_t>> TableIdentifier::resolve_identifier(Database* d
     auto column = table->get_column(id.id());
     if (!column) {
         // TODO: Location info
-        return DbError { "Column '" + id.id() + "' does not exist in table '" + m_id + "'", id.start() };
+        return Core::DbError { "Column '" + id.id() + "' does not exist in table '" + m_id + "'", id.start() };
     }
     return column->index;
 }
 
-DbErrorOr<size_t> TableIdentifier::column_count(Database* db) const {
+Core::DbErrorOr<size_t> TableIdentifier::column_count(Core::Database* db) const {
     if (!db) {
-        return DbError { "Table identifiers cannot be resolved without a database", start() };
+        return Core::DbError { "Table identifiers cannot be resolved without a database", start() };
     }
     auto table = TRY(db->table(m_id));
     return table->columns().size();
 }
 
-DbErrorOr<std::unique_ptr<Relation>> JoinExpression::evaluate(EvaluationContext& context) const {
-    auto table = std::make_unique<MemoryBackedTable>(nullptr, "");
+Core::DbErrorOr<std::unique_ptr<Core::Relation>> JoinExpression::evaluate(EvaluationContext& context) const {
+    auto table = std::make_unique<Core::MemoryBackedTable>(nullptr, "");
 
     auto lhs = TRY(m_lhs->evaluate(context));
     auto rhs = TRY(m_rhs->evaluate(context));
 
-    std::multimap<Value, std::pair<Relation*, Tuple>, ValueSorter> contents;
+    std::multimap<Core::Value, std::pair<Core::Relation*, Core::Tuple>, Core::ValueSorter> contents;
 
-    auto add_columns = [table = table.get(), &contents](Relation& source_table, Identifier const* on_id) -> DbErrorOr<void> {
+    auto add_columns = [table = table.get(), &contents](Core::Relation& source_table, Identifier const* on_id) -> Core::DbErrorOr<void> {
         bool add_to_index = true;
         size_t index = 0;
         for (const auto& column : source_table.columns()) {
@@ -104,11 +104,11 @@ DbErrorOr<std::unique_ptr<Relation>> JoinExpression::evaluate(EvaluationContext&
                 add_to_index = false;
             if (add_to_index)
                 index++;
-            TRY(table->add_column(Column(column.name(), column.type(), false, false, false)));
+            TRY(table->add_column(Core::Column(column.name(), column.type(), false, false, false)));
         }
-        TRY(source_table.rows().try_for_each_row([&](auto const& row) -> DbErrorOr<void> {
+        TRY(source_table.rows().try_for_each_row([&](auto const& row) -> Core::DbErrorOr<void> {
             if (index >= row.value_count()) {
-                return DbError { fmt::format("Invalid column `{}` used in join expression", on_id->to_string()), 0 };
+                return Core::DbError { fmt::format("Invalid column `{}` used in join expression", on_id->to_string()), 0 };
             }
             contents.insert(std::pair(row.value(index), std::make_pair(&source_table, row)));
             return {};
@@ -152,8 +152,8 @@ DbErrorOr<std::unique_ptr<Relation>> JoinExpression::evaluate(EvaluationContext&
                         break;
                 }
                 else {
-                    std::vector<Value> values(rhs->columns().size(), Value::null());
-                    Tuple dummy(values);
+                    std::vector<Core::Value> values(rhs->columns().size(), Core::Value::null());
+                    Core::Tuple dummy(values);
 
                     auto row = create_joined_tuple(last->second.second, dummy);
 
@@ -179,8 +179,8 @@ DbErrorOr<std::unique_ptr<Relation>> JoinExpression::evaluate(EvaluationContext&
                     last = it;
                 }
                 else {
-                    std::vector<Value> values(lhs->columns().size(), Value::null());
-                    Tuple dummy(values);
+                    std::vector<Core::Value> values(lhs->columns().size(), Core::Value::null());
+                    Core::Tuple dummy(values);
 
                     auto row = create_joined_tuple(dummy, it->second.second);
 
@@ -203,16 +203,16 @@ DbErrorOr<std::unique_ptr<Relation>> JoinExpression::evaluate(EvaluationContext&
                     break;
             }
             else if (last->second.first == lhs.get()) {
-                std::vector<Value> values(rhs->columns().size(), Value::null());
-                Tuple dummy(values);
+                std::vector<Core::Value> values(rhs->columns().size(), Core::Value::null());
+                Core::Tuple dummy(values);
 
                 auto row = create_joined_tuple(last->second.second, dummy);
 
                 TRY(table->insert_unchecked(row));
             }
             else if (last->second.first == rhs.get()) {
-                std::vector<Value> values(lhs->columns().size(), Value::null());
-                Tuple dummy(values);
+                std::vector<Core::Value> values(lhs->columns().size(), Core::Value::null());
+                Core::Tuple dummy(values);
 
                 auto row = create_joined_tuple(dummy, it->second.second);
 
@@ -225,14 +225,14 @@ DbErrorOr<std::unique_ptr<Relation>> JoinExpression::evaluate(EvaluationContext&
     }
 
     case Type::Invalid:
-        return DbError { fmt::format("Internal error: Invalid join type"), start() };
+        return Core::DbError { fmt::format("Internal error: Invalid join type"), start() };
         break;
     }
 
     return table;
 }
 
-DbErrorOr<std::optional<size_t>> JoinExpression::resolve_identifier(Database* db, Identifier const& id) const {
+Core::DbErrorOr<std::optional<size_t>> JoinExpression::resolve_identifier(Core::Database* db, Identifier const& id) const {
     auto lhs_id = TRY(m_lhs->resolve_identifier(db, id));
     if (lhs_id)
         return lhs_id;
@@ -242,26 +242,26 @@ DbErrorOr<std::optional<size_t>> JoinExpression::resolve_identifier(Database* db
     return *rhs_id + TRY(m_lhs->column_count(db));
 }
 
-DbErrorOr<size_t> JoinExpression::column_count(Database* db) const {
+Core::DbErrorOr<size_t> JoinExpression::column_count(Core::Database* db) const {
     return TRY(m_lhs->column_count(db)) + TRY(m_rhs->column_count(db));
 }
 
-DbErrorOr<std::unique_ptr<Relation>> CrossJoinExpression::evaluate(EvaluationContext& context) const {
-    auto table = std::make_unique<MemoryBackedTable>(nullptr, "");
+Core::DbErrorOr<std::unique_ptr<Core::Relation>> CrossJoinExpression::evaluate(EvaluationContext& context) const {
+    auto table = std::make_unique<Core::MemoryBackedTable>(nullptr, "");
 
     auto lhs = TRY(m_lhs->evaluate(context));
     auto rhs = TRY(m_rhs->evaluate(context));
 
     for (const auto& column : lhs->columns()) {
-        TRY(table->add_column(Column(column.name(), column.type(), false, false, false)));
+        TRY(table->add_column(Core::Column(column.name(), column.type(), false, false, false)));
     }
 
     for (const auto& column : rhs->columns()) {
-        TRY(table->add_column(Column(column.name(), column.type(), false, false, false)));
+        TRY(table->add_column(Core::Column(column.name(), column.type(), false, false, false)));
     }
 
-    TRY(lhs->rows().try_for_each_row([&](auto const& lhs_row) -> DbErrorOr<void> {
-        TRY(rhs->rows().try_for_each_row([&](auto const& rhs_row) -> DbErrorOr<void> {
+    TRY(lhs->rows().try_for_each_row([&](auto const& lhs_row) -> Core::DbErrorOr<void> {
+        TRY(rhs->rows().try_for_each_row([&](auto const& rhs_row) -> Core::DbErrorOr<void> {
             auto row = create_joined_tuple(lhs_row, rhs_row);
             TRY(table->insert_unchecked(row));
             return {};
@@ -272,7 +272,7 @@ DbErrorOr<std::unique_ptr<Relation>> CrossJoinExpression::evaluate(EvaluationCon
     return table;
 }
 
-DbErrorOr<std::optional<size_t>> CrossJoinExpression::resolve_identifier(Database* db, Identifier const& id) const {
+Core::DbErrorOr<std::optional<size_t>> CrossJoinExpression::resolve_identifier(Core::Database* db, Identifier const& id) const {
     auto lhs_id = TRY(m_lhs->resolve_identifier(db, id));
     if (lhs_id)
         return lhs_id;
@@ -282,7 +282,7 @@ DbErrorOr<std::optional<size_t>> CrossJoinExpression::resolve_identifier(Databas
     return *rhs_id + TRY(m_lhs->column_count(db));
 }
 
-DbErrorOr<size_t> CrossJoinExpression::column_count(Database* db) const {
+Core::DbErrorOr<size_t> CrossJoinExpression::column_count(Core::Database* db) const {
     return TRY(m_lhs->column_count(db)) + TRY(m_rhs->column_count(db));
 }
 }

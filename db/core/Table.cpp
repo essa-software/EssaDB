@@ -2,12 +2,10 @@
 
 #include <cstring>
 #include <db/core/Column.hpp>
+#include <db/core/Database.hpp>
 #include <db/core/DbError.hpp>
 #include <db/core/ResultSet.hpp>
 #include <db/core/TupleFromValues.hpp>
-#include <db/core/ast/EvaluationContext.hpp>
-#include <db/core/ast/Expression.hpp>
-#include <db/core/ast/TableExpression.hpp>
 #include <fstream>
 #include <iostream>
 #include <memory>
@@ -15,6 +13,11 @@
 #include <string>
 #include <utility>
 #include <vector>
+
+// FIXME: Get rid of Core -> SQL dependency
+#include <db/sql/ast/EvaluationContext.hpp>
+#include <db/sql/ast/Expression.hpp>
+#include <db/sql/ast/TableExpression.hpp>
 
 namespace Db::Core {
 
@@ -210,18 +213,18 @@ DbErrorOr<void> MemoryBackedTable::drop_column(std::string const& column) {
 DbErrorOr<void> MemoryBackedTable::perform_database_integrity_checks(Database& db, Tuple const& row) const {
     TRY(Table::perform_database_integrity_checks(db, row));
 
-    AST::SelectColumns columns_to_context;
+    Sql::AST::SelectColumns columns_to_context;
     {
-        std::vector<AST::SelectColumns::Column> all_columns;
+        std::vector<Sql::AST::SelectColumns::Column> all_columns;
         for (auto const& column : columns()) {
-            all_columns.push_back(AST::SelectColumns::Column { .column = std::make_unique<AST::Identifier>(0, column.name(), std::optional<std::string> {}) });
+            all_columns.push_back(Sql::AST::SelectColumns::Column { .column = std::make_unique<Sql::AST::Identifier>(0, column.name(), std::optional<std::string> {}) });
         }
-        columns_to_context = AST::SelectColumns { std::move(all_columns) };
+        columns_to_context = Sql::AST::SelectColumns { std::move(all_columns) };
     }
 
-    AST::EvaluationContext context { .db = &db };
+    Sql::AST::EvaluationContext context { .db = &db };
 
-    AST::SimpleTableExpression id { 0, *this };
+    Sql::AST::SimpleTableExpression id { 0, *this };
     context.frames.emplace_back(&id, columns_to_context);
 
     // Checks and constraints

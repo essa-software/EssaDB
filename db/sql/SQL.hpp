@@ -2,6 +2,7 @@
 
 #include <db/core/Database.hpp>
 #include <db/core/Value.hpp>
+#include <db/core/ValueOrResultSet.hpp>
 
 namespace Db::Sql {
 

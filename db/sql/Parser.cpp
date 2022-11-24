@@ -2,13 +2,13 @@
 
 #include <db/core/Column.hpp>
 #include <db/core/DbError.hpp>
-#include <db/core/Function.hpp>
 #include <db/core/IndexedRelation.hpp>
-#include <db/core/Select.hpp>
 #include <db/core/Table.hpp>
 #include <db/core/Value.hpp>
-#include <db/core/ast/Show.hpp>
 #include <db/sql/Lexer.hpp>
+#include <db/sql/Select.hpp>
+#include <db/sql/ast/Function.hpp>
+#include <db/sql/ast/Show.hpp>
 
 #include <iostream>
 #include <memory>
@@ -33,7 +33,7 @@ bool Parser::compare_case_insensitive(const std::string& lhs, const std::string&
     return true;
 }
 
-Core::DbErrorOr<std::unique_ptr<Core::AST::Statement>> Parser::parse_statement() {
+Core::DbErrorOr<std::unique_ptr<AST::Statement>> Parser::parse_statement() {
     auto keyword = m_tokens[m_offset];
     // std::cout << keyword.value << "\n";
     if (keyword.type == Token::Type::KeywordSelect) {
@@ -55,10 +55,10 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Statement>> Parser::parse_statement()
 
             auto rhs = TRY(parse_select());
 
-            return std::make_unique<Core::AST::Union>(start, std::move(lhs), std::move(rhs), distinct);
+            return std::make_unique<AST::Union>(start, std::move(lhs), std::move(rhs), distinct);
         }
         else {
-            return std::make_unique<Core::AST::SelectStatement>(start, std::move(lhs));
+            return std::make_unique<AST::SelectStatement>(start, std::move(lhs));
         }
     }
     else if (keyword.type == Token::Type::KeywordCreate) {
@@ -104,7 +104,7 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Statement>> Parser::parse_statement()
         auto type = m_tokens[++m_offset];
         switch (type.type) {
         case Token::Type::KeywordTables:
-            return std::make_unique<Core::AST::Show>(m_offset - 1, Core::AST::Show::Type::Tables);
+            return std::make_unique<AST::Show>(m_offset - 1, AST::Show::Type::Tables);
         default:
             break;
         }
@@ -113,8 +113,8 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Statement>> Parser::parse_statement()
     return expected("statement", keyword, m_offset);
 }
 
-Core::DbErrorOr<Core::AST::StatementList> Parser::parse_statement_list() {
-    std::vector<std::unique_ptr<Core::AST::Statement>> statement_list;
+Core::DbErrorOr<AST::StatementList> Parser::parse_statement_list() {
+    std::vector<std::unique_ptr<AST::Statement>> statement_list;
     while (true) {
         if (m_tokens[m_offset].type == Token::Type::Eof) {
             break;
@@ -124,10 +124,10 @@ Core::DbErrorOr<Core::AST::StatementList> Parser::parse_statement_list() {
             return expected("semicolon at the end of statement", m_tokens[m_offset - 1], m_offset - 2);
         }
     }
-    return Core::AST::StatementList { static_cast<ssize_t>(statement_list[0]->start()), std::move(statement_list) };
+    return AST::StatementList { static_cast<ssize_t>(statement_list[0]->start()), std::move(statement_list) };
 }
 
-Core::DbErrorOr<Core::AST::Select> Parser::parse_select() {
+Core::DbErrorOr<AST::Select> Parser::parse_select() {
     auto start = m_offset;
 
     // SELECT
@@ -141,25 +141,25 @@ Core::DbErrorOr<Core::AST::Select> Parser::parse_select() {
     }
 
     // TOP
-    std::optional<Core::AST::Top> top;
+    std::optional<AST::Top> top;
     if (m_tokens[m_offset].type == Token::Type::KeywordTop) {
         m_offset++;
         try {
             unsigned value = std::stoi(m_tokens[m_offset++].value);
             if (m_tokens[m_offset].value == "PERC") {
-                top = Core::AST::Top { .unit = Core::AST::Top::Unit::Perc, .value = value };
+                top = AST::Top { .unit = AST::Top::Unit::Perc, .value = value };
 
                 m_offset++;
             }
             else
-                top = Core::AST::Top { .unit = Core::AST::Top::Unit::Val, .value = value };
+                top = AST::Top { .unit = AST::Top::Unit::Val, .value = value };
         } catch (...) {
             return Core::DbError { "Invalid argument for TOP", m_offset };
         }
     }
 
     // Columns
-    std::vector<Core::AST::SelectColumns::Column> columns;
+    std::vector<AST::SelectColumns::Column> columns;
 
     auto maybe_asterisk = m_tokens[m_offset];
     if (maybe_asterisk.type != Token::Type::Asterisk) {
@@ -178,7 +178,7 @@ Core::DbErrorOr<Core::AST::Select> Parser::parse_select() {
             }
 
             assert(expression);
-            columns.push_back(Core::AST::SelectColumns::Column { .alias = std::move(alias), .column = std::move(expression) });
+            columns.push_back(AST::SelectColumns::Column { .alias = std::move(alias), .column = std::move(expression) });
 
             auto comma = m_tokens[m_offset];
             if (comma.type != Token::Type::Comma)
@@ -190,7 +190,7 @@ Core::DbErrorOr<Core::AST::Select> Parser::parse_select() {
         m_offset++;
     }
 
-    Core::AST::SelectColumns select_columns { std::move(columns) };
+    AST::SelectColumns select_columns { std::move(columns) };
 
     // INTO
     std::optional<std::string> select_into;
@@ -206,14 +206,14 @@ Core::DbErrorOr<Core::AST::Select> Parser::parse_select() {
     }
 
     // FROM
-    std::unique_ptr<Core::AST::TableExpression> from_table = {};
+    std::unique_ptr<AST::TableExpression> from_table = {};
     if (m_tokens[m_offset].type == Token::Type::KeywordFrom) {
         m_offset++;
         from_table = TRY(parse_table_expression());
     }
 
     // WHERE
-    std::unique_ptr<Core::AST::Expression> where;
+    std::unique_ptr<AST::Expression> where;
     if (m_tokens[m_offset].type == Token::Type::KeywordWhere) {
         m_offset++;
         where = TRY(parse_expression());
@@ -222,14 +222,14 @@ Core::DbErrorOr<Core::AST::Select> Parser::parse_select() {
     }
 
     // GROUP BY
-    std::optional<Core::AST::GroupBy> group;
+    std::optional<AST::GroupBy> group;
     if (m_tokens[m_offset].type == Token::Type::KeywordGroup) {
         m_offset++;
         if (m_tokens[m_offset++].type != Token::Type::KeywordBy)
             return expected("'BY' after 'GROUP", m_tokens[m_offset], m_offset - 1);
 
-        Core::AST::GroupBy group_by;
-        group_by.type = Core::AST::GroupBy::GroupOrPartition::GROUP;
+        AST::GroupBy group_by;
+        group_by.type = AST::GroupBy::GroupOrPartition::GROUP;
 
         while (true) {
             auto expression = TRY(parse_expression());
@@ -254,8 +254,8 @@ Core::DbErrorOr<Core::AST::Select> Parser::parse_select() {
         if (m_tokens[m_offset++].type != Token::Type::KeywordBy)
             return expected("'BY' after 'GROUP", m_tokens[m_offset], m_offset - 1);
 
-        Core::AST::GroupBy partition_by;
-        partition_by.type = Core::AST::GroupBy::GroupOrPartition::PARTITION;
+        AST::GroupBy partition_by;
+        partition_by.type = AST::GroupBy::GroupOrPartition::PARTITION;
 
         while (true) {
             auto expression = TRY(parse_expression());
@@ -272,7 +272,7 @@ Core::DbErrorOr<Core::AST::Select> Parser::parse_select() {
     }
 
     // HAVING
-    std::unique_ptr<Core::AST::Expression> having;
+    std::unique_ptr<AST::Expression> having;
     if (m_tokens[m_offset].type == Token::Type::KeywordHaving) {
         m_offset++;
         having = TRY(parse_expression());
@@ -281,28 +281,28 @@ Core::DbErrorOr<Core::AST::Select> Parser::parse_select() {
     }
 
     // ORDER BY
-    std::optional<Core::AST::OrderBy> order;
+    std::optional<AST::OrderBy> order;
     if (m_tokens[m_offset].type == Token::Type::KeywordOrder) {
         m_offset++;
         if (m_tokens[m_offset++].type != Token::Type::KeywordBy)
             return expected("'BY' after 'ORDER", m_tokens[m_offset], m_offset - 1);
 
-        Core::AST::OrderBy order_by;
+        AST::OrderBy order_by;
 
         while (true) {
             auto expression = TRY(parse_expression_or_index(select_columns));
 
             auto param = m_tokens[m_offset];
-            auto order_method = Core::AST::OrderBy::Order::Ascending;
+            auto order_method = AST::OrderBy::Order::Ascending;
             if (param.type == Token::Type::OrderByParam) {
                 if (param.value == "ASC")
-                    order_method = Core::AST::OrderBy::Order::Ascending;
+                    order_method = AST::OrderBy::Order::Ascending;
                 else
-                    order_method = Core::AST::OrderBy::Order::Descending;
+                    order_method = AST::OrderBy::Order::Descending;
                 m_offset++;
             }
 
-            order_by.columns.push_back(Core::AST::OrderBy::OrderBySet { .expression = std::move(expression), .order = order_method });
+            order_by.columns.push_back(AST::OrderBy::OrderBySet { .expression = std::move(expression), .order = order_method });
 
             auto comma = m_tokens[m_offset];
             if (comma.type != Token::Type::Comma)
@@ -313,8 +313,8 @@ Core::DbErrorOr<Core::AST::Select> Parser::parse_select() {
         order = std::move(order_by);
     }
 
-    return Core::AST::Select { start,
-        Core::AST::Select::SelectOptions {
+    return AST::Select { start,
+        AST::Select::SelectOptions {
             .columns = std::move(select_columns),
             .from = std::move(from_table),
             .where = std::move(where),
@@ -340,7 +340,7 @@ static bool is_literal(Token::Type token) {
     }
 }
 
-Core::DbErrorOr<std::unique_ptr<Core::AST::Update>> Parser::parse_update() {
+Core::DbErrorOr<std::unique_ptr<AST::Update>> Parser::parse_update() {
     auto start = m_offset;
     m_offset++;
 
@@ -348,7 +348,7 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Update>> Parser::parse_update() {
     if (table_name.type != Token::Type::Identifier)
         return expected("table name after 'UPDATE'", table_name, m_offset - 1);
 
-    std::vector<Core::AST::Update::UpdatePair> to_update;
+    std::vector<AST::Update::UpdatePair> to_update;
 
     while (true) {
         auto set_identifier = m_tokens[m_offset++];
@@ -368,7 +368,7 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Update>> Parser::parse_update() {
 
         auto expr = TRY(parse_expression());
 
-        to_update.push_back(Core::AST::Update::UpdatePair { .column = std::move(column.value), .expr = std::move(expr) });
+        to_update.push_back(AST::Update::UpdatePair { .column = std::move(column.value), .expr = std::move(expr) });
 
         auto comma = m_tokens[m_offset];
         if (comma.type != Token::Type::Comma)
@@ -376,10 +376,10 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Update>> Parser::parse_update() {
         m_offset++;
     }
 
-    return std::make_unique<Core::AST::Update>(start, table_name.value, std::move(to_update));
+    return std::make_unique<AST::Update>(start, table_name.value, std::move(to_update));
 }
 
-Core::DbErrorOr<std::unique_ptr<Core::AST::Import>> Parser::parse_import() {
+Core::DbErrorOr<std::unique_ptr<AST::Import>> Parser::parse_import() {
     auto start = m_offset;
     m_offset++; // IMPORT
 
@@ -388,9 +388,9 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Import>> Parser::parse_import() {
         return expected("mode ('CSV')", mode_token, m_offset - 1);
     }
 
-    Core::AST::Import::Mode mode = TRY([&]() -> Core::DbErrorOr<Core::AST::Import::Mode> {
+    Core::ImportMode mode = TRY([&]() -> Core::DbErrorOr<Core::ImportMode> {
         if (compare_case_insensitive(mode_token.value, "CSV"))
-            return Core::AST::Import::Mode::Csv;
+            return Core::ImportMode::Csv;
         return Core::DbError { "Invalid import mode", m_offset - 1 };
     }());
 
@@ -409,10 +409,10 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Import>> Parser::parse_import() {
         return expected("table name", table_name, m_offset - 1);
     }
 
-    return std::make_unique<Core::AST::Import>(start, mode, file_name.value, table_name.value);
+    return std::make_unique<AST::Import>(start, mode, file_name.value, table_name.value);
 }
 
-Core::DbErrorOr<std::unique_ptr<Core::AST::DeleteFrom>> Parser::parse_delete_from() {
+Core::DbErrorOr<std::unique_ptr<AST::DeleteFrom>> Parser::parse_delete_from() {
     auto start = m_offset;
     m_offset++;
 
@@ -426,7 +426,7 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::DeleteFrom>> Parser::parse_delete_fro
         return expected("table name after 'FROM'", from, m_offset - 1);
 
     // WHERE
-    std::unique_ptr<Core::AST::Expression> where;
+    std::unique_ptr<AST::Expression> where;
     if (m_tokens[m_offset].type == Token::Type::KeywordWhere) {
         m_offset++;
         where = TRY(parse_expression());
@@ -434,12 +434,12 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::DeleteFrom>> Parser::parse_delete_fro
         // std::cout << "~~~ " << m_tokens[m_offset].value << std::endl;
     }
 
-    return std::make_unique<Core::AST::DeleteFrom>(start,
+    return std::make_unique<AST::DeleteFrom>(start,
         from_token.value,
         std::move(where));
 }
 
-Core::DbErrorOr<Core::AST::ParsedColumn> Parser::parse_column() {
+Core::DbErrorOr<AST::ParsedColumn> Parser::parse_column() {
     auto name = m_tokens[m_offset++];
     if (name.type != Token::Type::Identifier)
         return expected("column name", name, m_offset - 1);
@@ -536,13 +536,13 @@ Core::DbErrorOr<Core::AST::ParsedColumn> Parser::parse_column() {
         else
             return Core::DbError { "Invalid param for column: '" + param.value + "'", m_offset };
     }
-    return Core::AST::ParsedColumn {
+    return AST::ParsedColumn {
         .column = Core::Column { name.value, *type, auto_increment, unique, not_null, std::move(default_value) },
         .key = std::move(key)
     };
 }
 
-Core::DbErrorOr<std::unique_ptr<Core::AST::CreateTable>> Parser::parse_create_table() {
+Core::DbErrorOr<std::unique_ptr<AST::CreateTable>> Parser::parse_create_table() {
     auto start = m_offset;
     m_offset += 2; // CREATE TABLE
 
@@ -552,12 +552,12 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::CreateTable>> Parser::parse_create_ta
 
     auto paren_open = m_tokens[m_offset];
     if (paren_open.type != Token::Type::ParenOpen)
-        return std::make_unique<Core::AST::CreateTable>(start, table_name.value, std::vector<Core::AST::ParsedColumn> {}, std::make_shared<Core::AST::Check>(start));
+        return std::make_unique<AST::CreateTable>(start, table_name.value, std::vector<AST::ParsedColumn> {}, std::make_shared<AST::Check>(start));
     m_offset++;
 
-    std::vector<Core::AST::ParsedColumn> columns;
+    std::vector<AST::ParsedColumn> columns;
 
-    std::shared_ptr<Core::AST::Check> check = std::make_shared<Core::AST::Check>(start);
+    std::shared_ptr<AST::Check> check = std::make_shared<AST::Check>(start);
 
     while (true) {
         auto column = TRY(parse_column());
@@ -606,10 +606,10 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::CreateTable>> Parser::parse_create_ta
     if (paren_close.type != Token::Type::ParenClose)
         return expected("')' to close column list", paren_close, m_offset - 1);
 
-    return std::make_unique<Core::AST::CreateTable>(start, table_name.value, std::move(columns), std::move(check));
+    return std::make_unique<AST::CreateTable>(start, table_name.value, std::move(columns), std::move(check));
 }
 
-Core::DbErrorOr<std::unique_ptr<Core::AST::DropTable>> Parser::parse_drop_table() {
+Core::DbErrorOr<std::unique_ptr<AST::DropTable>> Parser::parse_drop_table() {
     auto start = m_offset;
     m_offset += 2; // DROP TABLE
 
@@ -617,10 +617,10 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::DropTable>> Parser::parse_drop_table(
     if (table_name.type != Token::Type::Identifier)
         return expected("table name", table_name, m_offset - 1);
 
-    return std::make_unique<Core::AST::DropTable>(start, table_name.value);
+    return std::make_unique<AST::DropTable>(start, table_name.value);
 }
 
-Core::DbErrorOr<std::unique_ptr<Core::AST::TruncateTable>> Parser::parse_truncate_table() {
+Core::DbErrorOr<std::unique_ptr<AST::TruncateTable>> Parser::parse_truncate_table() {
     auto start = m_offset;
     m_offset += 2; // TRUNCATE TABLE
 
@@ -628,10 +628,10 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::TruncateTable>> Parser::parse_truncat
     if (table_name.type != Token::Type::Identifier)
         return expected("table name", table_name, m_offset - 1);
 
-    return std::make_unique<Core::AST::TruncateTable>(start, table_name.value);
+    return std::make_unique<AST::TruncateTable>(start, table_name.value);
 }
 
-Core::DbErrorOr<std::unique_ptr<Core::AST::AlterTable>> Parser::parse_alter_table() {
+Core::DbErrorOr<std::unique_ptr<AST::AlterTable>> Parser::parse_alter_table() {
     auto start = m_offset;
     m_offset += 2; // ALTER TABLE
 
@@ -639,14 +639,14 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::AlterTable>> Parser::parse_alter_tabl
     if (table_name.type != Token::Type::Identifier)
         return expected("table name", table_name, m_offset - 1);
 
-    std::vector<Core::AST::ParsedColumn> to_add;
-    std::vector<Core::AST::ParsedColumn> to_alter;
+    std::vector<AST::ParsedColumn> to_add;
+    std::vector<AST::ParsedColumn> to_alter;
     std::vector<std::string> to_drop;
-    std::shared_ptr<Core::AST::Expression> check_to_add = nullptr;
-    std::shared_ptr<Core::AST::Expression> check_to_alter = nullptr;
+    std::shared_ptr<AST::Expression> check_to_add = nullptr;
+    std::shared_ptr<AST::Expression> check_to_alter = nullptr;
     bool check_to_drop = false;
-    std::vector<std::pair<std::string, std::shared_ptr<Core::AST::Expression>>> constraint_to_add;
-    std::vector<std::pair<std::string, std::shared_ptr<Core::AST::Expression>>> constraint_to_alter;
+    std::vector<std::pair<std::string, std::shared_ptr<AST::Expression>>> constraint_to_add;
+    std::vector<std::pair<std::string, std::shared_ptr<AST::Expression>>> constraint_to_alter;
     std::vector<std::string> constraint_to_drop;
 
     while (true) {
@@ -754,13 +754,13 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::AlterTable>> Parser::parse_alter_tabl
         m_offset++;
     }
 
-    return std::make_unique<Core::AST::AlterTable>(start, table_name.value,
+    return std::make_unique<AST::AlterTable>(start, table_name.value,
         std::move(to_add), std::move(to_alter), std::move(to_drop),
         std::move(check_to_add), std::move(check_to_alter), check_to_drop,
         std::move(constraint_to_add), std::move(constraint_to_alter), std::move(constraint_to_drop));
 }
 
-Core::DbErrorOr<std::unique_ptr<Core::AST::InsertInto>> Parser::parse_insert_into() {
+Core::DbErrorOr<std::unique_ptr<AST::InsertInto>> Parser::parse_insert_into() {
     auto start = m_offset;
     m_offset += 2; // INSERT INTO
 
@@ -770,7 +770,7 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::InsertInto>> Parser::parse_insert_int
 
     auto paren_open = m_tokens[m_offset];
     if (paren_open.type != Token::Type::ParenOpen && paren_open.type != Token::Type::KeywordValues)
-        return std::make_unique<Core::AST::InsertInto>(start, table_name.value, std::vector<std::string> {}, std::vector<std::unique_ptr<Core::AST::Expression>> {});
+        return std::make_unique<AST::InsertInto>(start, table_name.value, std::vector<std::string> {}, std::vector<std::unique_ptr<AST::Expression>> {});
 
     std::vector<std::string> columns;
     if (paren_open.type == Token::Type::ParenOpen) {
@@ -795,11 +795,11 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::InsertInto>> Parser::parse_insert_int
 
     auto value_token = m_tokens[m_offset++];
     if (value_token.type == Token::Type::KeywordValues) {
-        std::vector<std::unique_ptr<Core::AST::Expression>> values;
+        std::vector<std::unique_ptr<AST::Expression>> values;
 
         paren_open = m_tokens[m_offset];
         if (paren_open.type != Token::Type::ParenOpen)
-            return std::make_unique<Core::AST::InsertInto>(start, table_name.value, std::vector<std::string> {}, std::vector<std::unique_ptr<Core::AST::Expression>> {});
+            return std::make_unique<AST::InsertInto>(start, table_name.value, std::vector<std::string> {}, std::vector<std::unique_ptr<AST::Expression>> {});
         m_offset++;
 
         while (true) {
@@ -814,19 +814,19 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::InsertInto>> Parser::parse_insert_int
         auto paren_close = m_tokens[m_offset++];
         if (paren_close.type != Token::Type::ParenClose)
             return expected("')' to close values list", paren_close, m_offset - 1);
-        return std::make_unique<Core::AST::InsertInto>(start, table_name.value, std::move(columns), std::move(values));
+        return std::make_unique<AST::InsertInto>(start, table_name.value, std::move(columns), std::move(values));
     }
     else if (value_token.type == Token::Type::KeywordSelect) {
         m_offset--;
         auto result = TRY(parse_select());
-        return std::make_unique<Core::AST::InsertInto>(start, table_name.value, std::move(columns), std::move(result));
+        return std::make_unique<AST::InsertInto>(start, table_name.value, std::move(columns), std::move(result));
     }
 
     return expected("'VALUES' or 'SELECT'", value_token, m_offset - 1);
 }
 
-Core::DbErrorOr<std::unique_ptr<Core::AST::Expression>> Parser::parse_expression(int min_precedence) {
-    std::unique_ptr<Core::AST::Expression> lhs;
+Core::DbErrorOr<std::unique_ptr<AST::Expression>> Parser::parse_expression(int min_precedence) {
+    std::unique_ptr<AST::Expression> lhs;
 
     auto start = m_offset;
     auto token = m_tokens[m_offset];
@@ -843,14 +843,14 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Expression>> Parser::parse_expression
     }
     else if (token.type == Token::Type::OpSub) {
         m_offset++;
-        lhs = std::make_unique<Core::AST::UnaryOperator>(Core::AST::UnaryOperator::Operation::Minus, TRY(parse_expression(501)));
+        lhs = std::make_unique<AST::UnaryOperator>(AST::UnaryOperator::Operation::Minus, TRY(parse_expression(501)));
     }
     else if (token.type == Token::Type::ParenOpen) {
         auto postfix = m_tokens[m_offset + 1];
         if (postfix.type == Token::Type::KeywordSelect) {
             m_offset++;
 
-            lhs = std::make_unique<Core::AST::SelectExpression>(start, TRY(parse_select()));
+            lhs = std::make_unique<AST::SelectExpression>(start, TRY(parse_select()));
         }
         else {
             m_offset++;
@@ -864,8 +864,8 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Expression>> Parser::parse_expression
     }
     else if (token.type == Token::Type::KeywordCase) {
         m_offset++;
-        std::vector<Core::AST::CaseExpression::CasePair> cases;
-        std::unique_ptr<Core::AST::Expression> else_value;
+        std::vector<AST::CaseExpression::CasePair> cases;
+        std::unique_ptr<AST::Expression> else_value;
         while (true) {
             auto postfix = m_tokens[m_offset];
 
@@ -875,16 +875,16 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Expression>> Parser::parse_expression
                 if (else_value)
                     return expected("'END' after 'ELSE'", token, start);
 
-                std::unique_ptr<Core::AST::Expression> expr = TRY(parse_expression());
+                std::unique_ptr<AST::Expression> expr = TRY(parse_expression());
 
                 auto then_expression = m_tokens[m_offset++];
 
                 if (then_expression.type != Token::Type::KeywordThen)
                     return expected("'THEN'", token, start);
 
-                std::unique_ptr<Core::AST::Expression> val = TRY(parse_expression());
+                std::unique_ptr<AST::Expression> val = TRY(parse_expression());
 
-                cases.push_back(Core::AST::CaseExpression::CasePair { .expr = std::move(expr), .value = std::move(val) });
+                cases.push_back(AST::CaseExpression::CasePair { .expr = std::move(expr), .value = std::move(val) });
             }
             else if (postfix.value == "ELSE") {
                 m_offset++;
@@ -897,7 +897,7 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Expression>> Parser::parse_expression
             else if (postfix.type == Token::Type::KeywordEnd) {
                 m_offset++;
 
-                lhs = std::make_unique<Core::AST::CaseExpression>(std::move(cases), std::move(else_value));
+                lhs = std::make_unique<AST::CaseExpression>(std::move(cases), std::move(else_value));
                 break;
             }
             else {
@@ -917,8 +917,8 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Expression>> Parser::parse_expression
     return maybe_operator;
 }
 
-Core::DbErrorOr<std::unique_ptr<Core::AST::TableExpression>> Parser::parse_table_expression() {
-    std::unique_ptr<Core::AST::TableExpression> lhs;
+Core::DbErrorOr<std::unique_ptr<AST::TableExpression>> Parser::parse_table_expression() {
+    std::unique_ptr<AST::TableExpression> lhs;
 
     auto start = m_offset;
     auto token = m_tokens[m_offset];
@@ -931,7 +931,7 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::TableExpression>> Parser::parse_table
         auto postfix = m_tokens[m_offset + 1];
         if (postfix.type == Token::Type::KeywordSelect) {
             m_offset++;
-            lhs = std::make_unique<Core::AST::SelectTableExpression>(start, TRY(parse_select()));
+            lhs = std::make_unique<AST::SelectTableExpression>(start, TRY(parse_select()));
         }
         else {
             m_offset++;
@@ -952,7 +952,7 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::TableExpression>> Parser::parse_table
     return maybe_operator;
 }
 
-Core::DbErrorOr<std::unique_ptr<Core::AST::Expression>> Parser::parse_expression_or_index(Core::AST::SelectColumns const& select_columns) {
+Core::DbErrorOr<std::unique_ptr<AST::Expression>> Parser::parse_expression_or_index(AST::SelectColumns const& select_columns) {
     auto token = m_tokens[m_offset];
     if (token.type == Token::Type::Int) {
         m_offset++;
@@ -966,39 +966,39 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Expression>> Parser::parse_expression
         if (static_cast<size_t>(index) > select_columns.columns().size()) {
             return Core::DbError { "Index is out of range", m_offset - 1 };
         }
-        return std::make_unique<Core::AST::NonOwningExpressionProxy>(m_offset - 1, *select_columns.columns()[index - 1].column);
+        return std::make_unique<AST::NonOwningExpressionProxy>(m_offset - 1, *select_columns.columns()[index - 1].column);
     }
     return parse_expression();
 }
 
-Core::DbErrorOr<std::unique_ptr<Core::AST::Literal>> Parser::parse_literal() {
+Core::DbErrorOr<std::unique_ptr<AST::Literal>> Parser::parse_literal() {
     auto token = m_tokens[m_offset];
     auto start = m_offset;
 
     if (token.type == Token::Type::Int) {
         m_offset++;
-        return std::make_unique<Core::AST::Literal>(start, Core::Value::create_int(std::stoi(token.value)));
+        return std::make_unique<AST::Literal>(start, Core::Value::create_int(std::stoi(token.value)));
     }
     else if (token.type == Token::Type::Float) {
         m_offset++;
-        return std::make_unique<Core::AST::Literal>(start, Core::Value::create_float(std::stof(token.value)));
+        return std::make_unique<AST::Literal>(start, Core::Value::create_float(std::stof(token.value)));
     }
     else if (token.type == Token::Type::String) {
         m_offset++;
-        return std::make_unique<Core::AST::Literal>(start, Core::Value::create_varchar(token.value));
+        return std::make_unique<AST::Literal>(start, Core::Value::create_varchar(token.value));
     }
     else if (token.type == Token::Type::Bool) {
         m_offset++;
-        return std::make_unique<Core::AST::Literal>(start, Core::Value::create_bool((token.value == "true") ? 1 : 0));
+        return std::make_unique<AST::Literal>(start, Core::Value::create_bool((token.value == "true") ? 1 : 0));
     }
     else if (token.type == Token::Type::Date) {
         m_offset++;
-        return std::make_unique<Core::AST::Literal>(start,
+        return std::make_unique<AST::Literal>(start,
             Core::Value::create_time(TRY(Core::Date::from_iso8601_string(token.value).map_error(Core::DbErrorAddToken { m_offset - 1 }))));
     }
     else if (token.type == Token::Type::KeywordNull) {
         m_offset++;
-        return std::make_unique<Core::AST::Literal>(start, Core::Value::null());
+        return std::make_unique<AST::Literal>(start, Core::Value::null());
     }
 
     return expected("literal", m_tokens[m_offset], m_offset - 1);
@@ -1091,79 +1091,79 @@ static bool is_join_expression(Token const& token) {
     }
 }
 
-static Core::AST::BinaryOperator::Operation token_type_to_binary_operation(Token::Type op) {
+static AST::BinaryOperator::Operation token_type_to_binary_operation(Token::Type op) {
     switch (op) {
     case Token::Type::OpEqual:
-        return Core::AST::BinaryOperator::Operation::Equal;
+        return AST::BinaryOperator::Operation::Equal;
         break;
     case Token::Type::OpLess:
         // TODO: <=
-        return Core::AST::BinaryOperator::Operation::Less;
+        return AST::BinaryOperator::Operation::Less;
         break;
     case Token::Type::OpGreater:
         // TODO: >=
-        return Core::AST::BinaryOperator::Operation::Greater;
+        return AST::BinaryOperator::Operation::Greater;
         break;
     case Token::Type::OpNotEqual:
-        return Core::AST::BinaryOperator::Operation::NotEqual;
+        return AST::BinaryOperator::Operation::NotEqual;
         break;
     case Token::Type::KeywordLike:
-        return Core::AST::BinaryOperator::Operation::Like;
+        return AST::BinaryOperator::Operation::Like;
         break;
     case Token::Type::KeywordMatch:
-        return Core::AST::BinaryOperator::Operation::Match;
+        return AST::BinaryOperator::Operation::Match;
         break;
     case Token::Type::KeywordAnd:
-        return Core::AST::BinaryOperator::Operation::And;
+        return AST::BinaryOperator::Operation::And;
         break;
     case Token::Type::KeywordOr:
-        return Core::AST::BinaryOperator::Operation::Or;
+        return AST::BinaryOperator::Operation::Or;
         break;
     default:
-        return Core::AST::BinaryOperator::Operation::Invalid;
+        return AST::BinaryOperator::Operation::Invalid;
     }
 }
 
-static Core::AST::ArithmeticOperator::Operation token_type_to_arithmetic_operation(Token::Type op) {
+static AST::ArithmeticOperator::Operation token_type_to_arithmetic_operation(Token::Type op) {
     switch (op) {
     case Token::Type::OpAdd:
-        return Core::AST::ArithmeticOperator::Operation::Add;
+        return AST::ArithmeticOperator::Operation::Add;
         break;
     case Token::Type::OpSub:
-        return Core::AST::ArithmeticOperator::Operation::Sub;
+        return AST::ArithmeticOperator::Operation::Sub;
         break;
     case Token::Type::OpMul:
     case Token::Type::Asterisk:
-        return Core::AST::ArithmeticOperator::Operation::Mul;
+        return AST::ArithmeticOperator::Operation::Mul;
         break;
     case Token::Type::OpDiv:
-        return Core::AST::ArithmeticOperator::Operation::Div;
+        return AST::ArithmeticOperator::Operation::Div;
         break;
     default:
-        return Core::AST::ArithmeticOperator::Operation::Invalid;
+        return AST::ArithmeticOperator::Operation::Invalid;
     }
 }
 
-static Core::AST::JoinExpression::Type token_to_join_operation(Token token) {
+static AST::JoinExpression::Type token_to_join_operation(Token token) {
     if (token.type == Token::Type::Identifier) {
         if (Parser::compare_case_insensitive(token.value, "LEFT"))
-            return Core::AST::JoinExpression::Type::LeftJoin;
+            return AST::JoinExpression::Type::LeftJoin;
         if (Parser::compare_case_insensitive(token.value, "RIGHT"))
-            return Core::AST::JoinExpression::Type::RightJoin;
+            return AST::JoinExpression::Type::RightJoin;
     }
     switch (token.type) {
     case Token::Type::KeywordInner:
-        return Core::AST::JoinExpression::Type::InnerJoin;
+        return AST::JoinExpression::Type::InnerJoin;
         break;
     case Token::Type::KeywordOuter:
-        return Core::AST::JoinExpression::Type::OuterJoin;
+        return AST::JoinExpression::Type::OuterJoin;
         break;
     default:
-        return Core::AST::JoinExpression::Type::Invalid;
+        return AST::JoinExpression::Type::Invalid;
     }
 }
 
-Core::DbErrorOr<std::unique_ptr<Core::AST::Expression>> Parser::parse_operand(std::unique_ptr<Core::AST::Expression> lhs, int min_precedence) {
+Core::DbErrorOr<std::unique_ptr<AST::Expression>> Parser::parse_operand(std::unique_ptr<AST::Expression> lhs, int min_precedence) {
     auto peek_operator = [this]() {
         return m_tokens[m_offset].type;
     };
@@ -1187,7 +1187,7 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Expression>> Parser::parse_operand(st
         //  entirely by BETWEEN.
         auto current_precedence = operator_precedence(current_operator);
 
-        using Variant = std::variant<BetweenRange, InArgs, IsArgs, std::unique_ptr<Core::AST::Expression>>;
+        using Variant = std::variant<BetweenRange, InArgs, IsArgs, std::unique_ptr<AST::Expression>>;
 
         Variant rhs = TRY([&]() -> Core::DbErrorOr<Variant> {
             if (current_operator == Token::Type::KeywordBetween)
@@ -1207,51 +1207,51 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Expression>> Parser::parse_operand(st
         if (current_precedence >= next_precedence) {
             if (current_operator == Token::Type::KeywordBetween) {
                 auto rhs_between_range = std::move(std::get<BetweenRange>(rhs));
-                lhs = std::make_unique<Core::AST::BetweenExpression>(std::move(lhs), std::move(rhs_between_range.min), std::move(rhs_between_range.max));
+                lhs = std::make_unique<AST::BetweenExpression>(std::move(lhs), std::move(rhs_between_range.min), std::move(rhs_between_range.max));
             }
             else if (current_operator == Token::Type::KeywordIn) {
                 auto rhs_in_args = std::move(std::get<InArgs>(rhs));
-                lhs = std::make_unique<Core::AST::InExpression>(std::move(lhs), std::move(rhs_in_args.args));
+                lhs = std::make_unique<AST::InExpression>(std::move(lhs), std::move(rhs_in_args.args));
             }
             else if (current_operator == Token::Type::KeywordIs) {
                 auto rhs_is_args = std::move(std::get<IsArgs>(rhs));
-                lhs = std::make_unique<Core::AST::IsExpression>(std::move(lhs), rhs_is_args.what);
+                lhs = std::make_unique<AST::IsExpression>(std::move(lhs), rhs_is_args.what);
             }
             else if (is_binary_operator(current_operator)) {
-                lhs = std::make_unique<Core::AST::BinaryOperator>(std::move(lhs), token_type_to_binary_operation(current_operator),
-                    std::move(std::get<std::unique_ptr<Core::AST::Expression>>(rhs)));
+                lhs = std::make_unique<AST::BinaryOperator>(std::move(lhs), token_type_to_binary_operation(current_operator),
+                    std::move(std::get<std::unique_ptr<AST::Expression>>(rhs)));
             }
             else if (is_arithmetic_operator(current_operator)) {
-                lhs = std::make_unique<Core::AST::ArithmeticOperator>(std::move(lhs), token_type_to_arithmetic_operation(current_operator),
-                    std::move(std::get<std::unique_ptr<Core::AST::Expression>>(rhs)));
+                lhs = std::make_unique<AST::ArithmeticOperator>(std::move(lhs), token_type_to_arithmetic_operation(current_operator),
+                    std::move(std::get<std::unique_ptr<AST::Expression>>(rhs)));
             }
         }
         else {
             if (current_operator == Token::Type::KeywordBetween) {
                 auto rhs_between_range = std::move(std::get<BetweenRange>(rhs));
-                lhs = std::make_unique<Core::AST::BetweenExpression>(std::move(lhs), std::move(rhs_between_range.min), TRY(parse_operand(std::move(rhs_between_range.max))));
+                lhs = std::make_unique<AST::BetweenExpression>(std::move(lhs), std::move(rhs_between_range.min), TRY(parse_operand(std::move(rhs_between_range.max))));
             }
             else if (current_operator == Token::Type::KeywordIn) {
                 auto rhs_in_args = std::move(std::get<InArgs>(rhs));
-                lhs = std::make_unique<Core::AST::InExpression>(std::move(lhs), std::move(rhs_in_args.args));
+                lhs = std::make_unique<AST::InExpression>(std::move(lhs), std::move(rhs_in_args.args));
             }
             else if (current_operator == Token::Type::KeywordIs) {
                 auto rhs_is_args = std::move(std::get<IsArgs>(rhs));
-                lhs = std::make_unique<Core::AST::IsExpression>(std::move(lhs), rhs_is_args.what);
+                lhs = std::make_unique<AST::IsExpression>(std::move(lhs), rhs_is_args.what);
             }
             else if (is_binary_operator(current_operator)) {
-                lhs = std::make_unique<Core::AST::BinaryOperator>(std::move(lhs), token_type_to_binary_operation(current_operator),
-                    TRY(parse_operand(std::move(std::get<std::unique_ptr<Core::AST::Expression>>(rhs)))));
+                lhs = std::make_unique<AST::BinaryOperator>(std::move(lhs), token_type_to_binary_operation(current_operator),
+                    TRY(parse_operand(std::move(std::get<std::unique_ptr<AST::Expression>>(rhs)))));
             }
             else if (is_arithmetic_operator(current_operator)) {
-                lhs = std::make_unique<Core::AST::ArithmeticOperator>(std::move(lhs), token_type_to_arithmetic_operation(current_operator),
-                    TRY(parse_operand(std::move(std::get<std::unique_ptr<Core::AST::Expression>>(rhs)))));
+                lhs = std::make_unique<AST::ArithmeticOperator>(std::move(lhs), token_type_to_arithmetic_operation(current_operator),
+                    TRY(parse_operand(std::move(std::get<std::unique_ptr<AST::Expression>>(rhs)))));
             }
         }
     }
 }
 
-Core::DbErrorOr<std::unique_ptr<Core::AST::TableExpression>> Parser::parse_join_expression(std::unique_ptr<Core::AST::TableExpression> lhs) {
+Core::DbErrorOr<std::unique_ptr<AST::TableExpression>> Parser::parse_join_expression(std::unique_ptr<AST::TableExpression> lhs) {
     while (true) {
         auto current = m_tokens[m_offset];
         if (!is_join_expression(current))
@@ -1260,7 +1260,7 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::TableExpression>> Parser::parse_join_
 
         if (current.type == Token::Type::Comma) {
             auto rhs = TRY(parse_table_expression());
-            lhs = std::make_unique<Core::AST::CrossJoinExpression>(m_offset, std::move(lhs), std::move(rhs));
+            lhs = std::make_unique<AST::CrossJoinExpression>(m_offset, std::move(lhs), std::move(rhs));
         }
         else {
             if (current.type == Token::Type::KeywordFull) {
@@ -1290,36 +1290,36 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::TableExpression>> Parser::parse_join_
             }
 
             auto on_rhs = TRY(parse_identifier());
-            lhs = std::make_unique<Core::AST::JoinExpression>(m_offset, std::move(lhs), std::move(on_lhs), token_to_join_operation(current), std::move(rhs), std::move(on_rhs));
+            lhs = std::make_unique<AST::JoinExpression>(m_offset, std::move(lhs), std::move(on_lhs), token_to_join_operation(current), std::move(rhs), std::move(on_rhs));
         }
     }
 }
 
-Core::AST::AggregateFunction::Function to_aggregate_function(std::string const& name) {
+AST::AggregateFunction::Function to_aggregate_function(std::string const& name) {
     // TODO: Case-insensitive match
     if (Parser::compare_case_insensitive(name, "COUNT"))
-        return Core::AST::AggregateFunction::Function::Count;
+        return AST::AggregateFunction::Function::Count;
     else if (Parser::compare_case_insensitive(name, "SUM"))
-        return Core::AST::AggregateFunction::Function::Sum;
+        return AST::AggregateFunction::Function::Sum;
     else if (Parser::compare_case_insensitive(name, "MIN"))
-        return Core::AST::AggregateFunction::Function::Min;
+        return AST::AggregateFunction::Function::Min;
     else if (Parser::compare_case_insensitive(name, "MAX"))
-        return Core::AST::AggregateFunction::Function::Max;
+        return AST::AggregateFunction::Function::Max;
     else if (Parser::compare_case_insensitive(name, "AVG"))
-        return Core::AST::AggregateFunction::Function::Avg;
-    return Core::AST::AggregateFunction::Function::Invalid;
+        return AST::AggregateFunction::Function::Avg;
+    return AST::AggregateFunction::Function::Invalid;
 }
 
-Core::DbErrorOr<std::unique_ptr<Core::AST::Expression>> Parser::parse_function(std::string name) {
+Core::DbErrorOr<std::unique_ptr<AST::Expression>> Parser::parse_function(std::string name) {
     auto start = m_offset - 1;
     m_offset++; // (
 
-    std::vector<std::unique_ptr<Core::AST::Expression>> args;
+    std::vector<std::unique_ptr<AST::Expression>> args;
     while (true) {
         // std::cout << "PARSE EXPRESSION AT " << m_offset << std::endl;
 
         auto aggregate_function = to_aggregate_function(name);
-        if (aggregate_function != Core::AST::AggregateFunction::Function::Invalid) {
+        if (aggregate_function != AST::AggregateFunction::Function::Invalid) {
             auto expression = TRY(parse_expression());
 
             if (m_tokens[m_offset++].type != Token::Type::ParenClose)
@@ -1349,7 +1349,7 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Expression>> Parser::parse_function(s
                     return expected("')' to close 'OVER' clause", m_tokens[m_offset], m_offset - 1);
             }
 
-            return { std::make_unique<Core::AST::AggregateFunction>(m_offset, aggregate_function, std::move(expression), std::move(over)) };
+            return { std::make_unique<AST::AggregateFunction>(m_offset, aggregate_function, std::move(expression), std::move(over)) };
         }
 
         auto expression = TRY(parse_expression());
@@ -1364,11 +1364,11 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Expression>> Parser::parse_function(s
         }
         m_offset++;
     }
-    return std::make_unique<Core::AST::Function>(start, std::move(name), std::move(args));
+    return std::make_unique<AST::Function>(start, std::move(name), std::move(args));
 }
 
 Core::DbErrorOr<Parser::InArgs> Parser::parse_in() {
-    std::vector<std::unique_ptr<Core::AST::Expression>> args;
+    std::vector<std::unique_ptr<AST::Expression>> args;
     auto paren_open = m_tokens[m_offset++];
 
     if (paren_open.type != Token::Type::ParenOpen)
@@ -1393,18 +1393,18 @@ Core::DbErrorOr<Parser::InArgs> Parser::parse_in() {
 Core::DbErrorOr<Parser::IsArgs> Parser::parse_is() {
     auto token = m_tokens[m_offset++];
     if (token.type == Token::Type::KeywordNull) {
-        return Parser::IsArgs { Core::AST::IsExpression::What::Null };
+        return Parser::IsArgs { AST::IsExpression::What::Null };
     }
     if (token.type == Token::Type::KeywordNot) {
         token = m_tokens[m_offset++];
         if (token.type == Token::Type::KeywordNull)
-            return Parser::IsArgs { Core::AST::IsExpression::What::NotNull };
+            return Parser::IsArgs { AST::IsExpression::What::NotNull };
         return expected("'NULL' after 'IS NOT'", token, m_offset - 1);
     }
     return expected("'NULL' or 'NOT NULL' after 'IS'", token, m_offset - 1);
 }
 
-Core::DbErrorOr<std::unique_ptr<Core::AST::Identifier>> Parser::parse_identifier() {
+Core::DbErrorOr<std::unique_ptr<AST::Identifier>> Parser::parse_identifier() {
     auto name = m_tokens[m_offset++];
     std::optional<std::string> table = {};
 
@@ -1423,10 +1423,10 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::Identifier>> Parser::parse_identifier
             return expected("identifier", name, m_offset - 1);
     }
 
-    return std::make_unique<Core::AST::Identifier>(m_offset - 1, name.value, std::move(table));
+    return std::make_unique<AST::Identifier>(m_offset - 1, name.value, std::move(table));
 }
 
-Core::DbErrorOr<std::unique_ptr<Core::AST::TableIdentifier>> Parser::parse_table_identifier() {
+Core::DbErrorOr<std::unique_ptr<AST::TableIdentifier>> Parser::parse_table_identifier() {
     auto name = m_tokens[m_offset++];
     std::optional<std::string> alias = {};
 
@@ -1448,7 +1448,7 @@ Core::DbErrorOr<std::unique_ptr<Core::AST::TableIdentifier>> Parser::parse_table
             return expected("identifier", alias_token, m_offset - 1);
         alias = alias_token.value;
     }
-    return std::make_unique<Core::AST::TableIdentifier>(m_offset - 1, name.value, alias);
+    return std::make_unique<AST::TableIdentifier>(m_offset - 1, name.value, alias);
 }
 
 Core::DbError Parser::expected(std::string what, Token got, size_t offset) {

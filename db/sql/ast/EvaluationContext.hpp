@@ -1,21 +1,21 @@
 #pragma once
 
-#include <db/core/ast/SelectColumns.hpp>
+#include <db/sql/ast/SelectColumns.hpp>
 
 namespace Db::Core {
 class Database;
 }
 
-namespace Db::Core::AST {
+namespace Db::Sql::AST {
 
 class TableExpression;
 
 struct EvaluationContextFrame {
     TableExpression const* table = nullptr;
     SelectColumns const& columns;
-    TupleWithSource row {};
+    Core::TupleWithSource row {};
 
-    std::optional<std::span<Tuple const>> row_group {};
+    std::optional<std::span<Core::Tuple const>> row_group {};
     enum class RowType {
         FromTable,
         FromResultSet
@@ -28,7 +28,7 @@ struct EvaluationContextFrame {
 };
 
 struct EvaluationContext {
-    Database* db = nullptr;
+    Core::Database* db = nullptr;
     std::list<EvaluationContextFrame> frames {};
 
     EvaluationContextFrame& current_frame() {

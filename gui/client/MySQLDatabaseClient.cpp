@@ -136,8 +136,8 @@ Db::Core::DbErrorOr<Structure::Database> MySQLDatabaseClient::structure() const 
     return database;
 }
 
-Db::Core::DbErrorOr<void> MySQLDatabaseClient::import(std::string const& filename, std::string const& table_name, Db::Core::AST::Import::Mode mode) {
-    assert(mode == Db::Core::AST::Import::Mode::Csv);
+Db::Core::DbErrorOr<void> MySQLDatabaseClient::import(std::string const& filename, std::string const& table_name, Db::Core::ImportMode mode) {
+    assert(mode == Db::Core::ImportMode::Csv);
 
     // FIXME: Requiring a database here is a hack, fix that!
     Db::Core::Database db;

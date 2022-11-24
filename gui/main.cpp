@@ -101,7 +101,7 @@ int main() {
 
         auto& import_csv_dialog = window.open_overlay<EssaDB::ImportCSVDialog>();
         import_csv_dialog.on_ok = [&window, &console, &import_csv_dialog, &client, &update_db_model]() {
-            auto maybe_error = client->import(import_csv_dialog.csv_file(), import_csv_dialog.table_name(), Db::Core::AST::Import::Mode::Csv);
+            auto maybe_error = client->import(import_csv_dialog.csv_file(), import_csv_dialog.table_name(), Db::Core::ImportMode::Csv);
             if (maybe_error.is_error()) {
                 auto message = maybe_error.release_error().message();
                 console->append_content({ .color = Util::Colors::Red, .text = Util::UString { message } });

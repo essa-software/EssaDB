@@ -1,9 +1,9 @@
-#include <db/core/ast/SelectColumns.hpp>
+#include <db/sql/ast/SelectColumns.hpp>
 
-#include <db/core/ast/EvaluationContext.hpp>
-#include <db/core/ast/TableExpression.hpp>
+#include <db/sql/ast/EvaluationContext.hpp>
+#include <db/sql/ast/TableExpression.hpp>
 
-namespace Db::Core::AST {
+namespace Db::Sql::AST {
 
 SelectColumns::SelectColumns(std::vector<Column> columns)
     : m_columns(std::move(columns)) {
@@ -24,7 +24,7 @@ SelectColumns::ResolvedAlias const* SelectColumns::resolve_alias(std::string con
     return &it->second;
 }
 
-DbErrorOr<Value> SelectColumns::resolve_value(EvaluationContext& context, Identifier const& identifier) const {
+Core::DbErrorOr<Core::Value> SelectColumns::resolve_value(EvaluationContext& context, Identifier const& identifier) const {
     auto const& tuple = context.current_frame().row;
     if (!identifier.table()) {
         auto resolved_alias = resolve_alias(identifier.id());
@@ -33,7 +33,7 @@ DbErrorOr<Value> SelectColumns::resolve_value(EvaluationContext& context, Identi
     }
 
     if (!tuple.source)
-        return DbError { "Cannot use table columns on aggregated rows", 0 };
+        return Core::DbError { "Cannot use table columns on aggregated rows", 0 };
 
     std::optional<size_t> index;
     for (auto it = context.frames.rbegin(); it != context.frames.rend(); it++) {
@@ -44,7 +44,7 @@ DbErrorOr<Value> SelectColumns::resolve_value(EvaluationContext& context, Identi
         }
     }
     if (!index) {
-        return DbError { "Invalid identifier", identifier.start() };
+        return Core::DbError { "Invalid identifier", identifier.start() };
     }
     return tuple.source->value(*index);
 }

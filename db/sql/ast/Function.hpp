@@ -1,8 +1,8 @@
 #pragma once
 
-#include <db/core/ast/Expression.hpp>
+#include <db/sql/ast/Expression.hpp>
 
-namespace Db::Core::AST {
+namespace Db::Sql::AST {
 
 class Function : public Expression {
 public:
@@ -11,7 +11,7 @@ public:
         , m_name(std::move(name))
         , m_args(std::move(args)) { }
 
-    virtual DbErrorOr<Value> evaluate(EvaluationContext&) const override;
+    virtual Core::DbErrorOr<Core::Value> evaluate(EvaluationContext&) const override;
     virtual std::string to_string() const override { return m_name + "(TODO)"; }
 
     virtual std::vector<std::string> referenced_columns() const override {
@@ -45,10 +45,10 @@ public:
         , m_expression(std::move(expression))
         , m_over(std::move(over)) { }
 
-    virtual DbErrorOr<Value> evaluate(EvaluationContext&) const override;
+    virtual Core::DbErrorOr<Core::Value> evaluate(EvaluationContext&) const override;
     virtual std::string to_string() const override { return "AggregateFunction?(TODO)"; }
 
-    DbErrorOr<Value> aggregate(EvaluationContext&, std::span<Tuple const> rows) const;
+    Core::DbErrorOr<Core::Value> aggregate(EvaluationContext&, std::span<Core::Tuple const> rows) const;
 
     virtual std::vector<std::string> referenced_columns() const override { return m_expression->referenced_columns(); }
     virtual bool contains_aggregate_function() const override { return true; }

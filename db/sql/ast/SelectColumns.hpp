@@ -1,12 +1,12 @@
 #pragma once
 
 #include <db/core/Value.hpp>
-#include <db/core/ast/Expression.hpp>
+#include <db/sql/ast/Expression.hpp>
 #include <memory>
 #include <optional>
 #include <string>
 
-namespace Db::Core::AST {
+namespace Db::Sql::AST {
 
 class SelectColumns {
 public:
@@ -28,7 +28,7 @@ public:
     };
 
     ResolvedAlias const* resolve_alias(std::string const& alias) const;
-    DbErrorOr<Value> resolve_value(EvaluationContext&, Identifier const&) const;
+    Core::DbErrorOr<Core::Value> resolve_value(EvaluationContext&, Identifier const&) const;
 
 private:
     std::vector<Column> m_columns;

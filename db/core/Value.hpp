@@ -1,7 +1,6 @@
 #pragma once
 
 #include "DbError.hpp"
-#include <EssaUtil/SimulationClock.hpp>
 #include <functional>
 #include <optional>
 #include <string>

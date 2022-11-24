@@ -1,7 +1,6 @@
 #pragma once
 
 #include <db/core/Relation.hpp>
-#include <db/core/ast/Expression.hpp>
 
 namespace Db::Core {
 

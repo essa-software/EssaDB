@@ -2,7 +2,7 @@
 
 #include <sys/types.h>
 
-namespace Db::Core::AST {
+namespace Db::Sql::AST {
 
 class ASTNode {
 public:

@@ -2,7 +2,6 @@
 
 #include <db/core/Database.hpp>
 #include <db/core/Table.hpp>
-#include <db/core/ast/TableExpression.hpp>
 
 namespace Db::Core {
 

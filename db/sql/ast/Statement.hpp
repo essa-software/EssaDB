@@ -1,17 +1,18 @@
 #pragma once
 
 #include <db/core/Column.hpp>
+#include <db/core/ImportMode.hpp>
 #include <db/core/IndexedRelation.hpp>
 #include <db/core/ValueOrResultSet.hpp>
-#include <db/core/ast/ASTNode.hpp>
-#include <db/core/ast/Expression.hpp>
+#include <db/sql/ast/ASTNode.hpp>
+#include <db/sql/ast/Expression.hpp>
 #include <map>
 
 namespace Db::Core {
 class Database;
 }
 
-namespace Db::Core::AST {
+namespace Db::Sql::AST {
 
 struct ParsedColumn {
     Core::Column column;
@@ -27,7 +28,7 @@ public:
         : ASTNode(start) { }
 
     virtual ~Statement() = default;
-    virtual DbErrorOr<ValueOrResultSet> execute(Database&) const = 0;
+    virtual Core::DbErrorOr<Core::ValueOrResultSet> execute(Core::Database&) const = 0;
 };
 
 class StatementList : public ASTNode {
@@ -36,7 +37,7 @@ public:
         : ASTNode(start)
         , m_statements(std::move(statements)) { }
 
-    DbErrorOr<ValueOrResultSet> execute(Database&) const;
+    Core::DbErrorOr<Core::ValueOrResultSet> execute(Core::Database&) const;
 
 private:
     std::vector<std::unique_ptr<Statement>> m_statements;
@@ -49,7 +50,7 @@ public:
         , m_from(std::move(from))
         , m_where(std::move(where)) { }
 
-    virtual DbErrorOr<ValueOrResultSet> execute(Database&) const override;
+    virtual Core::DbErrorOr<Core::ValueOrResultSet> execute(Core::Database&) const override;
 
 private:
     std::string m_from;
@@ -68,7 +69,7 @@ public:
         , m_table(table)
         , m_to_update(std::move(to_update)) { }
 
-    virtual DbErrorOr<ValueOrResultSet> execute(Database&) const override;
+    virtual Core::DbErrorOr<Core::ValueOrResultSet> execute(Core::Database&) const override;
 
 private:
     std::string m_table;
@@ -77,20 +78,16 @@ private:
 
 class Import : public Statement {
 public:
-    enum class Mode {
-        Csv
-    };
-
-    Import(ssize_t start, Mode mode, std::string filename, std::string table)
+    Import(ssize_t start, Core::ImportMode mode, std::string filename, std::string table)
         : Statement(start)
         , m_mode(mode)
         , m_filename(std::move(filename))
         , m_table(std::move(table)) { }
 
-    virtual DbErrorOr<ValueOrResultSet> execute(Database&) const override;
+    virtual Core::DbErrorOr<Core::ValueOrResultSet> execute(Core::Database&) const override;
 
 private:
-    Mode m_mode;
+    Core::ImportMode m_mode;
     std::string m_filename;
     std::string m_table;
 };
@@ -103,7 +100,7 @@ public:
         , m_columns(std::move(columns))
         , m_check(std::move(check)) { }
 
-    virtual DbErrorOr<ValueOrResultSet> execute(Database&) const override;
+    virtual Core::DbErrorOr<Core::ValueOrResultSet> execute(Core::Database&) const override;
 
 private:
     std::string m_name;
@@ -118,7 +115,7 @@ public:
         : Statement(start)
         , m_name(std::move(name)) { }
 
-    virtual DbErrorOr<ValueOrResultSet> execute(Database&) const override;
+    virtual Core::DbErrorOr<Core::ValueOrResultSet> execute(Core::Database&) const override;
 
 private:
     std::string m_name;
@@ -130,7 +127,7 @@ public:
         : Statement(start)
         , m_name(std::move(name)) { }
 
-    virtual DbErrorOr<ValueOrResultSet> execute(Database&) const override;
+    virtual Core::DbErrorOr<Core::ValueOrResultSet> execute(Core::Database&) const override;
 
 private:
     std::string m_name;
@@ -153,7 +150,7 @@ public:
         , m_constraint_to_alter(std::move(constraint_to_alter))
         , m_constraint_to_drop(std::move(constraint_to_drop)) { }
 
-    virtual DbErrorOr<ValueOrResultSet> execute(Database&) const override;
+    virtual Core::DbErrorOr<Core::ValueOrResultSet> execute(Core::Database&) const override;
 
 private:
     std::string m_name;

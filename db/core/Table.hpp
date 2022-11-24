@@ -2,15 +2,16 @@
 
 #include <EssaUtil/NonCopyable.hpp>
 #include <db/core/Column.hpp>
-#include <db/core/Database.hpp>
 #include <db/core/DbError.hpp>
 #include <db/core/IndexedRelation.hpp>
 #include <db/core/ResultSet.hpp>
-#include <db/core/ast/Expression.hpp>
 #include <map>
 #include <memory>
 #include <optional>
 #include <set>
+
+// FIXME: Get rid of Core -> SQL dependency
+#include <db/sql/ast/Expression.hpp>
 
 namespace Db::Core {
 
@@ -53,7 +54,7 @@ public:
     auto begin() { return m_rows.data(); }
     auto end() { return m_rows.data() + m_rows.size(); }
 
-    MemoryBackedTable(std::shared_ptr<AST::Check> check, const std::string& name)
+    MemoryBackedTable(std::shared_ptr<Sql::AST::Check> check, const std::string& name)
         : m_check(std::move(check))
         , m_name(name) { }
 
@@ -81,8 +82,8 @@ public:
 
     virtual std::string name() const override { return m_name; }
 
-    std::shared_ptr<AST::Check>& check() { return m_check; }
-    std::shared_ptr<AST::Check> const& check() const { return m_check; }
+    std::shared_ptr<Sql::AST::Check>& check() { return m_check; }
+    std::shared_ptr<Sql::AST::Check> const& check() const { return m_check; }
 
     virtual DbErrorOr<void> insert_unchecked(Tuple const&) override;
 
@@ -93,7 +94,7 @@ private:
 
     std::vector<Tuple> m_rows;
     std::vector<Column> m_columns;
-    std::shared_ptr<AST::Check> m_check;
+    std::shared_ptr<Sql::AST::Check> m_check;
     std::map<std::string, int> m_auto_increment_values;
 
     const std::string m_name;

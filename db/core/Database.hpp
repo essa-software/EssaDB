@@ -2,8 +2,8 @@
 
 #include <EssaUtil/NonCopyable.hpp>
 #include <db/core/DbError.hpp>
+#include <db/core/ImportMode.hpp>
 #include <db/core/Table.hpp>
-#include <db/core/ast/Statement.hpp>
 #include <string>
 #include <unordered_map>
 
@@ -11,7 +11,7 @@ namespace Db::Core {
 
 class Database : public Util::NonCopyable {
 public:
-    Table& create_table(std::string name, std::shared_ptr<AST::Check> check);
+    Table& create_table(std::string name, std::shared_ptr<Sql::AST::Check> check);
     DbErrorOr<Table*> create_table_from_query(ResultSet select, std::string name);
 
     DbErrorOr<void> drop_table(std::string name);
@@ -19,7 +19,7 @@ public:
 
     bool exists(std::string name) const { return m_tables.find(name) != m_tables.end(); }
 
-    DbErrorOr<void> import_to_table(std::string const& path, std::string const& table_name, AST::Import::Mode);
+    DbErrorOr<void> import_to_table(std::string const& path, std::string const& table_name, ImportMode);
 
     size_t table_count() const { return m_tables.size(); }
 
@@ -29,7 +29,7 @@ public:
             c(table);
     }
 
-    void remove_all_tables(){
+    void remove_all_tables() {
         m_tables.clear();
     }
 
