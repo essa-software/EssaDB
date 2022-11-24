@@ -1,17 +1,9 @@
 add_library(
     essadb
 
-    core/ast/Expression.cpp
-    core/ast/Select.cpp
-    core/ast/SelectColumns.cpp
-    core/ast/Show.cpp
-    core/ast/Statement.cpp
-    core/ast/TableExpression.cpp
     core/Database.cpp
-    core/Function.cpp
     core/Relation.cpp
     core/ResultSet.cpp
-    core/Select.cpp
     core/Table.cpp
     core/Tuple.cpp
     core/TupleFromValues.cpp
@@ -20,6 +12,14 @@ add_library(
     sql/Lexer.cpp
     sql/Parser.cpp
     sql/SQL.cpp
+    sql/Select.cpp
+    sql/ast/Expression.cpp
+    sql/ast/Function.cpp
+    sql/ast/Select.cpp
+    sql/ast/SelectColumns.cpp
+    sql/ast/Show.cpp
+    sql/ast/Statement.cpp
+    sql/ast/TableExpression.cpp
 )
 
 essautil_setup_target(essadb)

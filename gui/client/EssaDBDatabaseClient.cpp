@@ -21,7 +21,7 @@ Db::Core::DbErrorOr<Structure::Database> EssaDBDatabaseClient::structure() const
     return db;
 }
 
-Db::Core::DbErrorOr<void> EssaDBDatabaseClient::import(std::string const& source, std::string const& table_name, Db::Core::AST::Import::Mode mode) {
+Db::Core::DbErrorOr<void> EssaDBDatabaseClient::import(std::string const& source, std::string const& table_name, Db::Core::ImportMode mode) {
     return m_db.import_to_table(source, table_name, mode);
 }
 

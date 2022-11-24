@@ -1,12 +1,12 @@
-#include "db/core/Value.hpp"
 #include <tests/setup.hpp>
 
+#include <db/core/Value.hpp>
 #include <db/sql/Lexer.hpp>
 #include <db/sql/Parser.hpp>
 #include <db/sql/SQL.hpp>
-
 #include <filesystem>
 #include <fstream>
+#include <iostream>
 
 using namespace Db::Core;
 

@@ -1,29 +1,29 @@
-#include <db/core/ast/Select.hpp>
+#include <db/sql/ast/Select.hpp>
 
 #include <db/core/TupleFromValues.hpp>
 
-namespace Db::Core::AST {
+namespace Db::Sql::AST {
 
-DbErrorOr<Value> SelectExpression::evaluate(EvaluationContext& context) const {
+Core::DbErrorOr<Core::Value> SelectExpression::evaluate(EvaluationContext& context) const {
     auto result_set = TRY(m_select.execute(context));
     if (!result_set.is_convertible_to_value()) {
-        return DbError { "Select expression must return a single row with a single value", start() };
+        return Core::DbError { "Select expression must return a single row with a single value", start() };
     }
     return result_set.as_value();
 }
 
-DbErrorOr<std::unique_ptr<Relation>> SelectTableExpression::evaluate(EvaluationContext& context) const {
+Core::DbErrorOr<std::unique_ptr<Core::Relation>> SelectTableExpression::evaluate(EvaluationContext& context) const {
     if (!context.db) {
-        return DbError { "SELECT run as table expression requires a database", start() };
+        return Core::DbError { "SELECT run as table expression requires a database", start() };
     }
     auto result = TRY(m_select.execute(context));
 
-    auto table = std::make_unique<MemoryBackedTable>(nullptr, "");
+    auto table = std::make_unique<Core::MemoryBackedTable>(nullptr, "");
 
     size_t i = 0;
     for (const auto& name : result.column_names()) {
-        Value::Type type = result.rows().empty() ? Value::Type::Null : result.rows().front().value(i).type();
-        TRY(table->add_column(Column(name, type, 0, 0, 0)));
+        Core::Value::Type type = result.rows().empty() ? Core::Value::Type::Null : result.rows().front().value(i).type();
+        TRY(table->add_column(Core::Column(name, type, 0, 0, 0)));
         i++;
     }
 
@@ -34,25 +34,25 @@ DbErrorOr<std::unique_ptr<Relation>> SelectTableExpression::evaluate(EvaluationC
     return table;
 }
 
-DbErrorOr<ValueOrResultSet> SelectStatement::execute(Database& db) const {
+Core::DbErrorOr<Core::ValueOrResultSet> SelectStatement::execute(Core::Database& db) const {
     EvaluationContext context { .db = &db };
     return TRY(m_select.execute(context));
 }
 
-DbErrorOr<ValueOrResultSet> Union::execute(Database& db) const {
+Core::DbErrorOr<Core::ValueOrResultSet> Union::execute(Core::Database& db) const {
     EvaluationContext context { .db = &db };
     auto lhs = TRY(m_lhs.execute(context));
     auto rhs = TRY(m_rhs.execute(context));
 
     if (lhs.column_names().size() != rhs.column_names().size())
-        return DbError { "Queries with different column count", 0 };
+        return Core::DbError { "Queries with different column count", 0 };
 
     for (size_t i = 0; i < lhs.column_names().size(); i++) {
         if (lhs.column_names()[i] != rhs.column_names()[i])
-            return DbError { "Queries with different column set", 0 };
+            return Core::DbError { "Queries with different column set", 0 };
     }
 
-    std::vector<Tuple> rows;
+    std::vector<Core::Tuple> rows;
 
     for (const auto& row : lhs.rows()) {
         rows.push_back(row);
@@ -76,20 +76,20 @@ DbErrorOr<ValueOrResultSet> Union::execute(Database& db) const {
         }
     }
 
-    return ResultSet { lhs.column_names(), std::move(rows) };
+    return Core::ResultSet { lhs.column_names(), std::move(rows) };
 }
 
-DbErrorOr<std::optional<size_t>> SelectTableExpression::resolve_identifier(Database* db, Identifier const& id) const {
+Core::DbErrorOr<std::optional<size_t>> SelectTableExpression::resolve_identifier(Core::Database* db, Identifier const& id) const {
     assert(m_select.from());
     return m_select.from()->resolve_identifier(db, id);
 }
 
-DbErrorOr<size_t> SelectTableExpression::column_count(Database* db) const {
+Core::DbErrorOr<size_t> SelectTableExpression::column_count(Core::Database* db) const {
     assert(m_select.from());
     return m_select.from()->column_count(db);
 }
 
-DbErrorOr<ValueOrResultSet> InsertInto::execute(Database& db) const {
+Core::DbErrorOr<Core::ValueOrResultSet> InsertInto::execute(Core::Database& db) const {
     auto table = TRY(db.table(m_name));
 
     EvaluationContext context { .db = &db };
@@ -97,14 +97,14 @@ DbErrorOr<ValueOrResultSet> InsertInto::execute(Database& db) const {
         auto result = TRY(m_select.value().execute(context));
         for (const auto& row : result.rows()) {
             if (m_columns.empty()) {
-                std::vector<Value> values;
+                std::vector<Core::Value> values;
                 for (size_t s = 0; s < table->size(); s++) {
                     values.push_back(row.value(s));
                 }
-                TRY(table->insert(db, Tuple { values }));
+                TRY(table->insert(db, Core::Tuple { values }));
             }
             else {
-                std::vector<std::pair<std::string, Value>> values;
+                std::vector<std::pair<std::string, Core::Value>> values;
                 for (size_t i = 0; i < m_columns.size(); i++) {
                     values.push_back({ m_columns[i], row.value(i) });
                 }
@@ -114,14 +114,14 @@ DbErrorOr<ValueOrResultSet> InsertInto::execute(Database& db) const {
     }
     else {
         if (m_columns.empty()) {
-            std::vector<Value> values;
+            std::vector<Core::Value> values;
             for (size_t s = 0; s < m_values.size(); s++) {
                 values.push_back(TRY(m_values[s]->evaluate(context)));
             }
-            TRY(table->insert(db, Tuple { values }));
+            TRY(table->insert(db, Core::Tuple { values }));
         }
         else {
-            std::vector<std::pair<std::string, Value>> values;
+            std::vector<std::pair<std::string, Core::Value>> values;
             for (size_t i = 0; i < m_columns.size(); i++) {
                 values.push_back({ m_columns[i], TRY(m_values[i]->evaluate(context)) });
             }
@@ -129,7 +129,7 @@ DbErrorOr<ValueOrResultSet> InsertInto::execute(Database& db) const {
             TRY(table->insert(db, TRY(create_tuple_from_values(*table, values))));
         }
     }
-    return { Value::null() };
+    return { Core::Value::null() };
 }
 
 }

@@ -1,9 +1,10 @@
-#include "db/core/Table.hpp"
 #include <tests/setup.hpp>
 
 #include <db/core/Database.hpp>
 #include <db/core/ResultSet.hpp>
+#include <db/core/Table.hpp>
 #include <db/sql/SQL.hpp>
+#include <iostream>
 
 using namespace Db::Core;
 

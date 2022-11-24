@@ -1,12 +1,12 @@
 #pragma once
 
 #include <db/core/Table.hpp>
-#include <db/core/ast/ASTNode.hpp>
-#include <db/core/ast/EvaluationContext.hpp>
-#include <db/core/ast/Expression.hpp>
+#include <db/sql/ast/ASTNode.hpp>
+#include <db/sql/ast/EvaluationContext.hpp>
+#include <db/sql/ast/Expression.hpp>
 #include <memory>
 
-namespace Db::Core::AST {
+namespace Db::Sql::AST {
 
 class TableExpression : public ASTNode {
 public:
@@ -14,27 +14,27 @@ public:
         : ASTNode(start) { }
 
     virtual ~TableExpression() = default;
-    virtual DbErrorOr<std::unique_ptr<Relation>> evaluate(EvaluationContext& context) const = 0;
+    virtual Core::DbErrorOr<std::unique_ptr<Core::Relation>> evaluate(EvaluationContext& context) const = 0;
     virtual std::string to_string() const = 0;
-    virtual DbErrorOr<std::optional<size_t>> resolve_identifier(Database* db, Identifier const&) const = 0;
-    virtual DbErrorOr<size_t> column_count(Database*) const = 0;
+    virtual Core::DbErrorOr<std::optional<size_t>> resolve_identifier(Core::Database* db, Identifier const&) const = 0;
+    virtual Core::DbErrorOr<size_t> column_count(Core::Database*) const = 0;
 
-    static Tuple create_joined_tuple(const Tuple& lhs_row, const Tuple& rhs_row);
+    static Core::Tuple create_joined_tuple(const Core::Tuple& lhs_row, const Core::Tuple& rhs_row);
 };
 
 class SimpleTableExpression : public TableExpression {
 public:
-    explicit SimpleTableExpression(ssize_t start, Table const& table)
+    explicit SimpleTableExpression(ssize_t start, Core::Table const& table)
         : TableExpression(start)
         , m_table(table) { }
 
-    virtual DbErrorOr<std::unique_ptr<Relation>> evaluate(EvaluationContext& context) const override;
+    virtual Core::DbErrorOr<std::unique_ptr<Core::Relation>> evaluate(EvaluationContext& context) const override;
     virtual std::string to_string() const override;
-    virtual DbErrorOr<std::optional<size_t>> resolve_identifier(Database* db, Identifier const&) const override;
-    virtual DbErrorOr<size_t> column_count(Database* db) const override;
+    virtual Core::DbErrorOr<std::optional<size_t>> resolve_identifier(Core::Database* db, Identifier const&) const override;
+    virtual Core::DbErrorOr<size_t> column_count(Core::Database* db) const override;
 
 private:
-    Table const& m_table;
+    Core::Table const& m_table;
 };
 
 class TableIdentifier : public TableExpression {
@@ -44,10 +44,10 @@ public:
         , m_id(std::move(id))
         , m_alias(std::move(alias)) { }
 
-    virtual DbErrorOr<std::unique_ptr<Relation>> evaluate(EvaluationContext& context) const override;
+    virtual Core::DbErrorOr<std::unique_ptr<Core::Relation>> evaluate(EvaluationContext& context) const override;
     virtual std::string to_string() const override { return m_id; }
-    virtual DbErrorOr<std::optional<size_t>> resolve_identifier(Database* db, Identifier const&) const override;
-    virtual DbErrorOr<size_t> column_count(Database* db) const override;
+    virtual Core::DbErrorOr<std::optional<size_t>> resolve_identifier(Core::Database* db, Identifier const&) const override;
+    virtual Core::DbErrorOr<size_t> column_count(Core::Database* db) const override;
 
 private:
     std::string m_id;
@@ -77,10 +77,10 @@ public:
         , m_on_rhs(std::move(on_rhs))
         , m_join_type(join_type) { }
 
-    virtual DbErrorOr<std::unique_ptr<Relation>> evaluate(EvaluationContext& context) const override;
+    virtual Core::DbErrorOr<std::unique_ptr<Core::Relation>> evaluate(EvaluationContext& context) const override;
     virtual std::string to_string() const override { return "JoinExpression(TODO)"; }
-    virtual DbErrorOr<std::optional<size_t>> resolve_identifier(Database* db, Identifier const&) const override;
-    virtual DbErrorOr<size_t> column_count(Database* db) const override;
+    virtual Core::DbErrorOr<std::optional<size_t>> resolve_identifier(Core::Database* db, Identifier const&) const override;
+    virtual Core::DbErrorOr<size_t> column_count(Core::Database* db) const override;
 
 private:
     std::unique_ptr<TableExpression> m_lhs, m_rhs;
@@ -97,10 +97,10 @@ public:
         , m_lhs(std::move(lhs))
         , m_rhs(std::move(rhs)) { }
 
-    virtual DbErrorOr<std::unique_ptr<Relation>> evaluate(EvaluationContext& context) const override;
+    virtual Core::DbErrorOr<std::unique_ptr<Core::Relation>> evaluate(EvaluationContext& context) const override;
     virtual std::string to_string() const override { return "JoinExpression(TODO)"; }
-    virtual DbErrorOr<std::optional<size_t>> resolve_identifier(Database* db, Identifier const&) const override;
-    virtual DbErrorOr<size_t> column_count(Database* db) const override;
+    virtual Core::DbErrorOr<std::optional<size_t>> resolve_identifier(Core::Database* db, Identifier const&) const override;
+    virtual Core::DbErrorOr<size_t> column_count(Core::Database* db) const override;
 
 private:
     std::unique_ptr<TableExpression> m_lhs, m_rhs;

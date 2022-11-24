@@ -9,7 +9,7 @@ class EssaDBDatabaseClient : public DatabaseClient {
 public:
     virtual Db::Core::DbErrorOr<Db::Core::ValueOrResultSet> run_query(std::string const& source) override;
     virtual Db::Core::DbErrorOr<Structure::Database> structure() const override;
-    virtual Db::Core::DbErrorOr<void> import(std::string const& source, std::string const& table_name, Db::Core::AST::Import::Mode) override;
+    virtual Db::Core::DbErrorOr<void> import(std::string const& source, std::string const& table_name, Db::Core::ImportMode) override;
     virtual Util::UString status_string() const override;
 
 private:

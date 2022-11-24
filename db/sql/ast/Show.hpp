@@ -1,8 +1,8 @@
 #pragma once
 
-#include <db/core/ast/Statement.hpp>
+#include <db/sql/ast/Statement.hpp>
 
-namespace Db::Core::AST {
+namespace Db::Sql::AST {
 
 class Show : public Statement {
 public:
@@ -14,7 +14,7 @@ public:
         : Statement(start)
         , m_type(type) { }
 
-    virtual DbErrorOr<ValueOrResultSet> execute(Database&) const override;
+    virtual Core::DbErrorOr<Core::ValueOrResultSet> execute(Core::Database&) const override;
 
 private:
     Type m_type;

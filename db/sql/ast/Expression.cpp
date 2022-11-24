@@ -8,48 +8,48 @@
 #include <db/core/Table.hpp>
 #include <db/core/Tuple.hpp>
 #include <db/core/Value.hpp>
-#include <db/core/ast/TableExpression.hpp>
+#include <db/sql/ast/TableExpression.hpp>
 #include <map>
 #include <memory>
 #include <vector>
 
-namespace Db::Core::AST {
+namespace Db::Sql::AST {
 
-DbErrorOr<Value> Check::evaluate(EvaluationContext& context) const {
+Core::DbErrorOr<Core::Value> Check::evaluate(EvaluationContext& context) const {
     if (TRY(TRY(m_main_check->evaluate(context)).to_bool())) {
-        return Value::create_bool(false);
+        return Core::Value::create_bool(false);
     }
 
     for (const auto& check : m_constraints) {
         if (TRY(TRY(check.second->evaluate(context)).to_bool())) {
-            return Value::create_bool(false);
+            return Core::Value::create_bool(false);
         }
     }
 
-    return Value::create_bool(true);
+    return Core::Value::create_bool(true);
 }
 
-DbErrorOr<void> Check::add_check(std::shared_ptr<AST::Expression> expr) {
+Core::DbErrorOr<void> Check::add_check(std::shared_ptr<AST::Expression> expr) {
     if (m_main_check)
-        DbError { "Check already exists", 0 };
+        return Core::DbError { "Check already exists", 0 };
 
     m_main_check = std::move(expr);
 
     return {};
 }
 
-DbErrorOr<void> Check::alter_check(std::shared_ptr<AST::Expression> expr) {
+Core::DbErrorOr<void> Check::alter_check(std::shared_ptr<AST::Expression> expr) {
     if (!m_main_check)
-        DbError { "No check to alter!", 0 };
+        return Core::DbError { "No check to alter!", 0 };
 
     m_main_check = std::move(expr);
 
     return {};
 }
 
-DbErrorOr<void> Check::drop_check() {
+Core::DbErrorOr<void> Check::drop_check() {
     if (!m_main_check)
-        DbError { "No check to drop!", 0 };
+        return Core::DbError { "No check to drop!", 0 };
 
     delete m_main_check.get();
     m_main_check = nullptr;
@@ -57,51 +57,51 @@ DbErrorOr<void> Check::drop_check() {
     return {};
 }
 
-DbErrorOr<void> Check::add_constraint(const std::string& name, std::shared_ptr<AST::Expression> expr) {
+Core::DbErrorOr<void> Check::add_constraint(const std::string& name, std::shared_ptr<AST::Expression> expr) {
     auto constraint = m_constraints.find(name);
 
     if (constraint != m_constraints.end())
-        DbError { "Constraint with name " + name + " already exists", 0 };
+        return Core::DbError { "Constraint with name " + name + " already exists", 0 };
 
     m_constraints.insert({ name, std::move(expr) });
 
     return {};
 }
 
-DbErrorOr<void> Check::alter_constraint(const std::string& name, std::shared_ptr<AST::Expression> expr) {
+Core::DbErrorOr<void> Check::alter_constraint(const std::string& name, std::shared_ptr<AST::Expression> expr) {
     auto constraint = m_constraints.find(name);
 
     if (constraint == m_constraints.end())
-        DbError { "Constraint with name " + name + " not found", 0 };
+        return Core::DbError { "Constraint with name " + name + " not found", 0 };
 
     constraint->second = std::move(expr);
 
     return {};
 }
 
-DbErrorOr<void> Check::drop_constraint(const std::string& name) {
+Core::DbErrorOr<void> Check::drop_constraint(const std::string& name) {
     auto constraint = m_constraints.find(name);
 
     if (constraint == m_constraints.end())
-        DbError { "Constraint with name " + name + " not found", 0 };
+        return Core::DbError { "Constraint with name " + name + " not found", 0 };
 
     m_constraints.erase(name);
 
     return {};
 }
 
-DbErrorOr<Value> Identifier::evaluate(EvaluationContext& context) const {
+Core::DbErrorOr<Core::Value> Identifier::evaluate(EvaluationContext& context) const {
     if (!context.db) {
-        return DbError { "Identifiers cannot be resolved without database", start() };
+        return Core::DbError { "Identifiers cannot be resolved without database", start() };
     }
 
     if (context.current_frame().row_type == EvaluationContextFrame::RowType::FromTable) {
         std::optional<size_t> index;
-        TupleWithSource const* row = nullptr;
+        Core::TupleWithSource const* row = nullptr;
         for (auto it = context.frames.rbegin(); it != context.frames.rend(); it++) {
             auto const& frame = *it;
             if (!frame.table) {
-                return DbError { "Identifiers cannot be resolved without table", start() };
+                return Core::DbError { "Identifiers cannot be resolved without table", start() };
             }
             index = TRY(frame.table->resolve_identifier(context.db, *this));
             if (index) {
@@ -110,7 +110,7 @@ DbErrorOr<Value> Identifier::evaluate(EvaluationContext& context) const {
             }
         }
         if (!index) {
-            return DbError { "Invalid identifier", start() };
+            return Core::DbError { "Invalid identifier", start() };
         }
         return row->tuple.value(*index);
     }
@@ -119,7 +119,7 @@ DbErrorOr<Value> Identifier::evaluate(EvaluationContext& context) const {
 }
 
 // FIXME: char ranges doesn't work in row
-static DbErrorOr<bool> wildcard_parser(std::string const& lhs, std::string const& rhs) {
+static Core::DbErrorOr<bool> wildcard_parser(std::string const& lhs, std::string const& rhs) {
     auto is_string_valid = [](std::string const& lhs, std::string const& rhs) {
         size_t len = 0;
 
@@ -215,7 +215,7 @@ static DbErrorOr<bool> wildcard_parser(std::string const& lhs, std::string const
     return result;
 }
 
-DbErrorOr<bool> BinaryOperator::is_true(EvaluationContext& context) const {
+Core::DbErrorOr<bool> BinaryOperator::is_true(EvaluationContext& context) const {
     // TODO: Implement proper comparison
     switch (m_operation) {
     case Operation::Equal:
@@ -246,7 +246,7 @@ DbErrorOr<bool> BinaryOperator::is_true(EvaluationContext& context) const {
             std::regex regex { pattern };
             return std::regex_match(value, regex);
         } catch (std::regex_error const& error) {
-            return DbError { error.what(), start() };
+            return Core::DbError { error.what(), start() };
         }
     }
     case Operation::Invalid:
@@ -255,7 +255,7 @@ DbErrorOr<bool> BinaryOperator::is_true(EvaluationContext& context) const {
     __builtin_unreachable();
 }
 
-DbErrorOr<Value> ArithmeticOperator::evaluate(EvaluationContext& context) const {
+Core::DbErrorOr<Core::Value> ArithmeticOperator::evaluate(EvaluationContext& context) const {
     auto lhs = TRY(m_lhs->evaluate(context));
     auto rhs = TRY(m_rhs->evaluate(context));
 
@@ -278,68 +278,68 @@ std::string ArithmeticOperator::to_string() const {
     std::string string;
     string += "(" + m_lhs->to_string();
 
-    switch(m_operation) {
-        case Operation::Add:
-            string += " + ";
-            break;
-        case Operation::Sub:
-            string += " - ";
-            break;
-        case Operation::Mul:
-            string += " * ";
-            break;
-        case Operation::Div:
-            string += " / ";
-            break;
-        case Operation::Invalid:
-            string += " AO? ";
-            break;
+    switch (m_operation) {
+    case Operation::Add:
+        string += " + ";
+        break;
+    case Operation::Sub:
+        string += " - ";
+        break;
+    case Operation::Mul:
+        string += " * ";
+        break;
+    case Operation::Div:
+        string += " / ";
+        break;
+    case Operation::Invalid:
+        string += " AO? ";
+        break;
     }
 
     string += m_rhs->to_string() + ")";
     return string;
 }
 
-DbErrorOr<Value> UnaryOperator::evaluate(EvaluationContext& context) const {
+Core::DbErrorOr<Core::Value> UnaryOperator::evaluate(EvaluationContext& context) const {
     switch (m_operation) {
     case Operation::Minus:
-        return Value::create_int(0) - TRY(m_operand->evaluate(context));
+        return Core::Value::create_int(0) - TRY(m_operand->evaluate(context));
     }
     ESSA_UNREACHABLE;
 }
 
-DbErrorOr<Value> BetweenExpression::evaluate(EvaluationContext& context) const {
+Core::DbErrorOr<Core::Value> BetweenExpression::evaluate(EvaluationContext& context) const {
     // TODO: Implement this for strings etc
     auto value = TRY(m_lhs->evaluate(context));
     auto min = TRY(m_min->evaluate(context));
     auto max = TRY(m_max->evaluate(context));
-    return Value::create_bool(TRY(value >= min) && TRY(value <= max));
+    return Core::Value::create_bool(TRY(value >= min) && TRY(value <= max));
 }
 
-DbErrorOr<Value> InExpression::evaluate(EvaluationContext& context) const {
+Core::DbErrorOr<Core::Value> InExpression::evaluate(EvaluationContext& context) const {
     // TODO: Implement this for strings etc
     auto value = TRY(TRY(m_lhs->evaluate(context)).to_string());
     for (const auto& arg : m_args) {
         auto to_compare = TRY(TRY(arg->evaluate(context)).to_string());
 
         if (value == to_compare)
-            return Value::create_bool(true);
+            return Core::Value::create_bool(true);
     }
-    return Value::create_bool(false);
+    return Core::Value::create_bool(false);
 }
 
-DbErrorOr<Value> IsExpression::evaluate(EvaluationContext& context) const {
+Core::DbErrorOr<Core::Value> IsExpression::evaluate(EvaluationContext& context) const {
     auto lhs = TRY(m_lhs->evaluate(context));
     switch (m_what) {
     case What::Null:
-        return Value::create_bool(lhs.is_null());
+        return Core::Value::create_bool(lhs.is_null());
     case What::NotNull:
-        return Value::create_bool(!lhs.is_null());
+        return Core::Value::create_bool(!lhs.is_null());
     }
     __builtin_unreachable();
 }
 
-DbErrorOr<Value> CaseExpression::evaluate(EvaluationContext& context) const {
+Core::DbErrorOr<Core::Value> CaseExpression::evaluate(EvaluationContext& context) const {
     for (const auto& case_expression : m_cases) {
         if (TRY(TRY(case_expression.expr->evaluate(context)).to_bool()))
             return TRY(case_expression.value->evaluate(context));
@@ -347,10 +347,10 @@ DbErrorOr<Value> CaseExpression::evaluate(EvaluationContext& context) const {
 
     if (m_else_value)
         return TRY(m_else_value->evaluate(context));
-    return Value::null();
+    return Core::Value::null();
 }
 
-DbErrorOr<Value> NonOwningExpressionProxy::evaluate(EvaluationContext& context) const {
+Core::DbErrorOr<Core::Value> NonOwningExpressionProxy::evaluate(EvaluationContext& context) const {
     return m_expression.evaluate(context);
 }
 
@@ -366,10 +366,10 @@ bool NonOwningExpressionProxy::contains_aggregate_function() const {
     return m_expression.contains_aggregate_function();
 }
 
-DbErrorOr<Value> IndexExpression::evaluate(EvaluationContext& context) const {
+Core::DbErrorOr<Core::Value> IndexExpression::evaluate(EvaluationContext& context) const {
     auto const& tuple = context.current_frame().row.tuple;
     if (m_index >= tuple.value_count()) {
-        return DbError { "Internal error: index expression overflow", start() };
+        return Core::DbError { "Internal error: index expression overflow", start() };
     }
     return tuple.value(m_index);
 }

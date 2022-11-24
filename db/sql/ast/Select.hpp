@@ -1,8 +1,9 @@
 #pragma once
 
-#include <db/core/Select.hpp>
+#include <db/sql/Select.hpp>
+#include <db/sql/ast/Statement.hpp>
 
-namespace Db::Core::AST {
+namespace Db::Sql::AST {
 
 class SelectExpression : public Expression {
 public:
@@ -10,7 +11,7 @@ public:
         : Expression(start)
         , m_select(std::move(select)) { }
 
-    virtual DbErrorOr<Value> evaluate(EvaluationContext&) const override;
+    virtual Core::DbErrorOr<Core::Value> evaluate(EvaluationContext&) const override;
     virtual std::string to_string() const override { return "(SELECT TODO)"; }
 
 private:
@@ -23,10 +24,10 @@ public:
         : TableExpression(start)
         , m_select(std::move(select)) { }
 
-    virtual DbErrorOr<std::unique_ptr<Relation>> evaluate(EvaluationContext& context) const override;
+    virtual Core::DbErrorOr<std::unique_ptr<Core::Relation>> evaluate(EvaluationContext& context) const override;
     virtual std::string to_string() const override { return "(SELECT TODO)"; }
-    virtual DbErrorOr<std::optional<size_t>> resolve_identifier(Database* db, Identifier const&) const override;
-    virtual DbErrorOr<size_t> column_count(Database* db) const override;
+    virtual Core::DbErrorOr<std::optional<size_t>> resolve_identifier(Core::Database* db, Identifier const&) const override;
+    virtual Core::DbErrorOr<size_t> column_count(Core::Database* db) const override;
 
 private:
     Select m_select;
@@ -38,7 +39,7 @@ public:
         : Statement(start)
         , m_select(std::move(select)) { }
 
-    virtual DbErrorOr<ValueOrResultSet> execute(Database&) const override;
+    virtual Core::DbErrorOr<Core::ValueOrResultSet> execute(Core::Database&) const override;
 
 private:
     Select m_select;
@@ -52,7 +53,7 @@ public:
         , m_rhs(std::move(rhs))
         , m_distinct(distinct) { }
 
-    virtual DbErrorOr<ValueOrResultSet> execute(Database&) const override;
+    virtual Core::DbErrorOr<Core::ValueOrResultSet> execute(Core::Database&) const override;
 
 private:
     Select m_lhs;
@@ -62,25 +63,25 @@ private:
 
 class InsertInto : public Statement {
 public:
-    InsertInto(ssize_t start, std::string name, std::vector<std::string> columns, std::vector<std::unique_ptr<Core::AST::Expression>> values)
+    InsertInto(ssize_t start, std::string name, std::vector<std::string> columns, std::vector<std::unique_ptr<Sql::AST::Expression>> values)
         : Statement(start)
         , m_name(std::move(name))
         , m_columns(std::move(columns))
         , m_values(std::move(values)) { }
 
-    InsertInto(ssize_t start, std::string name, std::vector<std::string> columns, Core::AST::Select select)
+    InsertInto(ssize_t start, std::string name, std::vector<std::string> columns, Sql::AST::Select select)
         : Statement(start)
         , m_name(std::move(name))
         , m_columns(std::move(columns))
         , m_select(std::move(select)) { }
 
-    virtual DbErrorOr<ValueOrResultSet> execute(Database&) const override;
+    virtual Core::DbErrorOr<Core::ValueOrResultSet> execute(Core::Database&) const override;
 
 private:
     std::string m_name;
     std::vector<std::string> m_columns;
-    std::vector<std::unique_ptr<Core::AST::Expression>> m_values;
-    std::optional<Core::AST::Select> m_select;
+    std::vector<std::unique_ptr<Sql::AST::Expression>> m_values;
+    std::optional<Sql::AST::Select> m_select;
 };
 
 }

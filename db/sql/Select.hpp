@@ -1,13 +1,13 @@
 #pragma once
 
 #include <db/core/Database.hpp>
-#include <db/core/ast/Expression.hpp>
-#include <db/core/ast/TableExpression.hpp>
+#include <db/sql/ast/Expression.hpp>
+#include <db/sql/ast/TableExpression.hpp>
 #include <memory>
 #include <optional>
 #include <string>
 
-namespace Db::Core::AST {
+namespace Db::Sql::AST {
 
 struct OrderBy {
     enum class Order {
@@ -69,12 +69,12 @@ public:
         : m_start(start)
         , m_options(std::move(options)) { }
 
-    DbErrorOr<ResultSet> execute(EvaluationContext&) const;
+    Core::DbErrorOr<Core::ResultSet> execute(EvaluationContext&) const;
 
     auto const& from() const { return m_options.from; }
 
 private:
-    DbErrorOr<std::vector<TupleWithSource>> collect_rows(EvaluationContext&, Relation&) const;
+    Core::DbErrorOr<std::vector<Core::TupleWithSource>> collect_rows(EvaluationContext&, Core::Relation&) const;
 
     size_t m_start {};
     SelectOptions m_options;

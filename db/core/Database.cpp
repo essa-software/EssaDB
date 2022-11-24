@@ -1,10 +1,11 @@
 #include "Database.hpp"
-#include "db/core/Table.hpp"
+
 #include <EssaUtil/Config.hpp>
+#include <db/core/Table.hpp>
 
 namespace Db::Core {
 
-Table& Database::create_table(std::string name, std::shared_ptr<AST::Check> check) {
+Table& Database::create_table(std::string name, std::shared_ptr<Sql::AST::Check> check) {
     return *m_tables.insert({ name, std::make_unique<MemoryBackedTable>(std::move(check), name) }).first->second;
 }
 
@@ -28,10 +29,10 @@ DbErrorOr<Table*> Database::table(std::string name) {
     return it->second.get();
 }
 
-DbErrorOr<void> Database::import_to_table(std::string const& path, std::string const& table_name, AST::Import::Mode mode) {
-    auto& new_table = create_table(table_name, std::make_shared<AST::Check>(0));
+DbErrorOr<void> Database::import_to_table(std::string const& path, std::string const& table_name, ImportMode mode) {
+    auto& new_table = create_table(table_name, std::make_shared<Sql::AST::Check>(0));
     switch (mode) {
-    case AST::Import::Mode::Csv:
+    case ImportMode::Csv:
         TRY(new_table.import_from_csv(*this, path));
         break;
     default:

@@ -1,7 +1,7 @@
 #pragma once
 
 #include <db/core/Tuple.hpp>
-#include <db/core/ast/ASTNode.hpp>
+#include <db/sql/ast/ASTNode.hpp>
 #include <list>
 #include <map>
 #include <memory>
@@ -15,7 +15,7 @@ class Table;
 class Database;
 }
 
-namespace Db::Core::AST {
+namespace Db::Sql::AST {
 
 class Expression;
 struct EvaluationContext;
@@ -27,7 +27,7 @@ public:
         : ASTNode(start) { }
 
     virtual ~Expression() = default;
-    virtual DbErrorOr<Value> evaluate(EvaluationContext&) const = 0;
+    virtual Core::DbErrorOr<Core::Value> evaluate(EvaluationContext&) const = 0;
     virtual std::string to_string() const = 0;
     virtual std::vector<std::string> referenced_columns() const { return {}; }
     virtual bool contains_aggregate_function() const { return false; }
@@ -38,16 +38,16 @@ public:
     explicit Check(ssize_t start)
         : Expression(start) { }
 
-    virtual DbErrorOr<Value> evaluate(EvaluationContext&) const override;
+    virtual Core::DbErrorOr<Core::Value> evaluate(EvaluationContext&) const override;
     virtual std::string to_string() const override { return "Check(TODO)"; }
 
-    DbErrorOr<void> add_check(std::shared_ptr<AST::Expression> expr);
-    DbErrorOr<void> alter_check(std::shared_ptr<AST::Expression> expr);
-    DbErrorOr<void> drop_check();
+    Core::DbErrorOr<void> add_check(std::shared_ptr<AST::Expression> expr);
+    Core::DbErrorOr<void> alter_check(std::shared_ptr<AST::Expression> expr);
+    Core::DbErrorOr<void> drop_check();
 
-    DbErrorOr<void> add_constraint(std::string const& name, std::shared_ptr<AST::Expression> expr);
-    DbErrorOr<void> alter_constraint(std::string const& name, std::shared_ptr<AST::Expression> expr);
-    DbErrorOr<void> drop_constraint(std::string const& name);
+    Core::DbErrorOr<void> add_constraint(std::string const& name, std::shared_ptr<AST::Expression> expr);
+    Core::DbErrorOr<void> alter_constraint(std::string const& name, std::shared_ptr<AST::Expression> expr);
+    Core::DbErrorOr<void> drop_constraint(std::string const& name);
 
     std::shared_ptr<Expression> const& main_rule() const { return m_main_check; }
     std::map<std::string, std::shared_ptr<Expression>> const& constraints() const { return m_constraints; }
@@ -59,17 +59,17 @@ private:
 
 class Literal : public Expression {
 public:
-    explicit Literal(ssize_t start, Value val)
+    explicit Literal(ssize_t start, Core::Value val)
         : Expression(start)
         , m_value(std::move(val)) { }
 
-    virtual DbErrorOr<Value> evaluate(EvaluationContext&) const override { return m_value; }
+    virtual Core::DbErrorOr<Core::Value> evaluate(EvaluationContext&) const override { return m_value; }
     virtual std::string to_string() const override { return m_value.to_string().release_value_but_fixme_should_propagate_errors(); }
 
-    Value value() const { return m_value; }
+    Core::Value value() const { return m_value; }
 
 private:
-    Value m_value;
+    Core::Value m_value;
 };
 
 class Identifier : public Expression {
@@ -79,7 +79,7 @@ public:
         , m_id(std::move(id))
         , m_table(std::move(table)) { }
 
-    virtual DbErrorOr<Value> evaluate(EvaluationContext&) const override;
+    virtual Core::DbErrorOr<Core::Value> evaluate(EvaluationContext&) const override;
     virtual std::string to_string() const override { return m_id; }
     virtual std::vector<std::string> referenced_columns() const override { return { m_id }; }
 
@@ -115,8 +115,8 @@ public:
         , m_operation(op)
         , m_rhs(std::move(rhs)) { }
 
-    virtual DbErrorOr<Value> evaluate(EvaluationContext& context) const override {
-        return Value::create_bool(TRY(is_true(context)));
+    virtual Core::DbErrorOr<Core::Value> evaluate(EvaluationContext& context) const override {
+        return Core::Value::create_bool(TRY(is_true(context)));
     }
     virtual std::string to_string() const override { return "BinaryOperator(" + m_lhs->to_string() + "," + m_rhs->to_string() + ")"; }
 
@@ -129,7 +129,7 @@ public:
     virtual bool contains_aggregate_function() const override { return m_lhs->contains_aggregate_function() || m_rhs->contains_aggregate_function(); }
 
 private:
-    DbErrorOr<bool> is_true(EvaluationContext&) const;
+    Core::DbErrorOr<bool> is_true(EvaluationContext&) const;
 
     std::unique_ptr<Expression> m_lhs;
     Operation m_operation {};
@@ -153,7 +153,7 @@ public:
         , m_operation(op)
         , m_rhs(std::move(rhs)) { }
 
-    virtual DbErrorOr<Value> evaluate(EvaluationContext& context) const override;
+    virtual Core::DbErrorOr<Core::Value> evaluate(EvaluationContext& context) const override;
 
     virtual std::string to_string() const override;
 
@@ -183,7 +183,7 @@ public:
         , m_operation(op)
         , m_operand(std::move(operand)) { }
 
-    virtual DbErrorOr<Value> evaluate(EvaluationContext& context) const override;
+    virtual Core::DbErrorOr<Core::Value> evaluate(EvaluationContext& context) const override;
 
     virtual std::string to_string() const override { return "UnaryOperator(" + m_operand->to_string() + ")"; }
 
@@ -212,7 +212,7 @@ public:
         assert(m_max);
     }
 
-    virtual DbErrorOr<Value> evaluate(EvaluationContext&) const override;
+    virtual Core::DbErrorOr<Core::Value> evaluate(EvaluationContext&) const override;
     virtual std::string to_string() const override {
         return "BetweenExpression(" + m_lhs->to_string() + "," + m_min->to_string() + "," + m_max->to_string() + ")";
     }
@@ -236,14 +236,14 @@ private:
 
 class InExpression : public Expression {
 public:
-    InExpression(std::unique_ptr<Expression> lhs, std::vector<std::unique_ptr<Core::AST::Expression>> args)
+    InExpression(std::unique_ptr<Expression> lhs, std::vector<std::unique_ptr<Expression>> args)
         : Expression(lhs->start())
         , m_lhs(std::move(lhs))
         , m_args(std::move(args)) {
         assert(m_lhs);
     }
 
-    virtual DbErrorOr<Value> evaluate(EvaluationContext&) const override;
+    virtual Core::DbErrorOr<Core::Value> evaluate(EvaluationContext&) const override;
     virtual std::string to_string() const override {
         std::string result = "InExpression(";
         for (auto i = m_args.begin(); i < m_args.end(); i++) {
@@ -278,7 +278,7 @@ public:
 
 private:
     std::unique_ptr<Expression> m_lhs;
-    std::vector<std::unique_ptr<Core::AST::Expression>> m_args;
+    std::vector<std::unique_ptr<Expression>> m_args;
 };
 
 class IsExpression : public Expression {
@@ -293,7 +293,7 @@ public:
         , m_lhs(std::move(lhs))
         , m_what(what) { }
 
-    virtual DbErrorOr<Value> evaluate(EvaluationContext&) const override;
+    virtual Core::DbErrorOr<Core::Value> evaluate(EvaluationContext&) const override;
 
     virtual std::string to_string() const override {
         return m_lhs->to_string() + " IS " + (m_what == What::Null ? "NULL" : "NOT NULL");
@@ -319,12 +319,12 @@ public:
         std::unique_ptr<Expression> value;
     };
 
-    CaseExpression(std::vector<CasePair> cases, std::unique_ptr<Core::AST::Expression> else_value = {})
+    CaseExpression(std::vector<CasePair> cases, std::unique_ptr<Expression> else_value = {})
         : Expression(cases.front().expr->start())
         , m_cases(std::move(cases))
         , m_else_value(std::move(else_value)) { }
 
-    virtual DbErrorOr<Value> evaluate(EvaluationContext&) const override;
+    virtual Core::DbErrorOr<Core::Value> evaluate(EvaluationContext&) const override;
     virtual std::string to_string() const override {
         std::string result = "CaseExpression: \n";
         for (const auto& c : m_cases) {
@@ -361,7 +361,7 @@ public:
 private:
     std::vector<CasePair> m_cases;
 
-    std::unique_ptr<Core::AST::Expression> m_else_value;
+    std::unique_ptr<Expression> m_else_value;
 };
 
 class NonOwningExpressionProxy : public Expression {
@@ -370,7 +370,7 @@ public:
         : Expression(start)
         , m_expression(expr) { }
 
-    virtual DbErrorOr<Value> evaluate(EvaluationContext&) const override;
+    virtual Core::DbErrorOr<Core::Value> evaluate(EvaluationContext&) const override;
     virtual std::string to_string() const override;
     virtual std::vector<std::string> referenced_columns() const override;
     virtual bool contains_aggregate_function() const override;
@@ -386,7 +386,7 @@ public:
         , m_index(idx)
         , m_name(std::move(name)) { }
 
-    virtual DbErrorOr<Value> evaluate(EvaluationContext&) const override;
+    virtual Core::DbErrorOr<Core::Value> evaluate(EvaluationContext&) const override;
     virtual std::string to_string() const override;
     virtual std::vector<std::string> referenced_columns() const override;
 

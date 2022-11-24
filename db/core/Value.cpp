@@ -4,10 +4,8 @@
 #include "Regex.hpp"
 #include "ResultSet.hpp"
 #include "Tuple.hpp"
-#include <EssaUtil/SimulationClock.hpp>
 
 #include <cctype>
-#include <chrono>
 #include <ctime>
 #include <limits>
 #include <ostream>
