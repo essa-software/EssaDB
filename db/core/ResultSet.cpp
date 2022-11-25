@@ -45,6 +45,12 @@ Value ResultSet::as_value() const {
 }
 
 void ResultSet::dump(std::ostream& out, FancyDump fancy) const {
+
+    if (m_rows.empty()) {
+        out << "Empty result set" << std::endl;
+        return;
+    }
+
     std::vector<int> widths;
     unsigned long index = 0;
 
