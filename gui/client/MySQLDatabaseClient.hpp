@@ -19,6 +19,9 @@ public:
     virtual Util::UString status_string() const override;
 
 private:
+    Db::Sql::SQLErrorOr<Db::Core::ValueOrResultSet> do_run_query(std::string const& source) const;
+    Db::Sql::SQLErrorOr<std::string> get_current_database() const;
+
     MYSQL* m_mysql_connection = nullptr;
     MySQLConnectionData m_connection_data;
 };

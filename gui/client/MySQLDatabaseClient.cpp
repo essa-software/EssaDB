@@ -3,6 +3,7 @@
 #include <EssaUtil/Config.hpp>
 #include <EssaUtil/ScopeGuard.hpp>
 #include <db/sql/Parser.hpp>
+#include <db/sql/SQLError.hpp>
 #include <gui/Structure.hpp>
 #include <gui/client/ConnectToMySQLDialog.hpp>
 #include <mysql.h>
@@ -34,7 +35,21 @@ Db::Core::DbErrorOr<void> MySQLDatabaseClient::connect() {
     return {};
 }
 
-Db::Sql::SQLErrorOr<Db::Core::ValueOrResultSet> MySQLDatabaseClient::run_query(std::string const& query) {
+Db::Sql::SQLErrorOr<std::string> MySQLDatabaseClient::get_current_database() const {
+    auto result = TRY(do_run_query("SELECT DATABASE();"));
+    if (!result.is_result_set()) {
+        return Db::Sql::SQLError { "get_current_database(): SELECT DATABASE() did not return a result set", 0 };
+    }
+
+    auto result_set = result.as_result_set();
+    if (!result_set.is_convertible_to_value()) {
+        return Db::Sql::SQLError { "get_current_database(): SELECT DATABASE() result set must be convertible to value", 0 };
+    }
+
+    return TRY(result_set.as_value().to_string().map_error(Db::Sql::DbToSQLError { 0 }));
+}
+
+Db::Sql::SQLErrorOr<Db::Core::ValueOrResultSet> MySQLDatabaseClient::do_run_query(std::string const& query) const {
     MYSQL_RES* result;
     MYSQL_FIELD* field;
     MYSQL_ROW row;
@@ -43,17 +58,12 @@ Db::Sql::SQLErrorOr<Db::Core::ValueOrResultSet> MySQLDatabaseClient::run_query(s
         return Db::Sql::SQLError { fmt::format("Error querying server: {}", mysql_error(m_mysql_connection)), 0 };
     }
 
-    if (Db::Sql::Parser::compare_case_insensitive(query.substr(0, 4), "USE ")) {
-        auto db = query[query.size() - 1] == ';' ? query.substr(4, query.size() - 5) : query.substr(4);
-        m_connection_data.database = db;
-    }
-
     result = mysql_use_result(m_mysql_connection);
     if (result == NULL) {
         return Db::Core::Value::null();
     }
 
-    Util::ScopeGuard guard { [&]() {
+    Util::ScopeGuard free_result_guard { [&]() {
         mysql_free_result(result);
     } };
 
@@ -76,6 +86,12 @@ Db::Sql::SQLErrorOr<Db::Core::ValueOrResultSet> MySQLDatabaseClient::run_query(s
     }
 
     return Db::Core::ResultSet { column_names, rows };
+}
+
+Db::Sql::SQLErrorOr<Db::Core::ValueOrResultSet> MySQLDatabaseClient::run_query(std::string const& query) {
+    auto result = TRY(do_run_query(query));
+    m_connection_data.database = TRY(get_current_database());
+    return result;
 }
 
 Db::Core::DbErrorOr<Structure::Database> MySQLDatabaseClient::structure() const {
