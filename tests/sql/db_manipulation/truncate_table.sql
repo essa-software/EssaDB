@@ -3,5 +3,5 @@ IMPORT CSV 'data.csv' INTO test;
 TRUNCATE TABLE test;
 
 -- output:
--- | id | number | string | integer |
+-- Empty result set
 SELECT * FROM test;

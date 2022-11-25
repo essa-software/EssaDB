@@ -1,7 +1,7 @@
 IMPORT CSV 'where.csv' INTO test;
 
 -- output:
--- | id |
+-- Empty result set
 SELECT id FROM test WHERE id = 2 AND id = 3;
 
 -- output:
