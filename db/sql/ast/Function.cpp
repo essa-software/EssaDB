@@ -109,12 +109,10 @@ static void setup_sql_functions() {
         auto str = TRY(TRY(args.get_required(0, "str")).to_string());
 
         std::string result = "";
-
         for (const auto& c : str) {
-            result += c + ((isalpha(c) && c <= 'Z') ? 32 : 0);
+            result += tolower(c);
         }
-
-        return Core::Value::create_varchar(str);
+        return Core::Value::create_varchar(result);
     });
     register_sql_function("SUBSTRING", [](ArgumentList args) -> Core::DbErrorOr<Core::Value> {
         auto str = TRY(TRY(args.get_required(0, "string")).to_string());
@@ -127,12 +125,10 @@ static void setup_sql_functions() {
         auto str = TRY(TRY(args.get_required(0, "str")).to_string());
 
         std::string result = "";
-
-        for (const auto& c : str) {
-            result += c - ((isalpha(c) && c >= 'a') ? 32 : 0);
+        for (auto c : str) {
+            result += toupper(c);
         }
-
-        return Core::Value::create_varchar(str);
+        return Core::Value::create_varchar(result);
     });
     register_sql_function("LEFT", [](ArgumentList args) -> Core::DbErrorOr<Core::Value> {
         auto str = TRY(TRY(args.get_required(0, "str")).to_string());
