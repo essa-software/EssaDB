@@ -48,6 +48,39 @@ SELECT TOP 2 * FROM test;
 -- |  4 |     69 |  test1 |     122 | 1990-02-12 |
 SELECT TOP 75 PERC * FROM test;
 
+-- Top on empty set
+CREATE TABLE empty_test (id INT);
+
+-- output:
+-- Empty result set
+SELECT TOP 5 * FROM empty_test;
+
+-- output:
+-- Empty result set
+SELECT TOP 50 PERC * FROM empty_test;
+
+-- Top where selected count > result set size
+INSERT INTO empty_test VALUES(0);
+INSERT INTO empty_test VALUES(1);
+INSERT INTO empty_test VALUES(2);
+INSERT INTO empty_test VALUES(3);
+
+-- output:
+-- | id |
+-- |  0 |
+-- |  1 |
+-- |  2 |
+-- |  3 |
+SELECT TOP 10 * FROM empty_test;
+
+-- output:
+-- | id |
+-- |  0 |
+-- |  1 |
+-- |  2 |
+-- |  3 |
+SELECT TOP 150 PERC * FROM empty_test;
+
 -- Aliases
 -- output:
 -- | ID |  NUM |   STR |

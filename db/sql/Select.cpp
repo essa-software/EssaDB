@@ -1,4 +1,3 @@
-#include "db/sql/SQLError.hpp"
 #include <db/sql/Select.hpp>
 
 #include <EssaUtil/Is.hpp>
@@ -7,7 +6,9 @@
 #include <db/core/Database.hpp>
 #include <db/core/DbError.hpp>
 #include <db/core/Table.hpp>
+#include <db/core/Tuple.hpp>
 #include <db/core/Value.hpp>
+#include <db/sql/SQLError.hpp>
 #include <memory>
 
 namespace Db::Sql::AST {
@@ -120,10 +121,10 @@ SQLErrorOr<Core::ResultSet> Select::execute(EvaluationContext& context) const {
     if (m_options.top) {
         if (m_options.top->unit == Top::Unit::Perc) {
             float mul = static_cast<float>(std::min(m_options.top->value, (unsigned)100)) / 100;
-            rows.resize(rows.size() * mul, rows.back());
+            rows.resize(rows.size() * mul, Core::TupleWithSource { {}, {} });
         }
         else {
-            rows.resize(std::min(m_options.top->value, (unsigned)rows.size()), rows.back());
+            rows.resize(std::min<size_t>(m_options.top->value, rows.size()), Core::TupleWithSource { {}, {} });
         }
     }
 
