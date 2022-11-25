@@ -1,9 +1,23 @@
-IMPORT CSV 'data.csv' INTO test;
+IMPORT CSV 'lower_upper.csv' INTO test;
 
--- upper
--- skip FIXME: this doesn't actually work
-SELECT id, UPPER(string) AS [UPPER STRING] FROM test;
+-- output:
+-- |    upper |
+-- |     TEST |
+-- |     TEST |
+-- |     TEST |
+-- |     TEST |
+-- |     TEST |
+-- | TEST YAY |
+-- |  NOT YAY |
+SELECT UPPER(string) AS [upper] FROM test;
 
--- lower_upper
--- skip FIXME: this doesn't actually work
-SELECT id, LOWER(string) AS [STRING] FROM test;
+-- output:
+-- |    lower |
+-- |     test |
+-- |     test |
+-- |     test |
+-- |     test |
+-- |     test |
+-- | test yay |
+-- |  not yay |
+SELECT LOWER(string) AS [lower] FROM test;
