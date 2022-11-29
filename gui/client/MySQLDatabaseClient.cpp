@@ -50,15 +50,11 @@ Db::Sql::SQLErrorOr<std::string> MySQLDatabaseClient::get_current_database() con
 }
 
 Db::Sql::SQLErrorOr<Db::Core::ValueOrResultSet> MySQLDatabaseClient::do_run_query(std::string const& query) const {
-    MYSQL_RES* result;
-    MYSQL_FIELD* field;
-    MYSQL_ROW row;
-
     if (mysql_query(m_mysql_connection, query.data())) {
         return Db::Sql::SQLError { fmt::format("Error querying server: {}", mysql_error(m_mysql_connection)), 0 };
     }
 
-    result = mysql_use_result(m_mysql_connection);
+    auto result = mysql_use_result(m_mysql_connection);
     if (result == NULL) {
         return Db::Core::Value::null();
     }
@@ -72,10 +68,12 @@ Db::Sql::SQLErrorOr<Db::Core::ValueOrResultSet> MySQLDatabaseClient::do_run_quer
 
     int num_fields = mysql_num_fields(result);
 
+    MYSQL_FIELD* field {};
     while ((field = mysql_fetch_field(result))) {
         column_names.push_back(field->name);
     }
 
+    MYSQL_ROW row;
     while ((row = mysql_fetch_row(result))) {
         std::vector<Db::Core::Value> values;
         for (int i = 0; i < num_fields; i++) {
