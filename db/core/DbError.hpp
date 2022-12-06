@@ -7,7 +7,7 @@ namespace Db::Core {
 
 class DbError {
 public:
-    DbError(std::string message)
+    explicit DbError(std::string message)
         : m_message(std::move(message)) { }
 
     std::string message() const { return m_message; }
