@@ -9,6 +9,10 @@ Table& Database::create_table(std::string name, std::shared_ptr<Sql::AST::Check>
     return *m_tables.insert({ name, std::make_unique<MemoryBackedTable>(std::move(check), name) }).first->second;
 }
 
+void Database::add_table(std::unique_ptr<Table> table) {
+    m_tables.insert({ table->name(), std::move(table) });
+}
+
 DbErrorOr<void> Database::drop_table(std::string name) {
     TRY(table(name));
 

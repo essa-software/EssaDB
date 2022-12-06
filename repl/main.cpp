@@ -84,8 +84,6 @@ int main(int argc, char* argv[]) {
             if (!std::getline(std::cin, query))
                 return 1;
             std::cout << "\e[m";
-
-            run_query(db, query);
         }
     }
     else if (argc == 2) {

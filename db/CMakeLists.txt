@@ -21,7 +21,11 @@ add_library(
     sql/ast/Statement.cpp
     sql/ast/TableExpression.cpp
 
-    storage/Serializer.cpp
+    storage/FileBackedTable.cpp
+    storage/edb/EDBFile.cpp
+    storage/edb/EDBRelationIterator.cpp
+    storage/edb/MappedFile.cpp
+    storage/edb/Serializer.cpp
 )
 
 essautil_setup_target(essadb)
