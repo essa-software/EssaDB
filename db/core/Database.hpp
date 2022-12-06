@@ -11,7 +11,13 @@ namespace Db::Core {
 
 class Database : public Util::NonCopyable {
 public:
+    // Create a new MemoryBackedTable.
     Table& create_table(std::string name, std::shared_ptr<Sql::AST::Check> check);
+
+    // Move already created table into a database.
+    void add_table(std::unique_ptr<Table> table);
+    
+    // Create a new MemoryBackedTable initialized by the given ResultSet.
     DbErrorOr<Table*> create_table_from_query(ResultSet select, std::string name);
 
     DbErrorOr<void> drop_table(std::string name);

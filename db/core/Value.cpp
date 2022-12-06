@@ -11,6 +11,7 @@
 #include <ostream>
 #include <regex>
 #include <sstream>
+#include <type_traits>
 
 namespace Db::Core {
 
