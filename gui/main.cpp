@@ -118,7 +118,7 @@ int main() {
             update_db_model();
             return true;
         };
-        import_csv_dialog.run();
+        import_csv_dialog.show_modal();
         update_db_model();
     };
 

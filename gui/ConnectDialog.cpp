@@ -47,7 +47,7 @@ SelectConnectionTypeDialog::SelectConnectionTypeDialog(GUI::HostWindow& host_win
 
 std::unique_ptr<DatabaseClient> connect_to_user_selected_database(GUI::HostWindow& window) {
     auto& select_connection_type = window.open_overlay<SelectConnectionTypeDialog>();
-    select_connection_type.run();
+    select_connection_type.show_modal();
     auto dbclient_type = select_connection_type.selected_database_type();
     if (!dbclient_type) {
         return nullptr;
@@ -92,7 +92,7 @@ std::unique_ptr<DatabaseClient> connect_to_user_selected_database(GUI::HostWindo
             tool_window.close();
         };
 
-        tool_window.run();
+        tool_window.show_modal();
         return client;
     }
 

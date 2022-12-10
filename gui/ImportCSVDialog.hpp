@@ -30,7 +30,7 @@ public:
                 m_csv_file->set_content(Util::UString { path.string() });
             };
 
-            file_explorer_wnd.run();
+            file_explorer_wnd.show_modal();
         };
 
         submit_ok->on_click = [this]() {
