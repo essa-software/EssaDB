@@ -1,10 +1,10 @@
 #include "ConnectDialog.hpp"
 
-#include <EssaGUI/gui/Container.hpp>
-#include <EssaGUI/gui/MessageBox.hpp>
-#include <EssaGUI/gui/RadioGroup.hpp>
-#include <EssaGUI/gui/TextButton.hpp>
-#include <EssaGUI/gui/ToolWindow.hpp>
+#include <Essa/GUI/Widgets/Container.hpp>
+#include <Essa/GUI/Overlays/MessageBox.hpp>
+#include <Essa/GUI/Widgets/RadioGroup.hpp>
+#include <Essa/GUI/Widgets/TextButton.hpp>
+#include <Essa/GUI/Overlays/ToolWindow.hpp>
 
 namespace EssaDB {
 

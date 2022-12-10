@@ -1,10 +1,10 @@
 #pragma once
 
-#include <EssaGUI/gui/FileExplorer.hpp>
-#include <EssaGUI/gui/HostWindow.hpp>
-#include <EssaGUI/gui/TextButton.hpp>
-#include <EssaGUI/gui/TextEditor.hpp>
-#include <EssaGUI/gui/ToolWindow.hpp>
+#include <Essa/GUI/Overlays/FileExplorer.hpp>
+#include <Essa/GUI/HostWindow.hpp>
+#include <Essa/GUI/Widgets/TextButton.hpp>
+#include <Essa/GUI/Widgets/TextEditor.hpp>
+#include <Essa/GUI/Overlays/ToolWindow.hpp>
 
 namespace EssaDB {
 

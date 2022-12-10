@@ -1,7 +1,7 @@
 project(EssaDB)
 cmake_minimum_required(VERSION 3.17)
 
-find_package(EssaGUI REQUIRED)
+find_package(Essa REQUIRED)
 
 # GCC moment
 add_compile_options(-Wno-error=restrict)

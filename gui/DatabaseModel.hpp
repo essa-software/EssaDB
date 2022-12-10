@@ -2,7 +2,7 @@
 
 #include "gui/Structure.hpp"
 #include "gui/client/DatabaseClient.hpp"
-#include <EssaGUI/gui/Model.hpp>
+#include <Essa/GUI/Model.hpp>
 
 namespace EssaDB {
 

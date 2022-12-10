@@ -1,7 +1,7 @@
 #include "DatabaseModel.hpp"
 #include "gui/Structure.hpp"
 
-#include <EssaGUI/gui/Application.hpp>
+#include <Essa/GUI/Application.hpp>
 #include <EssaUtil/Config.hpp>
 
 namespace EssaDB {
