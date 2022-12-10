@@ -1,7 +1,7 @@
 #pragma once
 
 #include "gui/Structure.hpp"
-#include <EssaGUI/gui/Container.hpp>
+#include <Essa/GUI/Widgets/Container.hpp>
 #include <db/core/ValueOrResultSet.hpp>
 #include <db/sql/ast/Statement.hpp>
 #include <memory>

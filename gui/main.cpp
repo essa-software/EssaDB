@@ -1,8 +1,8 @@
-#include <EssaGUI/eml/EMLResource.hpp>
-#include <EssaGUI/gui/Application.hpp>
-#include <EssaGUI/gui/Console.hpp>
-#include <EssaGUI/gui/MessageBox.hpp>
-#include <EssaGUI/gui/TreeView.hpp>
+#include <Essa/GUI/EML/EMLResource.hpp>
+#include <Essa/GUI/Application.hpp>
+#include <Essa/GUI/Widgets/Console.hpp>
+#include <Essa/GUI/Overlays/MessageBox.hpp>
+#include <Essa/GUI/Widgets/TreeView.hpp>
 #include <EssaUtil/UString.hpp>
 #include <algorithm>
 #include <db/core/Table.hpp>

@@ -1,8 +1,8 @@
 #pragma once
 
 #include "client/DatabaseClient.hpp"
-#include <EssaGUI/gui/HostWindow.hpp>
-#include <EssaGUI/gui/ToolWindow.hpp>
+#include <Essa/GUI/HostWindow.hpp>
+#include <Essa/GUI/Overlays/ToolWindow.hpp>
 
 namespace EssaDB {
 

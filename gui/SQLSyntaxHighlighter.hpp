@@ -1,6 +1,6 @@
 #pragma once
 
-#include <EssaGUI/gui/textediting/SyntaxHighlighter.hpp>
+#include <Essa/GUI/TextEditing/SyntaxHighlighter.hpp>
 
 namespace EssaDB {
 
