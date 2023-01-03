@@ -18,7 +18,7 @@ Util::OsErrorOr<std::optional<Core::Tuple>> EDBRelationIteratorImpl::next_impl()
     }
 
     // fmt::print("Last row: {}:{}\n", m_last_row_ptr.block, m_last_row_ptr.offset);
-    auto row = TRY(m_file.map_heap_at<Table::RowSpec>(m_row_ptr));
+    auto row = m_file.access<Table::RowSpec>(m_row_ptr, m_file.row_size() + sizeof(Table::RowSpec));
     // fmt::print("rowspec {} {} {:x}\n", row->is_used, row->next_row.offset, row->row[0]);
     m_row_ptr = row->next_row;
 
@@ -44,8 +44,7 @@ Util::OsErrorOr<std::optional<Core::Tuple>> EDBRelationIteratorImpl::next_impl()
         }
         case Core::Value::Type::Varchar: {
             auto span = TRY(writer.read_struct<HeapSpan>());
-            (void)span; // TODO: Actually read it.
-            values.push_back(is_null ? Core::Value::null() : Core::Value::create_varchar("VARCHAR TODO"));
+            values.push_back(is_null ? Core::Value::null() : Core::Value::create_varchar(m_file.read_heap(span).decode().encode()));
             break;
         }
         case Core::Value::Type::Bool: {
@@ -61,11 +60,11 @@ Util::OsErrorOr<std::optional<Core::Tuple>> EDBRelationIteratorImpl::next_impl()
         }
     }
 
-    fmt::print("D: ");
-    for (auto const& v : values) {
-        fmt::print("{} ", v.to_debug_string());
-    }
-    fmt::print("\n");
+    // fmt::print("D: ");
+    // for (auto const& v : values) {
+    //     fmt::print("{} ", v.to_debug_string());
+    // }
+    // fmt::print("\n");
 
     return Core::Tuple { values };
 }

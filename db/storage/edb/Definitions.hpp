@@ -32,6 +32,8 @@ struct [[gnu::packed]] EDBHeader {
     LittleEndian<uint64_t> row_count;
     uint8_t column_count;
     HeapPtr last_row_ptr;
+    BlockIndex last_table_block;
+    BlockIndex last_heap_block;
     HeapSpan table_name;
     HeapSpan check_statement;
     uint8_t auto_increment_value_count;
@@ -46,7 +48,8 @@ enum class BlockType : uint8_t {
 };
 
 struct [[gnu::packed]] Block {
-    BlockType block_type;
+    BlockType type;
+    LittleEndian<BlockIndex> prev_block;
     LittleEndian<BlockIndex> next_block;
     uint8_t data[0];
 };

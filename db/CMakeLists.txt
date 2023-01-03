@@ -24,6 +24,7 @@ add_library(
     storage/FileBackedTable.cpp
     storage/edb/EDBFile.cpp
     storage/edb/EDBRelationIterator.cpp
+    storage/edb/Heap.cpp
     storage/edb/MappedFile.cpp
     storage/edb/Serializer.cpp
 )

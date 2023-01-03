@@ -44,7 +44,7 @@ size_t FileBackedTable::size() const {
 }
 
 std::string FileBackedTable::name() const {
-    return "TODO";
+    return m_file->read_heap(m_file->header().table_name).decode().encode();
 }
 
 Core::DbErrorOr<void> FileBackedTable::truncate() {
