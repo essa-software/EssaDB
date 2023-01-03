@@ -49,7 +49,8 @@ Column format (`Col`):
 | 1         | 15            | `bool`                            | Auto increment
 | 1         | 16            | `bool`                            | Is unique
 | 1         | 17            | `bool`                            | Is non null
-| 14        | 18            | [`Value`](#value)                 | Default value
+| 1         | 18            | `bool`                            | Has default value
+| 14        | 19            | [`Value`](#value)                 | Default value
 
 Auto-increment variable format (`Aiv`):
 

@@ -5,6 +5,7 @@
 #include <EssaUtil/ScopeGuard.hpp>
 #include <EssaUtil/Stream/File.hpp>
 #include <EssaUtil/Stream/Stream.hpp>
+#include <db/core/Value.hpp>
 #include <db/storage/edb/Definitions.hpp>
 #include <db/storage/edb/MappedFile.hpp>
 #include <db/storage/edb/Serializer.hpp>
@@ -375,10 +376,48 @@ Util::OsErrorOr<std::vector<Core::Column>> EDBFile::read_columns() const {
             static_cast<bool>(column.auto_increment),
             static_cast<bool>(column.unique),
             static_cast<bool>(column.not_null),
-            {},
+            column.has_default_value ? read_edb_value(static_cast<Core::Value::Type>(column.type), column.default_value) : std::optional<Core::Value> {},
         });
     }
     return columns;
+}
+
+Core::Value EDBFile::read_edb_value(Core::Value::Type type, Value const& value) const {
+    switch (type) {
+    case Core::Value::Type::Null:
+        return Core::Value::null();
+    case Core::Value::Type::Int:
+        return Core::Value::create_int(value.int_value);
+    case Core::Value::Type::Float:
+        return Core::Value::create_float(value.float_value);
+    case Core::Value::Type::Varchar:
+        return Core::Value::create_varchar(read_heap(value.varchar_value).decode().encode());
+    case Core::Value::Type::Bool:
+        return Core::Value::create_bool(value.bool_value);
+    case Core::Value::Type::Time:
+        return Core::Value::create_time(Core::Date { value.time_value.year, value.time_value.month, value.time_value.day });
+    }
+    ESSA_UNREACHABLE;
+}
+
+Util::OsErrorOr<Value> EDBFile::write_edb_value(Core::Value const& value) {
+    switch (value.type()) {
+    case Core::Value::Type::Null:
+        ESSA_UNREACHABLE;
+    case Core::Value::Type::Int:
+        return Value { .int_value = std::get<int>(value) };
+    case Core::Value::Type::Float:
+        return Value { .float_value = { std::get<float>(value) } };
+    case Core::Value::Type::Varchar:
+        return Value { .varchar_value = TRY(copy_to_heap(std::get<std::string>(value))) };
+    case Core::Value::Type::Bool:
+        return Value { .bool_value = std::get<bool>(value) };
+    case Core::Value::Type::Time: {
+        auto time = std::get<Core::Date>(value);
+        return Value { .time_value = { .year = time.year, .month = static_cast<uint8_t>(time.month), .day = static_cast<uint8_t>(time.day) } };
+    }
+    }
+    ESSA_UNREACHABLE;
 }
 
 Util::OsErrorOr<HeapSpan> EDBFile::heap_allocate(size_t size) {
