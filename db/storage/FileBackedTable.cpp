@@ -8,7 +8,7 @@
 
 namespace Db::Storage {
 
-Util::OsErrorOr<std::unique_ptr<FileBackedTable>> FileBackedTable::initialize(std::string const& filename, EDB::EDBFile::TableSetup setup) {
+Util::OsErrorOr<std::unique_ptr<FileBackedTable>> FileBackedTable::initialize(std::string const& filename, Core::TableSetup setup) {
     return FileBackedTable::create(TRY(EDB::EDBFile::initialize(filename, std::move(setup))));
 }
 

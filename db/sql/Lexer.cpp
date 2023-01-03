@@ -70,6 +70,7 @@ std::vector<Token> Lexer::lex() {
                 { "DROP", Token::Type::KeywordDrop },
                 { "ELSE", Token::Type::KeywordElse },
                 { "END", Token::Type::KeywordEnd },
+                { "ENGINE", Token::Type::KeywordEngine },
                 { "FROM", Token::Type::KeywordFrom },
                 { "FOREIGN", Token::Type::KeywordForeign },
                 { "FULL", Token::Type::KeywordFull },

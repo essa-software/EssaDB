@@ -5,6 +5,7 @@
 #include <EssaUtil/Stream/File.hpp>
 #include <cstddef>
 #include <db/core/Column.hpp>
+#include <db/core/TableSetup.hpp>
 #include <db/storage/edb/AlignedAccess.hpp>
 #include <db/storage/edb/Definitions.hpp>
 #include <db/storage/edb/Heap.hpp>
@@ -18,12 +19,7 @@ class EDBFile {
 public:
     EDBFile(EDBFile const&) = delete;
 
-    struct TableSetup {
-        std::string name;
-        std::vector<Core::Column> columns;
-    };
-
-    static Util::OsErrorOr<std::unique_ptr<EDBFile>> initialize(std::string const& path, TableSetup);
+    static Util::OsErrorOr<std::unique_ptr<EDBFile>> initialize(std::string const& path, Db::Core::TableSetup);
     static Util::OsErrorOr<std::unique_ptr<EDBFile>> open(std::string const& path);
 
     Util::OsErrorOr<void> insert(Core::Tuple const& tuple);
@@ -92,9 +88,9 @@ private:
     Util::OsErrorOr<void> read_header();
 
     // Write enough header to make allocate_block() work.
-    Util::OsErrorOr<void> write_header_first_pass(TableSetup const&);
+    Util::OsErrorOr<void> write_header_first_pass(Db::Core::TableSetup const&);
 
-    Util::OsErrorOr<void> write_header(TableSetup const&);
+    Util::OsErrorOr<void> write_header(Db::Core::TableSetup const&);
     Util::OsErrorOr<void> flush_header();
 
     // Add `blocks` blocks to file without initializing them.

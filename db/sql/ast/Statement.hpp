@@ -1,6 +1,7 @@
 #pragma once
 
 #include <db/core/Column.hpp>
+#include <db/core/Database.hpp>
 #include <db/core/ImportMode.hpp>
 #include <db/core/IndexedRelation.hpp>
 #include <db/core/ValueOrResultSet.hpp>
@@ -94,11 +95,12 @@ private:
 
 class CreateTable : public Statement {
 public:
-    CreateTable(ssize_t start, std::string name, std::vector<ParsedColumn> columns, std::shared_ptr<AST::Check> check)
+    CreateTable(ssize_t start, std::string name, std::vector<ParsedColumn> columns, std::shared_ptr<AST::Check> check, Core::Database::Engine engine)
         : Statement(start)
         , m_name(std::move(name))
         , m_columns(std::move(columns))
-        , m_check(std::move(check)) { }
+        , m_check(std::move(check))
+        , m_engine(engine) { }
 
     virtual SQLErrorOr<Core::ValueOrResultSet> execute(Core::Database&) const override;
 
@@ -107,6 +109,7 @@ private:
     std::vector<ParsedColumn> m_columns;
     std::shared_ptr<AST::Check> m_check;
     std::map<std::string, std::shared_ptr<AST::Expression>> m_check_constraints;
+    Core::Database::Engine m_engine;
 };
 
 class DropTable : public Statement {

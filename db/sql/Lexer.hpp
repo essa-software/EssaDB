@@ -25,6 +25,7 @@ struct Token {
         KeywordDrop,
         KeywordElse,
         KeywordEnd,
+        KeywordEngine,
         KeywordFrom,
         KeywordForeign,
         KeywordFull,

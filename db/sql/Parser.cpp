@@ -553,7 +553,7 @@ SQLErrorOr<std::unique_ptr<AST::CreateTable>> Parser::parse_create_table() {
 
     auto paren_open = m_tokens[m_offset];
     if (paren_open.type != Token::Type::ParenOpen)
-        return std::make_unique<AST::CreateTable>(start, table_name.value, std::vector<AST::ParsedColumn> {}, std::make_shared<AST::Check>(start));
+        return std::make_unique<AST::CreateTable>(start, table_name.value, std::vector<AST::ParsedColumn> {}, std::make_shared<AST::Check>(start), Core::Database::Engine::Memory);
     m_offset++;
 
     std::vector<AST::ParsedColumn> columns;
@@ -607,7 +607,27 @@ SQLErrorOr<std::unique_ptr<AST::CreateTable>> Parser::parse_create_table() {
     if (paren_close.type != Token::Type::ParenClose)
         return expected("')' to close column list", paren_close, m_offset - 1);
 
-    return std::make_unique<AST::CreateTable>(start, table_name.value, std::move(columns), std::move(check));
+    auto engine = Core::Database::Engine::Memory;
+    if (m_tokens[m_offset].type == Token::Type::KeywordEngine) {
+        m_offset++;
+        auto engine_identifier = m_tokens[m_offset++];
+        if (engine_identifier.type == Token::Type::Identifier) {
+            if (compare_case_insensitive(engine_identifier.value, "EDB")) {
+                engine = Core::Database::Engine::EDB;
+            }
+            else if (compare_case_insensitive(engine_identifier.value, "MEMORY")) {
+                engine = Core::Database::Engine::Memory;
+            }
+            else {
+                return SQLError { "Invalid database engine, expected 'EDB' or 'MEMORY'", m_offset - 1 };
+            }
+        }
+        else {
+            return expected("identifier", engine_identifier, m_offset - 1);
+        }
+    }
+
+    return std::make_unique<AST::CreateTable>(start, table_name.value, std::move(columns), std::move(check), engine);
 }
 
 SQLErrorOr<std::unique_ptr<AST::DropTable>> Parser::parse_drop_table() {

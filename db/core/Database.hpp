@@ -4,6 +4,7 @@
 #include <db/core/DbError.hpp>
 #include <db/core/ImportMode.hpp>
 #include <db/core/Table.hpp>
+#include <db/core/TableSetup.hpp>
 #include <string>
 #include <unordered_map>
 
@@ -11,12 +12,17 @@ namespace Db::Core {
 
 class Database : public Util::NonCopyable {
 public:
-    // Create a new MemoryBackedTable.
-    Table& create_table(std::string name, std::shared_ptr<Sql::AST::Check> check);
+    enum class Engine {
+        Memory,
+        EDB
+    };
+
+    // Create a new table using a specified engine.
+    Core::DbErrorOr<Table*> create_table(TableSetup table_setup, std::shared_ptr<Sql::AST::Check> check, Engine engine);
 
     // Move already created table into a database.
     void add_table(std::unique_ptr<Table> table);
-    
+
     // Create a new MemoryBackedTable initialized by the given ResultSet.
     DbErrorOr<Table*> create_table_from_query(ResultSet select, std::string name);
 
