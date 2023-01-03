@@ -37,6 +37,7 @@ public:
         assert(!ptr.is_null());
         auto mapped_ptr = heap_ptr_to_mapped_ptr(ptr);
         // fmt::print(":: access: {}:{} +{} = {:x}\n", ptr.block, ptr.offset, sizeof(T), mapped_ptr - m_mapped_file.data().data());
+        assert(mapped_ptr + sizeof(T) <= m_mapped_file.data().end().base());
         return AlignedAccess<T> { mapped_ptr };
     }
 
@@ -46,6 +47,7 @@ public:
         auto mapped_ptr = heap_ptr_to_mapped_ptr(ptr);
         // fmt::print(":: allocating access: {}:{} +{} = {:x}\n", ptr.block, ptr.offset, size, mapped_ptr - m_mapped_file.data().data());
         // fmt::print("   address range: {}..{}\n", fmt::ptr(mapped_ptr), fmt::ptr(mapped_ptr + size));
+        assert(mapped_ptr + size <= m_mapped_file.data().end().base());
         return AllocatingAlignedAccess<T> { mapped_ptr, size };
     }
 
