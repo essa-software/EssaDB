@@ -20,3 +20,11 @@ template<class T>
 using DbErrorOr = Util::ErrorOr<T, DbError>;
 
 }
+
+template<>
+struct fmt::formatter<Db::Core::DbError> : public fmt::formatter<std::string_view> {
+    template<typename FormatContext>
+    constexpr auto format(Db::Core::DbError const& p, FormatContext& ctx) const {
+        return format_to(ctx.out(), "DbError: {}", p.message());
+    }
+};

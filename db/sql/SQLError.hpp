@@ -37,3 +37,11 @@ template<class T>
 using SQLErrorOr = Util::ErrorOr<T, SQLError>;
 
 }
+
+template<>
+struct fmt::formatter<Db::Sql::SQLError> : public fmt::formatter<std::string_view> {
+    template<typename FormatContext>
+    constexpr auto format(Db::Sql::SQLError const& p, FormatContext& ctx) const {
+        return format_to(ctx.out(), "SQLError @ {}: {}", p.token(), p.message());
+    }
+};
