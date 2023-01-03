@@ -410,26 +410,7 @@ SQLErrorOr<std::unique_ptr<AST::Import>> Parser::parse_import() {
         return expected("table name", table_name, m_offset - 1);
     }
 
-    auto engine = Core::Database::Engine::Memory;
-    if (m_tokens[m_offset].type == Token::Type::KeywordEngine) {
-        m_offset++;
-        auto engine_identifier = m_tokens[m_offset++];
-        if (engine_identifier.type == Token::Type::Identifier) {
-            if (compare_case_insensitive(engine_identifier.value, "EDB")) {
-                engine = Core::Database::Engine::EDB;
-            }
-            else if (compare_case_insensitive(engine_identifier.value, "MEMORY")) {
-                engine = Core::Database::Engine::Memory;
-            }
-            else {
-                return SQLError { "Invalid database engine, expected 'EDB' or 'MEMORY'", m_offset - 1 };
-            }
-        }
-        else {
-            return expected("identifier", engine_identifier, m_offset - 1);
-        }
-    }
-
+    auto engine = TRY(parse_engine_specification());
     return std::make_unique<AST::Import>(start, mode, file_name.value, table_name.value, engine);
 }
 
@@ -627,26 +608,7 @@ SQLErrorOr<std::unique_ptr<AST::CreateTable>> Parser::parse_create_table() {
     if (paren_close.type != Token::Type::ParenClose)
         return expected("')' to close column list", paren_close, m_offset - 1);
 
-    auto engine = Core::Database::Engine::Memory;
-    if (m_tokens[m_offset].type == Token::Type::KeywordEngine) {
-        m_offset++;
-        auto engine_identifier = m_tokens[m_offset++];
-        if (engine_identifier.type == Token::Type::Identifier) {
-            if (compare_case_insensitive(engine_identifier.value, "EDB")) {
-                engine = Core::Database::Engine::EDB;
-            }
-            else if (compare_case_insensitive(engine_identifier.value, "MEMORY")) {
-                engine = Core::Database::Engine::Memory;
-            }
-            else {
-                return SQLError { "Invalid database engine, expected 'EDB' or 'MEMORY'", m_offset - 1 };
-            }
-        }
-        else {
-            return expected("identifier", engine_identifier, m_offset - 1);
-        }
-    }
-
+    auto engine = TRY(parse_engine_specification());
     return std::make_unique<AST::CreateTable>(start, table_name.value, std::move(columns), std::move(check), engine);
 }
 
@@ -1010,6 +972,28 @@ SQLErrorOr<std::unique_ptr<AST::Expression>> Parser::parse_expression_or_index(A
         return std::make_unique<AST::NonOwningExpressionProxy>(m_offset - 1, *select_columns.columns()[index - 1].column);
     }
     return parse_expression();
+}
+
+SQLErrorOr<std::optional<Core::Database::Engine>> Parser::parse_engine_specification() {
+    if (m_tokens[m_offset].type == Token::Type::KeywordEngine) {
+        m_offset++;
+        auto engine_identifier = m_tokens[m_offset++];
+        if (engine_identifier.type == Token::Type::Identifier) {
+            if (compare_case_insensitive(engine_identifier.value, "EDB")) {
+                return Core::Database::Engine::EDB;
+            }
+            else if (compare_case_insensitive(engine_identifier.value, "MEMORY")) {
+                return Core::Database::Engine::Memory;
+            }
+            else {
+                return SQLError { "Invalid database engine, expected 'EDB' or 'MEMORY'", m_offset - 1 };
+            }
+        }
+        else {
+            return expected("identifier", engine_identifier, m_offset - 1);
+        }
+    }
+    return std::optional<Core::Database::Engine> {};
 }
 
 SQLErrorOr<std::unique_ptr<AST::Literal>> Parser::parse_literal() {
