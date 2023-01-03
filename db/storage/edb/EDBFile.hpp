@@ -109,7 +109,7 @@ private:
     Data::Heap m_heap { *this };
     MappedFile m_mapped_file;
     Util::File m_file;
-    size_t m_file_size = sizeof(EDBHeader);
+    size_t m_file_size = 0;
     BlockIndex m_block_count = 1;
 };
 
