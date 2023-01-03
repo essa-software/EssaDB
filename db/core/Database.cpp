@@ -9,6 +9,11 @@
 namespace Db::Core {
 
 Core::DbErrorOr<Table*> Database::create_table(TableSetup table_setup, std::shared_ptr<Sql::AST::Check> check, Engine engine) {
+    // FIXME: Implement CREATE TABLE IF NOT EXISTS.
+    if (m_tables.contains(table_setup.name)) {
+        return Core::DbError { fmt::format("Table '{}' already exists", table_setup.name) };
+    }
+
     switch (engine) {
     case Engine::Memory: {
         auto& table = *m_tables.insert({ table_setup.name, std::make_unique<MemoryBackedTable>(std::move(check), table_setup.name) }).first->second;
