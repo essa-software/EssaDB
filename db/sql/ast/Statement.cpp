@@ -27,8 +27,11 @@ SQLErrorOr<Core::ValueOrResultSet> StatementList::execute(Core::Database& db) co
 }
 
 SQLErrorOr<Core::ValueOrResultSet> DeleteFrom::execute(Core::Database& db) const {
-    // TODO: Check table type
-    auto table = static_cast<Core::MemoryBackedTable*>(TRY(db.table(m_from).map_error(DbToSQLError { start() })));
+    auto table = TRY(db.table(m_from).map_error(DbToSQLError { start() }));
+    auto memory_backed_table = dynamic_cast<Core::MemoryBackedTable*>(table);
+    if (!memory_backed_table) {
+        return SQLError { "TODO: Support other table classes than MemoryBackedTable", start() };
+    }
 
     EvaluationContext context { .db = &db };
     AST::SimpleTableExpression id { 0, *table };
@@ -59,13 +62,17 @@ SQLErrorOr<Core::ValueOrResultSet> DeleteFrom::execute(Core::Database& db) const
     }));
 
     for (auto it = rows_to_remove.rbegin(); it != rows_to_remove.rend(); it++) {
-        table->raw_rows().erase(table->raw_rows().begin() + *it);
+        memory_backed_table->raw_rows().erase(memory_backed_table->raw_rows().begin() + *it);
     }
     return Core::Value::null();
 }
 
 SQLErrorOr<Core::ValueOrResultSet> Update::execute(Core::Database& db) const {
-    auto table = static_cast<Core::MemoryBackedTable*>(TRY(db.table(m_table).map_error(DbToSQLError { start() })));
+    auto table = TRY(db.table(m_table).map_error(DbToSQLError { start() }));
+    auto memory_backed_table = dynamic_cast<Core::MemoryBackedTable*>(table);
+    if (!memory_backed_table) {
+        return SQLError { "TODO: Support other table classes than MemoryBackedTable", start() };
+    }
     EvaluationContext context { .db = &db };
     AST::SimpleTableExpression id { 0, *table };
     SelectColumns columns;
@@ -74,7 +81,7 @@ SQLErrorOr<Core::ValueOrResultSet> Update::execute(Core::Database& db) const {
     for (const auto& update_pair : m_to_update) {
         auto column = table->get_column(update_pair.column);
 
-        for (auto& tuple : table->raw_rows()) {
+        for (auto& tuple : memory_backed_table->raw_rows()) {
             context.current_frame().row = { .tuple = tuple, .source = {} };
             tuple.set_value(column->index, TRY(update_pair.expr->evaluate(context)));
         }
@@ -122,6 +129,10 @@ SQLErrorOr<Core::ValueOrResultSet> TruncateTable::execute(Core::Database& db) co
 
 SQLErrorOr<Core::ValueOrResultSet> AlterTable::execute(Core::Database& db) const {
     auto table = TRY(db.table(m_name).map_error(DbToSQLError { start() }));
+    auto memory_backed_table = dynamic_cast<Core::MemoryBackedTable*>(table);
+    if (!memory_backed_table) {
+        return SQLError { "TODO: Support other table classes than MemoryBackedTable", start() };
+    }
 
     for (const auto& to_add : m_to_add) {
         TRY(table->add_column(to_add.column).map_error(DbToSQLError { start() }));
@@ -160,11 +171,6 @@ SQLErrorOr<Core::ValueOrResultSet> AlterTable::execute(Core::Database& db) const
         }
         table->drop_foreign_key(to_drop);
     }
-
-    auto memory_backed_table = dynamic_cast<Core::MemoryBackedTable*>(table);
-
-    if (!memory_backed_table)
-        return SQLError { "Table with invalid type", start() };
 
     auto check_exists = [&]() -> SQLErrorOr<bool> {
         if (memory_backed_table->check())
