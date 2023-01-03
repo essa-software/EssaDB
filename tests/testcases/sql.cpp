@@ -216,6 +216,7 @@ std::map<std::string, TestFunc> get_tests() {
                 bool this_success = display_error_if_error(run_query(db, statement), statement);
                 if (!this_success) {
                     std::cout << "[FAIL]  when running \e[32m" << statement.statement << "\e[m" << std::endl;
+                    std::cout << "[FAIL]  in " << test_name << std::endl;
                 }
                 success &= this_success;
             }
