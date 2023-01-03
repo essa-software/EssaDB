@@ -79,6 +79,9 @@ public:
         return AllocatingAlignedAccess<T> { heap_ptr_to_mapped_ptr(addr.offset), addr.size };
     }
 
+    Core::Value read_edb_value(Core::Value::Type, Value const&) const;
+    Util::OsErrorOr<Value> write_edb_value(Core::Value const&);
+
 private:
     friend class EDBRelationIteratorImpl;
 

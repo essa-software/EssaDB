@@ -17,7 +17,8 @@ Util::OsErrorOr<void> Serializer::write_column(EDBFile& file, Util::Writer& writ
         .auto_increment = column.auto_increment(),
         .unique = column.unique(),
         .not_null = column.not_null(),
-        .default_value = { .varchar_value = {} },
+        .has_default_value = !column.default_value().is_null(),
+        .default_value = column.default_value().is_null() ? Value {} : TRY(file.write_edb_value(column.default_value())),
     }));
     return {};
 }

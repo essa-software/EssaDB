@@ -76,6 +76,7 @@ struct Column {
     uint8_t auto_increment;
     uint8_t unique;
     uint8_t not_null;
+    uint8_t has_default_value;
     Value default_value;
 };
 
