@@ -39,7 +39,7 @@ Util::OsErrorOr<void> Serializer::write_row(EDBFile& file, Util::Writer& writer,
             TRY(writer.write_little_endian<float>(value.is_null() ? 0 : std::get<float>(value)));
             break;
         case Core::Value::Type::Varchar:
-            TRY(writer.write_struct<HeapSpan>(TRY(file.copy_to_heap(std::get<std::string>(value)))));
+            TRY(writer.write_struct<HeapSpan>(value.is_null() ? HeapSpan {} : TRY(file.copy_to_heap(std::get<std::string>(value)))));
             break;
         case Core::Value::Type::Bool:
             TRY(writer.write_little_endian<uint8_t>(value.is_null() ? false : std::get<bool>(value)));
