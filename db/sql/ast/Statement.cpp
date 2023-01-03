@@ -200,7 +200,7 @@ SQLErrorOr<Core::ValueOrResultSet> AlterTable::execute(Core::Database& db) const
 }
 
 SQLErrorOr<Core::ValueOrResultSet> Import::execute(Core::Database& db) const {
-    TRY(db.import_to_table(m_filename, m_table, m_mode).map_error(DbToSQLError { start() }));
+    TRY(db.import_to_table(m_filename, m_table, m_mode, m_engine).map_error(DbToSQLError { start() }));
     return Core::Value::null();
 }
 

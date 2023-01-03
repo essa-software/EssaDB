@@ -6,6 +6,7 @@
 #include <db/core/DbError.hpp>
 #include <db/core/ResultSet.hpp>
 #include <db/core/TupleFromValues.hpp>
+#include <db/storage/CSVFile.hpp>
 #include <fstream>
 #include <iostream>
 #include <memory>
@@ -284,114 +285,10 @@ void Table::export_to_csv(const std::string& path) const {
     });
 }
 
-DbErrorOr<void> Table::import_from_csv(Database& db, const std::string& path) {
-    std::ifstream f_in(path);
-    f_in >> std::ws;
-    if (!f_in.good())
-        return DbError { "Failed to open CSV file '" + path + "': " + std::string(strerror(errno)) };
-
-    std::vector<std::string> column_names;
-    std::vector<std::vector<std::string>> rows;
-
-    auto read_line = [&]() -> std::vector<std::string> {
-        std::string line;
-        if (!std::getline(f_in, line))
-            return {};
-
-        std::vector<std::string> values;
-        std::istringstream line_in { line };
-        while (true) {
-            line_in >> std::ws;
-            std::string value;
-
-            char c = line_in.peek();
-            if (c == EOF)
-                break;
-            std::optional<char> quote;
-            if (c == '\'' || c == '"') {
-                quote = c;
-                line_in.get();
-                c = line_in.peek();
-            }
-            while (!((!quote && (c == ',' || c == ';')) || (quote && c == *quote))) {
-                if (c == EOF)
-                    break;
-                value += c;
-                line_in.get();
-                c = line_in.peek();
-            }
-            if (line_in.peek() == '\'' || line_in.peek() == '"')
-                line_in.get();
-            line_in >> std::ws;
-            if (line_in.peek() == ',' || line_in.peek() == ';')
-                line_in.get();
-            values.push_back(std::move(value));
-        }
-        return values;
-    };
-
-    column_names = read_line();
-    if (column_names.empty())
-        return DbError { "CSV file contains no columns" };
-
-    while (true) {
-        auto row_line = read_line();
-        if (row_line.empty())
-            break;
-        if (row_line.size() != column_names.size()) {
-            return DbError { "Invalid value count in row, expected " + std::to_string(column_names.size()) + ", got " + std::to_string(row_line.size()) };
-        }
-        rows.push_back(std::move(row_line));
+DbErrorOr<void> Table::import_from_csv(Database& db, Storage::CSVFile const& file) {
+    for (auto const& row : file.rows()) {
+        TRY(insert(db, row));
     }
-
-    f_in.close();
-
-    if (columns().empty()) {
-        size_t column_index = 0;
-        for (auto const& column_name : column_names) {
-            Value::Type type = Value::Type::Null;
-
-            for (auto const& row : rows) {
-
-                if (type == Value::Type::Null) {
-                    auto new_type = find_type(row[column_index]);
-                    if (new_type != Value::Type::Null)
-                        type = new_type;
-                }
-                else if (type == Value::Type::Int && find_type(row[column_index]) == Value::Type::Varchar)
-                    type = Value::Type::Varchar;
-            }
-
-            TRY(add_column(Column(column_name, type, 0, 0, 0)));
-
-            column_index++;
-        }
-    }
-    else {
-        // std::cout << "Reading CSV into existing table" << std::endl;
-        if (column_names.size() != columns().size())
-            return DbError { "Column count differs in CSV file and in table" };
-    }
-
-    auto columns = this->columns();
-    for (auto const& row : rows) {
-        std::vector<std::pair<std::string, Value>> tuple;
-        unsigned i = 0;
-
-        for (const auto& col : columns) {
-            auto value = row[i];
-            i++;
-
-            if (value == "null")
-                continue;
-
-            auto created_value = TRY(Value::from_string(col.type(), value));
-            tuple.push_back({ col.name(), std::move(created_value) });
-        }
-
-        TRY(insert(db, TRY(create_tuple_from_values(*this, tuple))));
-    }
-
     return {};
 }
 

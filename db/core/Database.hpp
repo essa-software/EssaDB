@@ -31,7 +31,7 @@ public:
 
     bool exists(std::string name) const { return m_tables.find(name) != m_tables.end(); }
 
-    DbErrorOr<void> import_to_table(std::string const& path, std::string const& table_name, ImportMode);
+    DbErrorOr<Table*> import_to_table(std::string const& path, std::string const& table_name, ImportMode, Engine);
 
     size_t table_count() const { return m_tables.size(); }
 

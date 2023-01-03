@@ -2,6 +2,7 @@
 
 #include <EssaUtil/Config.hpp>
 #include <db/core/Table.hpp>
+#include <db/storage/CSVFile.hpp>
 #include <db/storage/FileBackedTable.hpp>
 #include <filesystem>
 
@@ -54,17 +55,21 @@ DbErrorOr<Table*> Database::table(std::string name) {
     return it->second.get();
 }
 
-DbErrorOr<void> Database::import_to_table(std::string const& path, std::string const& table_name, ImportMode mode) {
-    // TODO: Support edb
-    auto new_table = TRY(create_table({ table_name, {} }, std::make_shared<Sql::AST::Check>(0), Engine::Memory));
+DbErrorOr<Table*> Database::import_to_table(std::string const& path, std::string const& table_name, ImportMode mode, Engine engine) {
     switch (mode) {
-    case ImportMode::Csv:
-        TRY(new_table->import_from_csv(*this, path));
-        break;
-    default:
-        ESSA_UNREACHABLE;
+    case ImportMode::Csv: {
+        Table* table = m_tables.contains(table_name)
+            ? MUST(this->table(table_name))
+            : nullptr;
+        auto csv_file = TRY(Storage::CSVFile::import(path, table ? table->columns() : std::vector<Column> {}));
+        if (!table) {
+            table = TRY(create_table({ table_name, csv_file.columns() }, nullptr, engine));
+        }
+        TRY(table->import_from_csv(*this, csv_file));
+        return table;
     }
-    return {};
+    }
+    ESSA_UNREACHABLE;
 }
 
 }
