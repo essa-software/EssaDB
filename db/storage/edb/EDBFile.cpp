@@ -220,6 +220,7 @@ Util::OsErrorOr<void> EDBFile::write_header_first_pass(Db::Core::TableSetup cons
     m_header.last_table_block = 0;
     m_header.last_heap_block = 0;
     m_header.column_count = setup.columns.size();
+    m_file_size = header_size();
     return {};
 }
 
