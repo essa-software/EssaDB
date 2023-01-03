@@ -3,14 +3,16 @@
 #include <EssaUtil/Config.hpp>
 #include <EssaUtil/Error.hpp>
 #include <cstdint>
+
 #include <db/core/Table.hpp>
 #include <db/storage/edb/Definitions.hpp>
+#include <db/storage/edb/EDBFile.hpp>
 
 namespace Db::Storage::EDB {
 
-Util::OsErrorOr<void> Serializer::write_column(Util::Writer& writer, Core::Column const& column) {
+Util::OsErrorOr<void> Serializer::write_column(EDBFile& file, Util::Writer& writer, Core::Column const& column) {
     TRY(writer.write_struct<Column>(Column {
-        .column_name = {}, // TODO
+        .column_name = TRY(file.copy_to_heap(column.name())),
         .type = static_cast<uint8_t>(column.type()),
         .auto_increment = column.auto_increment(),
         .unique = column.unique(),
@@ -20,7 +22,7 @@ Util::OsErrorOr<void> Serializer::write_column(Util::Writer& writer, Core::Colum
     return {};
 }
 
-Util::OsErrorOr<void> Serializer::write_row(Util::Writer& writer, std::vector<Column> const& columns, Core::Tuple const& tuple) {
+Util::OsErrorOr<void> Serializer::write_row(EDBFile& file, Util::Writer& writer, std::vector<Column> const& columns, Core::Tuple const& tuple) {
     assert(columns.size() == tuple.value_count());
     for (size_t s = 0; s < columns.size(); s++) {
         auto value = tuple.value(s);
@@ -37,8 +39,7 @@ Util::OsErrorOr<void> Serializer::write_row(Util::Writer& writer, std::vector<Co
             TRY(writer.write_little_endian<float>(value.is_null() ? 0 : std::get<float>(value)));
             break;
         case Core::Value::Type::Varchar:
-            // TODO
-            TRY(writer.write_struct<HeapSpan>(HeapSpan {}));
+            TRY(writer.write_struct<HeapSpan>(TRY(file.copy_to_heap(std::get<std::string>(value)))));
             break;
         case Core::Value::Type::Bool:
             TRY(writer.write_little_endian<uint8_t>(value.is_null() ? false : std::get<bool>(value)));

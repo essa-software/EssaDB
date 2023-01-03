@@ -5,17 +5,14 @@
 #include <EssaUtil/Stream/File.hpp>
 #include <cstddef>
 #include <db/core/Column.hpp>
+#include <db/storage/edb/AlignedAccess.hpp>
 #include <db/storage/edb/Definitions.hpp>
 #include <db/storage/edb/Heap.hpp>
 #include <db/storage/edb/MappedFile.hpp>
 #include <memory>
+#include <utility>
 
 namespace Db::Storage::EDB {
-
-template<class T>
-T* data_cast(uint8_t data[]) {
-    return reinterpret_cast<T*>(data);
-}
 
 class EDBFile {
 public:
@@ -34,33 +31,69 @@ public:
     Util::OsErrorOr<std::vector<Core::Column>> read_columns() const;
     auto const& header() const { return m_header; }
 
-    Util::OsErrorOr<MappedFile> map_heap(HeapPtr ptr, size_t size) {
-        if (ptr.block == 0) {
-            return Util::OsError { .error = 0, .function = "map_heap_at trying to map block 0" };
-        }
-        if (ptr.offset + size > block_size()) {
-            return Util::OsError { .error = 0, .function = "map_heap_at outside of block size" };
-        }
-        return MappedFile::map(m_file.fd(), block_offset(ptr.block) + ptr.offset, size);
+    size_t block_size() const;
+
+    uint8_t* heap_ptr_to_mapped_ptr(HeapPtr);
+    uint8_t const* heap_ptr_to_mapped_ptr(HeapPtr) const;
+
+    template<class T>
+    AlignedAccess<T> access(HeapPtr ptr) {
+        assert(!ptr.is_null());
+        auto mapped_ptr = heap_ptr_to_mapped_ptr(ptr);
+        // fmt::print(":: access: {}:{} +{} = {:x}\n", ptr.block, ptr.offset, sizeof(T), mapped_ptr - m_mapped_file.data().data());
+        return AlignedAccess<T> { mapped_ptr };
     }
 
     template<class T>
-    Util::OsErrorOr<Mapped<T>> map_heap_object(HeapPtr ptr, size_t size = sizeof(T)) {
-        return Mapped<T> { map_heap(ptr, size) };
+    AllocatingAlignedAccess<T> access(HeapPtr ptr, size_t size) {
+        assert(!ptr.is_null());
+        auto mapped_ptr = heap_ptr_to_mapped_ptr(ptr);
+        // fmt::print(":: allocating access: {}:{} +{} = {:x}\n", ptr.block, ptr.offset, size, mapped_ptr - m_mapped_file.data().data());
+        // fmt::print("   address range: {}..{}\n", fmt::ptr(mapped_ptr), fmt::ptr(mapped_ptr + size));
+        return AllocatingAlignedAccess<T> { mapped_ptr, size };
+    }
+
+    Util::Buffer read_heap(HeapSpan) const;
+
+    void dump_blocks();
+
+    Util::OsErrorOr<HeapSpan> heap_allocate(size_t size);
+
+    Util::OsErrorOr<HeapSpan> copy_to_heap(std::string const& str) {
+        auto span = TRY(heap_allocate_and_get_span(str.size()));
+        std::copy(str.begin(), str.end(), span.mapped_span.begin());
+        return span.heap_span;
+    }
+
+    struct HeapAllocationResult {
+        HeapSpan heap_span;
+        std::span<uint8_t> mapped_span;
+    };
+
+    Util::OsErrorOr<HeapAllocationResult> heap_allocate_and_get_span(size_t size) {
+        auto span = TRY(heap_allocate(size));
+        return HeapAllocationResult { span, { heap_ptr_to_mapped_ptr(span.offset), span.size } };
+    }
+
+    template<class T>
+    Util::OsErrorOr<AllocatingAlignedAccess<T>> heap_allocate(size_t size) {
+        auto addr = TRY(heap_allocate(size));
+        return AllocatingAlignedAccess<T> { heap_ptr_to_mapped_ptr(addr.offset), addr.size };
     }
 
 private:
-    friend std::unique_ptr<EDBFile> std::make_unique<EDBFile>(Util::File&&);
     friend class EDBRelationIteratorImpl;
 
-    EDBFile(Util::File f);
+    EDBFile(Util::File, MappedFile);
 
     size_t header_size() const;
-    size_t block_size() const;
     size_t block_offset(BlockIndex) const;
 
     Util::OsErrorOr<void> read_header();
-    Util::OsErrorOr<void> write_block_size(TableSetup const&);
+
+    // Write enough header to make allocate_block() work.
+    Util::OsErrorOr<void> write_header_first_pass(TableSetup const&);
+
     Util::OsErrorOr<void> write_header(TableSetup const&);
     Util::OsErrorOr<void> flush_header();
 
@@ -71,22 +104,14 @@ private:
     Util::OsErrorOr<BlockIndex> allocate_block(BlockType);
 
     size_t row_size() const;
-
     size_t block_count() const { return (m_file_size - header_size()) / block_size(); }
-
-    Util::OsErrorOr<Util::Buffer> read_heap(HeapSpan) const;
-    Util::OsErrorOr<HeapSpan> heap_allocate(size_t size);
-
-    Util::OsErrorOr<std::pair<HeapSpan, MappedFile>> heap_allocate_and_map(size_t size) {
-        auto span = TRY(heap_allocate(size));
-        return std::pair(span, TRY(MappedFile::map(m_file.fd(), block_offset(span.offset.block) + span.offset.offset, span.size)));
-    }
 
     EDBHeader m_header;
     std::vector<Column> m_columns;
-    Data::Heap m_heap;
+    Data::Heap m_heap { *this };
+    MappedFile m_mapped_file;
     Util::File m_file;
-    size_t m_file_size = 0;
+    size_t m_file_size = sizeof(EDBHeader);
     BlockIndex m_block_count = 1;
 };
 

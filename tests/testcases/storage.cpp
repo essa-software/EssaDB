@@ -16,21 +16,27 @@ DbErrorOr<void> basic() {
         {
             .name = "test_table",
             .columns = {
-                Db::Core::Column { "test1", Db::Core::Value::Type::Int, false, false, false },
-                Db::Core::Column { "test2", Db::Core::Value::Type::Float, false, true, true },
+                Db::Core::Column { "some_id", Db::Core::Value::Type::Int, false, false, false },
+                Db::Core::Column { "some_float", Db::Core::Value::Type::Float, false, true, true },
+                Db::Core::Column { "some_varchar", Db::Core::Value::Type::Varchar, false, false, false },
             },
         }));
 
     auto table = MUST(Db::Storage::FileBackedTable::open("/tmp/essadb.edb"));
-    for (size_t s = 0; s < 300; s++) {
-        TRY(table->insert_unchecked({ s % 2 == 0 ? Db::Core::Value::null() : Db::Core::Value::create_int(s), Db::Core::Value::create_float(123.456f) }));
+    for (size_t s = 0; s < 50; s++) {
+        TRY(table->insert_unchecked({
+            s % 2 == 0 ? Db::Core::Value::null() : Db::Core::Value::create_int(s),
+            Db::Core::Value::create_float(123.456f),
+            Db::Core::Value::create_varchar(fmt::format("Varchar test: {}", s)),
+        }));
     }
+    fmt::print("table name = {}\n", table->name());
     table->dump_structure();
 
     Db::Core::Database db;
     db.add_table(std::move(table));
 
-    auto result = MUST(Db::Sql::run_query(db, "SELECT * FROM test_table WHERE todo > 280"));
+    auto result = MUST(Db::Sql::run_query(db, "SELECT * FROM test_table"));
     result.repl_dump(std::cout, Db::Core::ResultSet::FancyDump::Yes);
 
     return {};

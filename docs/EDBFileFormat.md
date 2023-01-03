@@ -26,13 +26,15 @@ Header structure
 | 8         | 12                | `u64 LE`      | Number of rows
 | 1         | 20                | `u8`          | Number of columns (`Col`)
 | 8         | 21                | `HeapPtr`     | Pointer to last row
-| 14        | 29                | `HeapSpan`    | Table name
-| 14        | 43                | `HeapSpan`    | Check SQL statement
-| 1         | 57                | `u8`          | Number of auto-increment variables (`Aiv`)
-| 1         | 58                | `u8`          | Number of keys (`Key`)
-| `Col`     | 59                | `Col[]`       | Column definitions
-| `Aiv`     | 59+`Col`          | `Aiv[]`       | Auto-increment variable definitions
-| `Key`     | 59+`Col`+`Aiv`    | `Key[]`       | Keys
+| 4         | 29                | `BlockIndex`  | Index of last table block
+| 4         | 33                | `BlockIndex`  | Index of last heap block
+| 16        | 37                | `HeapSpan`    | Table name
+| 16        | 53                | `HeapSpan`    | Check SQL statement
+| 1         | 69                | `u8`          | Number of auto-increment variables (`Aiv`)
+| 1         | 70                | `u8`          | Number of keys (`Key`)
+| `Col`     | 71                | `Col[]`       | Column definitions
+| `Aiv`     | 71+`Col`          | `Aiv[]`       | Auto-increment variable definitions
+| `Key`     | 71+`Col`+`Aiv`    | `Key[]`       | Keys
 
 Header size can be calculated using following formula:
 
@@ -88,7 +90,8 @@ Every block contains a header:
 | Size (B)  | Offset (B)    | Type          | Usage
 |-          |-              |-              |-
 | 1         | 0             | `u8`          | Block type: 0 - free block, 1 - `Table`, 2 - `Heap`, 3 - `Big`
-| 8         | 1             | `BlockIndex`  | Next block index (0 if none)
+| 4         | 1             | `BlockIndex`  | Prev block index (0 if none)
+| 4         | 5             | `BlockIndex`  | Next block index (0 if none)
 
 Directly after header come data.
 

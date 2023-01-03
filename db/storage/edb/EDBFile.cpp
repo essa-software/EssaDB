@@ -23,27 +23,34 @@ Util::OsErrorOr<void> ftruncate(int fd, off_t size) {
     return {};
 }
 
-EDBFile::EDBFile(Util::File f)
-    : m_heap(*this)
+EDBFile::EDBFile(Util::File f, MappedFile mapped_file)
+    : m_mapped_file(std::move(mapped_file))
     , m_file(std::move(f)) {
 }
 
 Util::OsErrorOr<std::unique_ptr<EDBFile>> EDBFile::open(std::string const& path) {
-    auto file = std::make_unique<EDBFile>(Util::File { ::open(path.c_str(), O_RDWR), true });
-    TRY(file->read_header());
-    return file;
+    Util::File file { ::open(path.c_str(), O_RDWR), true };
+    struct stat stat;
+    if (::fstat(file.fd(), &stat) < 0) {
+        return Util::OsError { .error = errno, .function = "EDBFile::open(): stat" };
+    }
+    auto mapped_file = TRY(MappedFile::map(file.fd(), stat.st_size));
+    auto edb_file = std::unique_ptr<EDBFile>(new EDBFile(std::move(file), std::move(mapped_file)));
+    TRY(edb_file->read_header());
+    return edb_file;
 }
 
 Util::OsErrorOr<std::unique_ptr<EDBFile>> EDBFile::initialize(std::string const& path, TableSetup setup) {
-    int fd = ::open(path.c_str(), O_RDWR | O_CREAT | O_TRUNC, 0644);
-    if (fd < 0) {
-        return Util::OsError { .error = errno, .function = "EDBFile::create() open() path" };
+    Util::File file { ::open(path.c_str(), O_RDWR | O_CREAT | O_TRUNC, 0644), true };
+    if (file.fd() == -1) {
+        return Util::OsError { .error = errno, .function = "EDBFile::initialize() open" };
     }
+    auto mapped_file = TRY(MappedFile::map(file.fd(), sizeof(EDBHeader)));
+    auto edb_file = std::unique_ptr<EDBFile>(new EDBFile(std::move(file), std::move(mapped_file)));
 
-    auto edb_file = std::make_unique<EDBFile>(Util::File { fd, true });
-    TRY(edb_file->write_block_size(setup));
+    TRY(edb_file->write_header_first_pass(setup));
 
-    // allocate blocks for table and data
+    // Allocate blocks for table and data.
     TRY(edb_file->allocate_block(BlockType::Table));
     TRY(edb_file->allocate_block(BlockType::Heap));
 
@@ -51,6 +58,40 @@ Util::OsErrorOr<std::unique_ptr<EDBFile>> EDBFile::initialize(std::string const&
     TRY(edb_file->read_header());
 
     return edb_file;
+}
+
+void EDBFile::dump_blocks() {
+    fmt::print("Block count: {}\n", m_block_count);
+    for (size_t s = 1; s < m_block_count; s++) {
+        auto block = access<Block>({ s, 0 });
+        auto type = block->type;
+        fmt::print("- {}: prev={} next={} type=", s, block->prev_block, block->next_block);
+        switch (type) {
+        case BlockType::Free:
+            fmt::print("FREE");
+            break;
+        case BlockType::Table:
+            fmt::print("TABLE");
+            break;
+        case BlockType::Heap:
+            fmt::print("HEAP");
+            break;
+        case BlockType::Big:
+            fmt::print("BIG");
+            break;
+        }
+        fmt::print("\n");
+    }
+}
+
+Util::Buffer EDBFile::read_heap(HeapSpan span) const {
+    auto ptr = heap_ptr_to_mapped_ptr(span.offset);
+    // fmt::print("read_heap({}:{} +{}) = [", span.offset.block, span.offset.offset, (uint32_t)span.size);
+    // for (auto b : std::span { ptr, span.size }) {
+    //     fmt::print("{:02x} ", static_cast<uint16_t>(b));
+    // }
+    // fmt::print("]\n");
+    return Util::Buffer { { ptr, span.size } };
 }
 
 size_t EDBFile::header_size() const {
@@ -63,30 +104,84 @@ size_t EDBFile::block_size() const {
 }
 
 size_t EDBFile::block_offset(BlockIndex idx) const {
+    // fmt::print("{} + {} * ({} - 1)\n", header_size(), block_size(), idx);
     return header_size() + block_size() * (idx - 1);
+}
+
+uint8_t* EDBFile::heap_ptr_to_mapped_ptr(HeapPtr ptr) {
+    return reinterpret_cast<uint8_t*>(m_mapped_file.data().data() + block_offset(ptr.block) + ptr.offset);
+}
+
+uint8_t const* EDBFile::heap_ptr_to_mapped_ptr(HeapPtr ptr) const {
+    return reinterpret_cast<uint8_t const*>(m_mapped_file.data().data() + block_offset(ptr.block) + ptr.offset);
 }
 
 Util::OsErrorOr<void> EDBFile::expand(size_t blocks) {
     TRY(ftruncate(m_file.fd(), m_file_size + blocks * block_size()));
     m_file_size += blocks * block_size();
     m_block_count += blocks;
+    // fmt::print("Remap to size={} block_size={}\n", m_file_size, block_size());
+    TRY(m_mapped_file.remap(m_file_size));
     return {};
 }
 
 Util::OsErrorOr<BlockIndex> EDBFile::allocate_block(BlockType block_type) {
+    // fmt::print("!!!!! allocate block\n");
+
+    BlockIndex allocated_block = 0;
     for (BlockIndex s = 1; s < m_block_count; s++) {
-        fmt::print("Checking block: {}\n", s);
-        auto block = TRY(map_heap_object<Block>({ s, 0 }));
-        if (block->block_type == BlockType::Free) {
-            block->block_type = block_type;
-            return BlockIndex { s };
+        // fmt::print("Checking block: {}\n", s);
+        auto block = access<Block>({ s, 0 });
+        if (block->type == BlockType::Free) {
+            allocated_block = s;
+            break;
         }
     }
-    fmt::print("!!! expand {}\n", m_block_count);
+    // fmt::print("!!! expand {}\n", m_block_count);
     TRY(expand(1));
-    auto block = TRY(map_heap_object<Block>({ m_block_count - 1, 0 }));
-    block->block_type = block_type;
-    return m_block_count - 1;
+    allocated_block = m_block_count - 1;
+
+    auto block = access<Block>({ allocated_block, 0 }, block_size());
+    block->type = block_type;
+
+    switch (block_type) {
+    case BlockType::Free:
+        break;
+    case BlockType::Table: {
+        if (m_header.last_table_block != 0) {
+            auto last_block = access<Block>({ m_header.last_table_block, 0 });
+            last_block->next_block = allocated_block;
+        }
+        block->prev_block = m_header.last_table_block;
+        m_header.last_table_block = allocated_block;
+        break;
+    }
+    case BlockType::Heap: {
+        if (m_header.last_heap_block != 0) {
+            auto last_block = access<Block>({ m_header.last_heap_block, 0 });
+            last_block->next_block = allocated_block;
+        }
+        block->prev_block = m_header.last_heap_block;
+        m_header.last_heap_block = allocated_block;
+        // This would override heap if not flushed here!
+        block.flush();
+        block.clear();
+        // fmt::print("Initializing heap block @ {}\n", allocated_block);
+        auto heap_block = access<Data::HeapBlock>({ allocated_block, sizeof(Block) }, block_size() - sizeof(Block));
+        heap_block->init(*this);
+        // fmt::print("heap before flushing is at {:x}\n", heap_block.original_ptr() - m_mapped_file.data().data());
+        heap_block.flush();
+        // fmt::print("Heap dump just after initializing:\n");
+        // m_heap.dump();
+        break;
+    }
+    case BlockType::Big:
+        break;
+    }
+
+    block.flush();
+    // dump_blocks();
+    return allocated_block;
 }
 
 static uint8_t value_size_for_type(Core::Value::Type type) {
@@ -107,7 +202,7 @@ static uint8_t value_size_for_type(Core::Value::Type type) {
     ESSA_UNREACHABLE;
 }
 
-Util::OsErrorOr<void> EDBFile::write_block_size(TableSetup const& setup) {
+Util::OsErrorOr<void> EDBFile::write_header_first_pass(TableSetup const& setup) {
     uint32_t block_size = 0;
     block_size += sizeof(Table::RowSpec) - 1;
     for (auto const& column : setup.columns) {
@@ -119,8 +214,12 @@ Util::OsErrorOr<void> EDBFile::write_block_size(TableSetup const& setup) {
     block_size *= 255;
     block_size += sizeof(Table::TableBlock);
 
-    // This will be overridden later, but it is needed for heap_allocate to work
+    // This will be overridden later, but it is needed for allocate_block and heap_allocate to work
     m_header.block_size = block_size;
+    // fmt::print("Block size: {}\n", block_size);
+    m_header.last_table_block = 0;
+    m_header.last_heap_block = 0;
+    m_header.column_count = setup.columns.size();
     return {};
 }
 
@@ -129,8 +228,8 @@ Util::OsErrorOr<void> EDBFile::write_header(TableSetup const& setup) {
         return Util::OsError { .error = 0, .function = "Columns > 255 not supported" };
     }
 
-    auto table_name = TRY(heap_allocate_and_map(setup.name.size()));
-    std::copy(setup.name.begin(), setup.name.end(), reinterpret_cast<char*>(table_name.second.data().data()));
+    auto table_name = TRY(heap_allocate_and_get_span(setup.name.size()));
+    std::copy(setup.name.begin(), setup.name.end(), reinterpret_cast<char*>(table_name.mapped_span.data()));
 
     EDBHeader header {
         .magic = {},
@@ -139,7 +238,9 @@ Util::OsErrorOr<void> EDBFile::write_header(TableSetup const& setup) {
         .row_count = 0,
         .column_count = static_cast<uint8_t>(setup.columns.size()),
         .last_row_ptr = { 1, 0 },
-        .table_name = table_name.first,  // TODO
+        .last_table_block = 1,
+        .last_heap_block = 2,
+        .table_name = table_name.heap_span,
         .check_statement = {},           // TODO
         .auto_increment_value_count = 0, // TODO
         .key_count = 0,                  // TODO
@@ -152,7 +253,7 @@ Util::OsErrorOr<void> EDBFile::write_header(TableSetup const& setup) {
     TRY(writer.write_struct(header));
 
     for (auto const& column : setup.columns) {
-        TRY(Serializer::write_column(writer, column));
+        TRY(Serializer::write_column(*this, writer, column));
     }
 
     // TODO: AI
@@ -189,7 +290,7 @@ Util::OsErrorOr<void> EDBFile::flush_header() {
 }
 
 Util::OsErrorOr<void> EDBFile::insert(Core::Tuple const& tuple) {
-    fmt::print("===== Insert\n");
+    // fmt::print("===== Insert\n");
 
     // 1. Find free place in Table blocks
     std::optional<HeapPtr> place_for_allocation;
@@ -209,8 +310,8 @@ Util::OsErrorOr<void> EDBFile::insert(Core::Tuple const& tuple) {
                 }
             }
             // fmt::print("Last row: {}:{}\n", last_row_ptr.block, last_row_ptr.offset);
-            Table::RowSpec row = *TRY(map_heap_object<Table::RowSpec>(last_row_ptr));
-            if (!row.is_used) {
+            auto row = access<Table::RowSpec>(last_row_ptr);
+            if (!row->is_used) {
                 place_for_allocation = last_row_ptr;
                 break;
             }
@@ -225,31 +326,30 @@ Util::OsErrorOr<void> EDBFile::insert(Core::Tuple const& tuple) {
         place_for_allocation = HeapPtr { block, sizeof(Block) + sizeof(Table::TableBlock) };
     }
 
-    fmt::print("Place for allocation: {}:{}\n", place_for_allocation->block, place_for_allocation->offset);
+    // fmt::print("Place for allocation: {}:{}\n", place_for_allocation->block, place_for_allocation->offset);
 
     // 3. Actually write row
-    auto row = TRY(map_heap_object<Table::RowSpec>(*place_for_allocation));
+    auto row = access<Table::RowSpec>(*place_for_allocation, sizeof(Table::RowSpec) + row_size());
     row->is_used = 1;
     row->next_row = {};
 
     {
         Util::WritableMemoryStream stream;
         Util::Writer writer { stream };
-        TRY(Serializer::write_row(writer, m_columns, tuple));
-        fmt::print("ptr={} size={}\n", fmt::ptr(row.ptr()), stream.data().size_bytes());
+        TRY(Serializer::write_row(*this, writer, m_columns, tuple));
         std::copy(stream.data().begin(), stream.data().end(), row->row);
     }
 
     // 4. Point last row into the newly placed row, if it exists
     if (m_header.row_count > 0) {
-        auto last_row = TRY(map_heap_object<Table::RowSpec>(m_header.last_row_ptr));
+        auto last_row = access<Table::RowSpec>(m_header.last_row_ptr);
         last_row->next_row = *place_for_allocation;
     }
 
     // 5. Update headers
     m_header.last_row_ptr = *place_for_allocation;
     m_header.row_count = m_header.row_count + 1;
-    TRY(map_heap_object<Table::TableBlock>({ place_for_allocation->block, sizeof(Block) }))->rows_in_block++;
+    access<Table::TableBlock>({ place_for_allocation->block, sizeof(Block) })->rows_in_block++;
     TRY(flush_header());
     return {};
 }
@@ -269,7 +369,7 @@ Util::OsErrorOr<std::vector<Core::Column>> EDBFile::read_columns() const {
     std::vector<Core::Column> columns;
     for (auto const& column : m_columns) {
         columns.push_back(Core::Column {
-            column.column_name.offset.block == 0 ? "todo" : TRY(read_heap(column.column_name)).decode().encode(),
+            read_heap(column.column_name).decode().encode(),
             static_cast<Core::Value::Type>(column.type),
             static_cast<bool>(column.auto_increment),
             static_cast<bool>(column.unique),
@@ -280,15 +380,13 @@ Util::OsErrorOr<std::vector<Core::Column>> EDBFile::read_columns() const {
     return columns;
 }
 
-Util::OsErrorOr<Util::Buffer> EDBFile::read_heap(HeapSpan span) const {
-    auto mapped = TRY(MappedFile::map(m_file.fd(), block_offset(span.offset.block) + span.offset.offset, span.size));
-    return Util::Buffer { mapped.data() };
-}
-
 Util::OsErrorOr<HeapSpan> EDBFile::heap_allocate(size_t size) {
-    // TODO
-    (void)size;
-    return HeapSpan {};
+    // fmt::print("Dump before alloc({}):\n", size);
+    // m_heap.dump();
+    HeapSpan span { TRY(m_heap.alloc(size)), size };
+    // fmt::print("Dump after alloc({}):\n", size);
+    // m_heap.dump();
+    return span;
 }
 
 }
