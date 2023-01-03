@@ -27,7 +27,7 @@ Core::DbErrorOr<Table*> Database::create_table(TableSetup table_setup, std::shar
             std::filesystem::create_directory("database");
         }
         auto filename = fmt::format("database/{}.edb", table_setup.name);
-        auto result = Storage::FileBackedTable::initialize(filename, std::move(table_setup));
+        auto result = Storage::FileBackedTable::initialize(filename, table_setup);
         if (result.is_error()) {
             return Core::DbError { fmt::format("Creating table failed: {}", result.release_error()) };
         }
@@ -43,7 +43,6 @@ void Database::add_table(std::unique_ptr<Table> table) {
 
 DbErrorOr<void> Database::drop_table(std::string name) {
     TRY(table(name));
-
     m_tables.erase(name);
     return {};
 }
