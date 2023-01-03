@@ -77,7 +77,7 @@ int main(int argc, char* argv[]) {
     Db::Core::Database db;
 
     if (argc == 1) {
-        db.create_table("test", nullptr);
+        MUST(db.create_table({ "test", {} }, nullptr, Db::Core::Database::Engine::Memory));
         while (true) {
             std::cout << "> \e[32m";
             std::string query;

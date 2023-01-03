@@ -1,3 +1,4 @@
+#include "db/core/TableSetup.hpp"
 #include "db/sql/SQLError.hpp"
 #include <db/sql/ast/Statement.hpp>
 
@@ -83,17 +84,22 @@ SQLErrorOr<Core::ValueOrResultSet> Update::execute(Core::Database& db) const {
 }
 
 SQLErrorOr<Core::ValueOrResultSet> CreateTable::execute(Core::Database& db) const {
-    auto& table = db.create_table(m_name, m_check);
+    Core::TableSetup setup;
+    setup.name = m_name;
     for (auto const& column : m_columns) {
-        TRY(table.add_column(column.column).map_error(DbToSQLError { start() }));
+        setup.columns.push_back(column.column);
+    }
+    auto table = TRY(db.create_table(std::move(setup), m_check, m_engine).map_error(DbToSQLError { start() }));
+
+    for (auto const& column : m_columns) {
         std::visit(
             Util::Overloaded {
                 [](std::monostate) {},
                 [&](Core::PrimaryKey const& pk) {
-                    table.set_primary_key(pk);
+                    table->set_primary_key(pk);
                 },
                 [&](Core::ForeignKey const& fk) {
-                    table.add_foreign_key(fk);
+                    table->add_foreign_key(fk);
                 },
             },
             column.key);

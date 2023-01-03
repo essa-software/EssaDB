@@ -9,7 +9,7 @@ namespace Db::Storage {
 
 class FileBackedTable : public Core::Table {
 public:
-    static Util::OsErrorOr<std::unique_ptr<FileBackedTable>> initialize(std::string const&, EDB::EDBFile::TableSetup);
+    static Util::OsErrorOr<std::unique_ptr<FileBackedTable>> initialize(std::string const&, Core::TableSetup);
     static Util::OsErrorOr<std::unique_ptr<FileBackedTable>> open(std::string const&);
 
     // ^Relation

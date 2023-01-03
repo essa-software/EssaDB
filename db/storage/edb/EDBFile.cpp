@@ -40,7 +40,7 @@ Util::OsErrorOr<std::unique_ptr<EDBFile>> EDBFile::open(std::string const& path)
     return edb_file;
 }
 
-Util::OsErrorOr<std::unique_ptr<EDBFile>> EDBFile::initialize(std::string const& path, TableSetup setup) {
+Util::OsErrorOr<std::unique_ptr<EDBFile>> EDBFile::initialize(std::string const& path, Db::Core::TableSetup setup) {
     Util::File file { ::open(path.c_str(), O_RDWR | O_CREAT | O_TRUNC, 0644), true };
     if (file.fd() == -1) {
         return Util::OsError { .error = errno, .function = "EDBFile::initialize() open" };
@@ -202,7 +202,7 @@ static uint8_t value_size_for_type(Core::Value::Type type) {
     ESSA_UNREACHABLE;
 }
 
-Util::OsErrorOr<void> EDBFile::write_header_first_pass(TableSetup const& setup) {
+Util::OsErrorOr<void> EDBFile::write_header_first_pass(Db::Core::TableSetup const& setup) {
     uint32_t block_size = 0;
     block_size += sizeof(Table::RowSpec) - 1;
     for (auto const& column : setup.columns) {
@@ -223,7 +223,7 @@ Util::OsErrorOr<void> EDBFile::write_header_first_pass(TableSetup const& setup) 
     return {};
 }
 
-Util::OsErrorOr<void> EDBFile::write_header(TableSetup const& setup) {
+Util::OsErrorOr<void> EDBFile::write_header(Db::Core::TableSetup const& setup) {
     if (setup.columns.size() > 255) {
         return Util::OsError { .error = 0, .function = "Columns > 255 not supported" };
     }
