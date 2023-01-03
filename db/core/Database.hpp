@@ -17,6 +17,9 @@ public:
         EDB
     };
 
+    void set_default_engine(Engine e) { m_default_engine = e; }
+    Engine default_engine() const { return m_default_engine; }
+
     // Create a new table using a specified engine.
     Core::DbErrorOr<Table*> create_table(TableSetup table_setup, std::shared_ptr<Sql::AST::Check> check, Engine engine);
 
@@ -47,6 +50,7 @@ public:
 
 private:
     std::unordered_map<std::string, std::unique_ptr<Table>> m_tables;
+    Engine m_default_engine = Engine::Memory;
 };
 
 }
