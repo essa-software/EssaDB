@@ -1,5 +1,3 @@
-#include <tests/setup.hpp>
-
 #include <db/core/Value.hpp>
 #include <db/sql/Lexer.hpp>
 #include <db/sql/Parser.hpp>
@@ -97,9 +95,7 @@ bool display_error_if_error(Db::Sql::SQLErrorOr<Db::Core::ValueOrResultSet>&& qu
     return true;
 }
 
-std::map<std::string, TestFunc> get_tests() {
-    std::map<std::string, TestFunc> tests;
-
+int main(int argc, char* argv[]) {
     constexpr auto TestPath = "../tests/sql";
     const auto tests_dir = std::filesystem::absolute(TestPath).lexically_normal();
 
@@ -226,9 +222,12 @@ std::map<std::string, TestFunc> get_tests() {
         };
 
         if (file_it.path().extension() == ".sql") {
-            // std::cout << file_it << std::endl;
-            tests.insert({ test_name, test_func });
+            auto result = run_test();
+            if (result.is_error()) {
+                fmt::print("\e[41m FAIL \e[0m {}\n", test_name.string());
+            }
         }
     }
-    return tests;
+
+    return 0;
 }

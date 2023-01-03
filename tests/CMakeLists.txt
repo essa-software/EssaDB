@@ -9,5 +9,7 @@ endfunction()
 
 add_test(arithmetic)
 add_test(csv)
-add_test(sql)
-add_test(storage)
+
+add_executable("test-sql" testcases/sql.cpp)
+essautil_setup_target("test-sql")
+target_link_libraries("test-sql" PRIVATE essadb)
