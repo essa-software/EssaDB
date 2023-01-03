@@ -41,11 +41,6 @@ protected:
 private:
     DbErrorOr<void> check_value_validity(Database& db, Tuple const& row, size_t column_index) const;
 
-    enum class SkipFilledValues {
-        Yes,
-        No
-    };
-
     // Check integrity with table, i.e if types match, if columns are NON NULL/UNIQUE, primary keys, ...
     DbErrorOr<void> perform_table_integrity_checks(Database& db, Tuple const& row) const;
 };
