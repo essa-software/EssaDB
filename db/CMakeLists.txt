@@ -21,6 +21,7 @@ add_library(
     sql/ast/Statement.cpp
     sql/ast/TableExpression.cpp
 
+    storage/CSVFile.cpp
     storage/FileBackedTable.cpp
     storage/edb/EDBFile.cpp
     storage/edb/EDBRelationIterator.cpp

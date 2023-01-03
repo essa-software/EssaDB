@@ -1,6 +1,7 @@
 #include "EssaDBDatabaseClient.hpp"
 
 #include "gui/Structure.hpp"
+#include <db/core/Database.hpp>
 #include <db/sql/SQL.hpp>
 
 namespace EssaDB {
@@ -22,7 +23,8 @@ Db::Core::DbErrorOr<Structure::Database> EssaDBDatabaseClient::structure() const
 }
 
 Db::Core::DbErrorOr<void> EssaDBDatabaseClient::import(std::string const& source, std::string const& table_name, Db::Core::ImportMode mode) {
-    return m_db.import_to_table(source, table_name, mode);
+    TRY(m_db.import_to_table(source, table_name, mode, Db::Core::Database::Engine::Memory));
+    return {};
 }
 
 Util::UString EssaDBDatabaseClient::status_string() const {

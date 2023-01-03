@@ -5,6 +5,7 @@
 #include <db/core/DbError.hpp>
 #include <db/core/IndexedRelation.hpp>
 #include <db/core/ResultSet.hpp>
+#include <db/storage/CSVFile.hpp>
 #include <map>
 #include <memory>
 #include <optional>
@@ -31,7 +32,7 @@ public:
     virtual DbErrorOr<void> insert_unchecked(Tuple const&) = 0;
 
     void export_to_csv(const std::string& path) const;
-    DbErrorOr<void> import_from_csv(Database& db, const std::string& path);
+    DbErrorOr<void> import_from_csv(Database& db, Storage::CSVFile const& file);
 
 protected:
     // Check integrity with database, i.e foreign keys, checks, constraints, ...

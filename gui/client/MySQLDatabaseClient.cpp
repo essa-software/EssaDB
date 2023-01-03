@@ -4,6 +4,7 @@
 #include <EssaUtil/ScopeGuard.hpp>
 #include <db/sql/Parser.hpp>
 #include <db/sql/SQLError.hpp>
+#include <db/storage/CSVFile.hpp>
 #include <gui/Structure.hpp>
 #include <gui/client/ConnectToMySQLDialog.hpp>
 #include <mysql.h>
@@ -156,7 +157,8 @@ Db::Core::DbErrorOr<void> MySQLDatabaseClient::import(std::string const& filenam
     // FIXME: Requiring a database here is a hack, fix that!
     Db::Core::Database db;
     Db::Core::MemoryBackedTable table { nullptr, table_name };
-    TRY(table.import_from_csv(db, filename));
+    auto csv_file = TRY(Db::Storage::CSVFile::import(filename, {}));
+    TRY(table.import_from_csv(db, csv_file));
 
     // TODO: Escape
     std::string create_query = "CREATE TABLE `" + table_name + "`(";

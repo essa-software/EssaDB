@@ -79,11 +79,12 @@ private:
 
 class Import : public Statement {
 public:
-    Import(ssize_t start, Core::ImportMode mode, std::string filename, std::string table)
+    Import(ssize_t start, Core::ImportMode mode, std::string filename, std::string table, Core::Database::Engine engine)
         : Statement(start)
         , m_mode(mode)
         , m_filename(std::move(filename))
-        , m_table(std::move(table)) { }
+        , m_table(std::move(table))
+        , m_engine(engine) { }
 
     virtual SQLErrorOr<Core::ValueOrResultSet> execute(Core::Database&) const override;
 
@@ -91,6 +92,7 @@ private:
     Core::ImportMode m_mode;
     std::string m_filename;
     std::string m_table;
+    Core::Database::Engine m_engine;
 };
 
 class CreateTable : public Statement {
