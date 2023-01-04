@@ -20,6 +20,6 @@ SELECT *;
 SELECT test;
 
 -- output:
--- | AggregateFunction?(TODO) |
--- |                        1 |
+-- | COUNT(5) |
+-- |        1 |
 SELECT COUNT(5);

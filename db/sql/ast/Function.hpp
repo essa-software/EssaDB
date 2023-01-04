@@ -46,7 +46,7 @@ public:
         , m_over(std::move(over)) { }
 
     virtual SQLErrorOr<Core::Value> evaluate(EvaluationContext&) const override;
-    virtual std::string to_string() const override { return "AggregateFunction?(TODO)"; }
+    virtual std::string to_string() const override;
 
     SQLErrorOr<Core::Value> aggregate(EvaluationContext&, std::span<Core::Tuple const> rows) const;
 

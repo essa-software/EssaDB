@@ -528,4 +528,32 @@ SQLErrorOr<Core::Value> AggregateFunction::aggregate(EvaluationContext& context,
     __builtin_unreachable();
 }
 
+std::string AggregateFunction::to_string() const {
+    std::string str;
+    switch (m_function) {
+    case Function::Count:
+        str += "COUNT";
+        break;
+    case Function::Sum:
+        str += "SUM";
+        break;
+    case Function::Min:
+        str += "MIN";
+        break;
+    case Function::Max:
+        str += "MAX";
+        break;
+    case Function::Avg:
+        str += "AVG";
+        break;
+    case Function::Invalid:
+        str += "INVALID";
+        break;
+    }
+    str += "(";
+    str += m_expression->to_string();
+    str += ")";
+    return str;
+}
+
 }

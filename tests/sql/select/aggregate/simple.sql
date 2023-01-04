@@ -5,26 +5,26 @@ SELECT * FROM test;
 -- TODO: Automatically convert SelectResult to value if value is given here
 
 -- output:
--- | AggregateFunction?(TODO) |
--- |                        7 |
+-- | COUNT(id) |
+-- |         7 |
 SELECT COUNT(id) FROM test;
 
 -- output:
--- | AggregateFunction?(TODO) |
--- |                25.000000 |
+-- |   SUM(id) |
+-- | 25.000000 |
 SELECT SUM(id) FROM test;
 
 -- output:
--- | AggregateFunction?(TODO) |
--- |                 0.000000 |
+-- |  MIN(id) |
+-- | 0.000000 |
 SELECT MIN(id) FROM test;
 
 -- output:
--- | AggregateFunction?(TODO) |
--- |                 7.000000 |
+-- |  MAX(id) |
+-- | 7.000000 |
 SELECT MAX(id) FROM test;
 
 -- output:
--- | AggregateFunction?(TODO) |
--- |                 3.125000 |
+-- |  AVG(id) |
+-- | 3.125000 |
 SELECT AVG(id) FROM test;
