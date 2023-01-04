@@ -574,7 +574,7 @@ SQLErrorOr<std::unique_ptr<AST::CreateTable>> Parser::parse_create_table() {
             if (keyword.type == Token::Type::KeywordCheck) {
                 m_offset++;
                 if (check->main_rule())
-                    SQLError { "Default rule already exists!", m_offset - 1 };
+                    return SQLError { "Default rule already exists", m_offset - 1 };
 
                 auto expr = TRY(parse_expression());
                 TRY(check->add_check(std::move(expr)));
