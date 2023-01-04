@@ -145,17 +145,21 @@ SQLErrorOr<AST::Select> Parser::parse_select() {
     std::optional<AST::Top> top;
     if (m_tokens[m_offset].type == Token::Type::KeywordTop) {
         m_offset++;
+        auto value_token = m_tokens[m_offset++];
+        if (value_token.type != Token::Type::Int) {
+            return expected("integer for TOP value", value_token, m_offset - 1);
+        }
         try {
-            unsigned value = std::stoi(m_tokens[m_offset++].value);
+            unsigned value = std::stoi(value_token.value);
             if (m_tokens[m_offset].value == "PERC") {
                 top = AST::Top { .unit = AST::Top::Unit::Perc, .value = value };
-
                 m_offset++;
             }
-            else
+            else {
                 top = AST::Top { .unit = AST::Top::Unit::Val, .value = value };
+            }
         } catch (...) {
-            return SQLError { "Invalid argument for TOP", m_offset };
+            return SQLError { "Internal error: Invalid value for int token for TOP", m_offset };
         }
     }
 
@@ -1479,5 +1483,4 @@ SQLErrorOr<std::unique_ptr<AST::TableIdentifier>> Parser::parse_table_identifier
 SQLError Parser::expected(std::string what, Token got, size_t offset) {
     return SQLError { "Expected " + what + ", got '" + got.value + "'", offset };
 }
-
 }

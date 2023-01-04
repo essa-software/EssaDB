@@ -59,6 +59,9 @@ SELECT TOP 5 * FROM empty_test;
 -- Empty result set
 SELECT TOP 50 PERC * FROM empty_test;
 
+-- error: Expected integer for TOP value, got 'this is not an int'
+SELECT TOP 'this is not an int' PERC * FROM test;
+
 -- Top where selected count > result set size
 INSERT INTO empty_test VALUES(0);
 INSERT INTO empty_test VALUES(1);
