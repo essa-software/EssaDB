@@ -69,7 +69,7 @@ DbErrorOr<Table*> Database::import_to_table(std::string const& path, std::string
         if (!table) {
             table = TRY(create_table({ table_name, csv_file.columns() }, nullptr, engine));
         }
-        TRY(table->import_from_csv(*this, csv_file));
+        TRY(table->import_from_csv(this, csv_file));
         return table;
     }
     }

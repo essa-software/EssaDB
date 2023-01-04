@@ -29,7 +29,7 @@ SQLErrorOr<std::unique_ptr<Core::Relation>> SelectTableExpression::evaluate(Eval
     }
 
     for (const auto& row : result.rows()) {
-        TRY(table->insert(*context.db, row).map_error(DbToSQLError { start() }));
+        TRY(table->insert(context.db, row).map_error(DbToSQLError { start() }));
     }
 
     return table;
@@ -102,14 +102,14 @@ SQLErrorOr<Core::ValueOrResultSet> InsertInto::execute(Core::Database& db) const
                 for (size_t s = 0; s < table->size(); s++) {
                     values.push_back(row.value(s));
                 }
-                TRY(table->insert(db, Core::Tuple { values }).map_error(DbToSQLError { start() }));
+                TRY(table->insert(&db, Core::Tuple { values }).map_error(DbToSQLError { start() }));
             }
             else {
                 std::vector<std::pair<std::string, Core::Value>> values;
                 for (size_t i = 0; i < m_columns.size(); i++) {
                     values.push_back({ m_columns[i], row.value(i) });
                 }
-                TRY(table->insert(db, TRY(create_tuple_from_values(*table, values).map_error(DbToSQLError { start() })))
+                TRY(table->insert(&db, TRY(create_tuple_from_values(*table, values).map_error(DbToSQLError { start() })))
                         .map_error(DbToSQLError { start() }));
             }
         }
@@ -120,7 +120,7 @@ SQLErrorOr<Core::ValueOrResultSet> InsertInto::execute(Core::Database& db) const
             for (size_t s = 0; s < m_values.size(); s++) {
                 values.push_back(TRY(m_values[s]->evaluate(context)));
             }
-            TRY(table->insert(db, Core::Tuple { values }).map_error(DbToSQLError { start() }));
+            TRY(table->insert(&db, Core::Tuple { values }).map_error(DbToSQLError { start() }));
         }
         else {
             std::vector<std::pair<std::string, Core::Value>> values;
@@ -128,7 +128,7 @@ SQLErrorOr<Core::ValueOrResultSet> InsertInto::execute(Core::Database& db) const
                 values.push_back({ m_columns[i], TRY(m_values[i]->evaluate(context)) });
             }
 
-            TRY(table->insert(db, TRY(create_tuple_from_values(*table, values).map_error(DbToSQLError { start() })))
+            TRY(table->insert(&db, TRY(create_tuple_from_values(*table, values).map_error(DbToSQLError { start() })))
                     .map_error(DbToSQLError { start() }));
         }
     }

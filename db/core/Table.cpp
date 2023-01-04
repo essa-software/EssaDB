@@ -22,7 +22,7 @@
 
 namespace Db::Core {
 
-DbErrorOr<void> Table::check_value_validity(Database&, Tuple const& row, size_t column_index) const {
+DbErrorOr<void> Table::check_value_validity(Tuple const& row, size_t column_index) const {
     auto const& column = columns()[column_index];
     if (!row.value(column_index).is_null() && column.type() != row.value(column_index).type()) {
         return DbError {
@@ -48,7 +48,7 @@ DbErrorOr<void> Table::check_value_validity(Database&, Tuple const& row, size_t 
     return {};
 }
 
-DbErrorOr<void> Table::perform_table_integrity_checks(Database& db, Tuple const& row) const {
+DbErrorOr<void> Table::perform_table_integrity_checks(Tuple const& row) const {
     auto const& columns = this->columns();
 
     // Column count
@@ -77,13 +77,17 @@ DbErrorOr<void> Table::perform_table_integrity_checks(Database& db, Tuple const&
 
     // Column types, NON NULL, UNIQUE
     for (size_t s = 0; s < columns.size(); s++) {
-        TRY(check_value_validity(db, row, s));
+        TRY(check_value_validity(row, s));
     }
 
     return {};
 }
 
-DbErrorOr<void> Table::perform_database_integrity_checks(Database& db, Tuple const& row) const {
+DbErrorOr<void> Table::perform_database_integrity_checks(Database* db, Tuple const& row) const {
+    if (!foreign_keys().empty() && !db) {
+        return DbError { "Internal error: Cannot check foreign key constrains without a database" };
+    }
+
     // Foreign keys (row existence in the foreign table)
     // For now, this is checked even if no constraint is explicitly defined.
     for (auto const& fk : foreign_keys()) {
@@ -91,7 +95,7 @@ DbErrorOr<void> Table::perform_database_integrity_checks(Database& db, Tuple con
         if (!local_column) {
             return DbError { fmt::format("Internal error: Nonexistent column '{}' used as foreign key", fk.local_column) };
         }
-        auto referenced_table = TRY(db.table(fk.referenced_table));
+        auto referenced_table = TRY(db->table(fk.referenced_table));
         auto referenced_column = referenced_table->get_column(fk.referenced_column);
         if (!referenced_column) {
             return DbError { fmt::format("Internal error: Nonexistent column '{}' used as referenced table in foreign key", fk.referenced_column) };
@@ -113,7 +117,7 @@ DbErrorOr<void> Table::perform_database_integrity_checks(Database& db, Tuple con
     return {};
 }
 
-DbErrorOr<void> Table::insert(Database& db, Tuple const& row) {
+DbErrorOr<void> Table::insert(Database* db, Tuple const& row) {
     auto const& columns = this->columns();
 
     std::vector<std::string> columns_to_auto_increment;
@@ -138,7 +142,7 @@ DbErrorOr<void> Table::insert(Database& db, Tuple const& row) {
     }
     // fmt::print("{}\n", filled_row.value(0).to_debug_string());
 
-    TRY(perform_table_integrity_checks(db, filled_row));
+    TRY(perform_table_integrity_checks(filled_row));
     TRY(perform_database_integrity_checks(db, filled_row));
 
     for (auto const& column : columns_to_auto_increment) {
@@ -211,25 +215,29 @@ DbErrorOr<void> MemoryBackedTable::drop_column(std::string const& column) {
     return {};
 }
 
-DbErrorOr<void> MemoryBackedTable::perform_database_integrity_checks(Database& db, Tuple const& row) const {
+DbErrorOr<void> MemoryBackedTable::perform_database_integrity_checks(Database* db, Tuple const& row) const {
     TRY(Table::perform_database_integrity_checks(db, row));
 
-    Sql::AST::SelectColumns columns_to_context;
-    {
-        std::vector<Sql::AST::SelectColumns::Column> all_columns;
-        for (auto const& column : columns()) {
-            all_columns.push_back(Sql::AST::SelectColumns::Column { .column = std::make_unique<Sql::AST::Identifier>(0, column.name(), std::optional<std::string> {}) });
-        }
-        columns_to_context = Sql::AST::SelectColumns { std::move(all_columns) };
-    }
-
-    Sql::AST::EvaluationContext context { .db = &db };
-
-    Sql::AST::SimpleTableExpression id { 0, *this };
-    context.frames.emplace_back(&id, columns_to_context);
-
-    // Checks and constraints
     if (check()) {
+        if (!db) {
+            return DbError { "Internal error: Cannot run checks without a database" };
+        }
+
+        Sql::AST::SelectColumns columns_to_context;
+        {
+            std::vector<Sql::AST::SelectColumns::Column> all_columns;
+            for (auto const& column : columns()) {
+                all_columns.push_back(Sql::AST::SelectColumns::Column { .column = std::make_unique<Sql::AST::Identifier>(0, column.name(), std::optional<std::string> {}) });
+            }
+            columns_to_context = Sql::AST::SelectColumns { std::move(all_columns) };
+        }
+
+        Sql::AST::EvaluationContext context { .db = db };
+
+        Sql::AST::SimpleTableExpression id { 0, *this };
+        context.frames.emplace_back(&id, columns_to_context);
+
+        // Checks and constraints
         if (check()->main_rule()) {
             context.current_frame().row = { .tuple = Tuple { row }, .source = {} };
             if (!TRY(TRY(check()->main_rule()->evaluate(context).map_error([](Sql::SQLError&& e) {
@@ -285,7 +293,7 @@ void Table::export_to_csv(const std::string& path) const {
     });
 }
 
-DbErrorOr<void> Table::import_from_csv(Database& db, Storage::CSVFile const& file) {
+DbErrorOr<void> Table::import_from_csv(Database* db, Storage::CSVFile const& file) {
     for (auto const& row : file.rows()) {
         TRY(insert(db, row));
     }

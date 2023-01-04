@@ -26,23 +26,23 @@ public:
     virtual DbErrorOr<void> drop_column(std::string const&) = 0;
     virtual int next_auto_increment_value(std::string const& column) = 0;
     virtual int increment(std::string const& column) = 0;
-    DbErrorOr<void> insert(Database& db, Tuple const&);
+    DbErrorOr<void> insert(Database* db, Tuple const&);
 
     // NOTE: This doesn't check types and integrity in any way!
     virtual DbErrorOr<void> insert_unchecked(Tuple const&) = 0;
 
     void export_to_csv(const std::string& path) const;
-    DbErrorOr<void> import_from_csv(Database& db, Storage::CSVFile const& file);
+    DbErrorOr<void> import_from_csv(Database* db, Storage::CSVFile const& file);
 
 protected:
     // Check integrity with database, i.e foreign keys, checks, constraints, ...
-    virtual DbErrorOr<void> perform_database_integrity_checks(Database& db, Tuple const& row) const;
+    virtual DbErrorOr<void> perform_database_integrity_checks(Database* db, Tuple const& row) const;
 
 private:
-    DbErrorOr<void> check_value_validity(Database& db, Tuple const& row, size_t column_index) const;
+    DbErrorOr<void> check_value_validity(Tuple const& row, size_t column_index) const;
 
     // Check integrity with table, i.e if types match, if columns are NON NULL/UNIQUE, primary keys, ...
-    DbErrorOr<void> perform_table_integrity_checks(Database& db, Tuple const& row) const;
+    DbErrorOr<void> perform_table_integrity_checks(Tuple const& row) const;
 };
 
 class MemoryBackedTable : public Table {
@@ -86,7 +86,7 @@ public:
 private:
     virtual int next_auto_increment_value(std::string const& column) override { return m_auto_increment_values[column] + 1; }
     virtual int increment(std::string const& column) override { return ++m_auto_increment_values[column]; }
-    virtual DbErrorOr<void> perform_database_integrity_checks(Database& db, Tuple const& row) const override;
+    virtual DbErrorOr<void> perform_database_integrity_checks(Database* db, Tuple const& row) const override;
 
     std::vector<Tuple> m_rows;
     std::vector<Column> m_columns;
