@@ -347,7 +347,7 @@ static void setup_sql_functions() {
     });
     register_sql_function("PI", [](ArgumentList args) -> Core::DbErrorOr<Core::Value> {
         if (args.size() > 0)
-            return Core::DbError("Arguments for 'PI' function are not valid!");
+            return Core::DbError("'PI()' takes no arguments");
         return Core::Value::create_float(M_PI);
     });
     register_sql_function("POWER", [](ArgumentList args) -> Core::DbErrorOr<Core::Value> {
