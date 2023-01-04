@@ -37,6 +37,7 @@ Util::OsErrorOr<std::unique_ptr<EDBFile>> EDBFile::open(std::string const& path)
     }
     auto mapped_file = TRY(MappedFile::map(file.fd(), stat.st_size));
     auto edb_file = std::unique_ptr<EDBFile>(new EDBFile(std::move(file), std::move(mapped_file)));
+    edb_file->m_file_path = path;
     TRY(edb_file->read_header());
     return edb_file;
 }
@@ -48,6 +49,7 @@ Util::OsErrorOr<std::unique_ptr<EDBFile>> EDBFile::initialize(std::string const&
     }
     auto mapped_file = TRY(MappedFile::map(file.fd(), sizeof(EDBHeader)));
     auto edb_file = std::unique_ptr<EDBFile>(new EDBFile(std::move(file), std::move(mapped_file)));
+    edb_file->m_file_path = path;
 
     TRY(edb_file->write_header_first_pass(setup));
 
@@ -288,6 +290,12 @@ Util::OsErrorOr<void> EDBFile::flush_header() {
     auto stream = Util::WritableFileStream::borrow_fd(m_file.fd());
     TRY(stream.seek(0, Util::SeekDirection::FromStart));
     TRY(Util::Writer { stream }.write_struct(m_header));
+    return {};
+}
+
+Util::OsErrorOr<void> EDBFile::rename(std::string const& new_name) {
+    // FIXME: Free the old name
+    m_header.table_name = TRY(copy_to_heap(new_name));
     return {};
 }
 

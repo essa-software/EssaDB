@@ -22,6 +22,7 @@ public:
     static Util::OsErrorOr<std::unique_ptr<EDBFile>> initialize(std::string const& path, Db::Core::TableSetup);
     static Util::OsErrorOr<std::unique_ptr<EDBFile>> open(std::string const& path);
 
+    Util::OsErrorOr<void> rename(std::string const& new_name);
     Util::OsErrorOr<void> insert(Core::Tuple const& tuple);
 
     Util::OsErrorOr<std::vector<Core::Column>> read_columns() const;
@@ -112,6 +113,7 @@ private:
     Data::Heap m_heap { *this };
     MappedFile m_mapped_file;
     Util::File m_file;
+    std::string m_file_path;
     size_t m_file_size = 0;
     BlockIndex m_block_count = 1;
 };

@@ -79,7 +79,7 @@ private:
 
 class Import : public Statement {
 public:
-    Import(ssize_t start, Core::ImportMode mode, std::string filename, std::string table, std::optional<Core::Database::Engine> engine)
+    Import(ssize_t start, Core::ImportMode mode, std::string filename, std::string table, std::optional<Core::DatabaseEngine> engine)
         : Statement(start)
         , m_mode(mode)
         , m_filename(std::move(filename))
@@ -92,12 +92,12 @@ private:
     Core::ImportMode m_mode;
     std::string m_filename;
     std::string m_table;
-    std::optional<Core::Database::Engine> m_engine;
+    std::optional<Core::DatabaseEngine> m_engine;
 };
 
 class CreateTable : public Statement {
 public:
-    CreateTable(ssize_t start, std::string name, std::vector<ParsedColumn> columns, std::shared_ptr<AST::Check> check, std::optional<Core::Database::Engine> engine)
+    CreateTable(ssize_t start, std::string name, std::vector<ParsedColumn> columns, std::shared_ptr<AST::Check> check, std::optional<Core::DatabaseEngine> engine)
         : Statement(start)
         , m_name(std::move(name))
         , m_columns(std::move(columns))
@@ -111,7 +111,7 @@ private:
     std::vector<ParsedColumn> m_columns;
     std::shared_ptr<AST::Check> m_check;
     std::map<std::string, std::shared_ptr<AST::Expression>> m_check_constraints;
-    std::optional<Core::Database::Engine> m_engine;
+    std::optional<Core::DatabaseEngine> m_engine;
 };
 
 class DropTable : public Statement {

@@ -121,21 +121,26 @@ SQLErrorOr<Core::ValueOrResultSet> DropTable::execute(Core::Database& db) const 
 }
 
 SQLErrorOr<Core::ValueOrResultSet> TruncateTable::execute(Core::Database& db) const {
+    // Just drop table and recreate it with the same settings :^)
+    // FIXME: Handle primary and foreign keys
     auto table = TRY(db.table(m_name).map_error(DbToSQLError { start() }));
-    TRY(table->truncate().map_error(DbToSQLError { start() }));
+    Core::TableSetup setup { table->name(), table->columns() };
+    auto memory_backed_table = dynamic_cast<Core::MemoryBackedTable*>(table);
+    auto check = memory_backed_table ? memory_backed_table->check() : nullptr;
+    auto engine = table->engine();
 
+    TRY(db.drop_table(m_name).map_error(DbToSQLError { start() }));
+    TRY(db.create_table(setup, check, engine).map_error(DbToSQLError { start() }));
     return { Core::Value::null() };
 }
 
 SQLErrorOr<Core::ValueOrResultSet> AlterTable::execute(Core::Database& db) const {
     auto table = TRY(db.table(m_name).map_error(DbToSQLError { start() }));
-    auto memory_backed_table = dynamic_cast<Core::MemoryBackedTable*>(table);
-    if (!memory_backed_table) {
-        return SQLError { "TODO: Support other table classes than MemoryBackedTable", start() };
-    }
+
+    std::vector<Core::Column> new_columns = table->columns();
 
     for (const auto& to_add : m_to_add) {
-        TRY(table->add_column(to_add.column).map_error(DbToSQLError { start() }));
+        new_columns.push_back(to_add.column);
         std::visit(
             Util::Overloaded {
                 [](std::monostate) {},
@@ -150,7 +155,11 @@ SQLErrorOr<Core::ValueOrResultSet> AlterTable::execute(Core::Database& db) const
     }
 
     for (const auto& to_alter : m_to_alter) {
-        TRY(table->alter_column(to_alter.column).map_error(DbToSQLError { start() }));
+        for (size_t i = 0; i < new_columns.size(); i++) {
+            if (new_columns[i].name() == to_alter.column.name()) {
+                new_columns[i] = std::move(to_alter.column);
+            }
+        }
         std::visit(
             Util::Overloaded {
                 [](std::monostate) {},
@@ -165,41 +174,61 @@ SQLErrorOr<Core::ValueOrResultSet> AlterTable::execute(Core::Database& db) const
     }
 
     for (const auto& to_drop : m_to_drop) {
-        TRY(table->drop_column(to_drop).map_error(DbToSQLError { start() }));
+        std::vector<Core::Column> vec;
+        for (size_t i = 0; i < new_columns.size(); i++) {
+            if (new_columns[i].name() != to_drop) {
+                vec.push_back(std::move(new_columns[i]));
+            }
+        }
+        new_columns = std::move(vec);
+
         if (table->primary_key() && table->primary_key()->local_column == to_drop) {
             table->set_primary_key({});
         }
         table->drop_foreign_key(to_drop);
     }
 
-    auto check_exists = [&]() -> SQLErrorOr<bool> {
+    TRY(db.restructure_table(m_name, { m_name, new_columns }).map_error(DbToSQLError { start() }));
+    table = TRY(db.table(m_name).map_error(DbToSQLError { start() }));
+
+    auto memory_backed_table = dynamic_cast<Core::MemoryBackedTable*>(table);
+    auto validate_check_exists_and_is_supported = [&]() -> SQLErrorOr<void> {
+        if (!memory_backed_table) {
+            return SQLError { "(FIXME) Checks are supported only on MemoryBackedTables", start() };
+        }
         if (memory_backed_table->check())
-            return true;
+            return {};
         return SQLError { "No check to alter", start() };
     };
 
-    if (m_check_to_add && TRY(check_exists()))
+    if (m_check_to_add) {
+        TRY(validate_check_exists_and_is_supported());
         TRY(memory_backed_table->check()->add_check(m_check_to_add));
+    }
 
-    if (m_check_to_alter && TRY(check_exists()))
+    if (m_check_to_alter) {
+        TRY(validate_check_exists_and_is_supported());
         TRY(memory_backed_table->check()->alter_check(m_check_to_alter));
+    }
 
-    if (m_check_to_drop && TRY(check_exists()))
+    if (m_check_to_drop) {
+        TRY(validate_check_exists_and_is_supported());
         TRY(memory_backed_table->check()->drop_check());
+    }
 
     for (const auto& to_add : m_constraint_to_add) {
-        if (TRY(check_exists()))
-            TRY(memory_backed_table->check()->add_constraint(to_add.first, to_add.second));
+        TRY(validate_check_exists_and_is_supported());
+        TRY(memory_backed_table->check()->add_constraint(to_add.first, to_add.second));
     }
 
     for (const auto& to_alter : m_constraint_to_alter) {
-        if (TRY(check_exists()))
-            TRY(memory_backed_table->check()->alter_constraint(to_alter.first, to_alter.second));
+        TRY(validate_check_exists_and_is_supported());
+        TRY(memory_backed_table->check()->alter_constraint(to_alter.first, to_alter.second));
     }
 
     for (const auto& to_drop : m_constraint_to_drop) {
-        if (TRY(check_exists()))
-            TRY(memory_backed_table->check()->drop_constraint(to_drop));
+        TRY(validate_check_exists_and_is_supported());
+        TRY(memory_backed_table->check()->drop_constraint(to_drop));
     }
 
     return { Core::Value::null() };

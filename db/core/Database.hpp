@@ -12,16 +12,11 @@ namespace Db::Core {
 
 class Database : public Util::NonCopyable {
 public:
-    enum class Engine {
-        Memory,
-        EDB
-    };
-
-    void set_default_engine(Engine e) { m_default_engine = e; }
-    Engine default_engine() const { return m_default_engine; }
+    void set_default_engine(DatabaseEngine e) { m_default_engine = e; }
+    DatabaseEngine default_engine() const { return m_default_engine; }
 
     // Create a new table using a specified engine.
-    Core::DbErrorOr<Table*> create_table(TableSetup table_setup, std::shared_ptr<Sql::AST::Check> check, Engine engine);
+    Core::DbErrorOr<Table*> create_table(TableSetup table_setup, std::shared_ptr<Sql::AST::Check> check, DatabaseEngine engine);
 
     // Move already created table into a database.
     void add_table(std::unique_ptr<Table> table);
@@ -32,9 +27,13 @@ public:
     DbErrorOr<void> drop_table(std::string name);
     DbErrorOr<Table*> table(std::string name);
 
+    // Change structure (name/columns) of a table, keeping all the
+    // rows. This invalidates all pointer to tables.
+    DbErrorOr<void> restructure_table(std::string const& old_name, TableSetup const&);
+
     bool exists(std::string name) const { return m_tables.find(name) != m_tables.end(); }
 
-    DbErrorOr<Table*> import_to_table(std::string const& path, std::string const& table_name, ImportMode, Engine);
+    DbErrorOr<Table*> import_to_table(std::string const& path, std::string const& table_name, ImportMode, DatabaseEngine);
 
     size_t table_count() const { return m_tables.size(); }
 
@@ -50,7 +49,7 @@ public:
 
 private:
     std::unordered_map<std::string, std::unique_ptr<Table>> m_tables;
-    Engine m_default_engine = Engine::Memory;
+    DatabaseEngine m_default_engine = DatabaseEngine::Memory;
 };
 
 }

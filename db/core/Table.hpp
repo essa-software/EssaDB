@@ -2,9 +2,11 @@
 
 #include <EssaUtil/NonCopyable.hpp>
 #include <db/core/Column.hpp>
+#include <db/core/DatabaseEngine.hpp>
 #include <db/core/DbError.hpp>
 #include <db/core/IndexedRelation.hpp>
 #include <db/core/ResultSet.hpp>
+#include <db/core/TableSetup.hpp>
 #include <db/storage/CSVFile.hpp>
 #include <map>
 #include <memory>
@@ -19,13 +21,12 @@ namespace Db::Core {
 class Table : public Util::NonCopyable
     , public IndexedRelation {
 public:
+    virtual DatabaseEngine engine() const = 0;
     virtual std::string name() const = 0;
-    virtual DbErrorOr<void> truncate() = 0;
-    virtual DbErrorOr<void> add_column(Column) = 0;
-    virtual DbErrorOr<void> alter_column(Column) = 0;
-    virtual DbErrorOr<void> drop_column(std::string const&) = 0;
     virtual int next_auto_increment_value(std::string const& column) = 0;
     virtual int increment(std::string const& column) = 0;
+    virtual DbErrorOr<void> rename(std::string const& new_name) = 0;
+
     DbErrorOr<void> insert(Database* db, Tuple const&);
 
     // NOTE: This doesn't check types and integrity in any way!
@@ -50,12 +51,14 @@ public:
     auto begin() { return m_rows.data(); }
     auto end() { return m_rows.data() + m_rows.size(); }
 
-    MemoryBackedTable(std::shared_ptr<Sql::AST::Check> check, const std::string& name)
-        : m_check(std::move(check))
-        , m_name(name) { }
+    MemoryBackedTable(std::shared_ptr<Sql::AST::Check> check, TableSetup const& setup)
+        : m_columns(setup.columns)
+        , m_check(std::move(check))
+        , m_name(setup.name) { }
 
     static DbErrorOr<std::unique_ptr<MemoryBackedTable>> create_from_select_result(ResultSet const& select);
 
+    virtual DatabaseEngine engine() const override { return DatabaseEngine::Memory; }
     virtual std::vector<Column> const& columns() const override { return m_columns; }
 
     virtual RelationIterator rows() const override {
@@ -66,16 +69,6 @@ public:
 
     std::vector<Tuple> const& raw_rows() const { return m_rows; }
     std::vector<Tuple>& raw_rows() { return m_rows; }
-
-    virtual DbErrorOr<void> truncate() override {
-        m_rows.clear();
-        return {};
-    }
-
-    virtual DbErrorOr<void> add_column(Column) override;
-    virtual DbErrorOr<void> alter_column(Column) override;
-    virtual DbErrorOr<void> drop_column(std::string const&) override;
-
     virtual std::string name() const override { return m_name; }
 
     std::shared_ptr<Sql::AST::Check>& check() { return m_check; }
@@ -86,14 +79,14 @@ public:
 private:
     virtual int next_auto_increment_value(std::string const& column) override { return m_auto_increment_values[column] + 1; }
     virtual int increment(std::string const& column) override { return ++m_auto_increment_values[column]; }
+    virtual DbErrorOr<void> rename(std::string const& new_name) override;
     virtual DbErrorOr<void> perform_database_integrity_checks(Database* db, Tuple const& row) const override;
 
     std::vector<Tuple> m_rows;
     std::vector<Column> m_columns;
     std::shared_ptr<Sql::AST::Check> m_check;
     std::map<std::string, int> m_auto_increment_values;
-
-    const std::string m_name;
+    std::string m_name;
 };
 
 }

@@ -37,7 +37,7 @@ private:
     SQLErrorOr<std::unique_ptr<AST::Import>> parse_import();
     SQLErrorOr<std::unique_ptr<AST::Expression>> parse_expression(int min_precedence = 0);
     SQLErrorOr<std::unique_ptr<AST::Expression>> parse_expression_or_index(Sql::AST::SelectColumns const&);
-    SQLErrorOr<std::optional<Core::Database::Engine>> parse_engine_specification();
+    SQLErrorOr<std::optional<Core::DatabaseEngine>> parse_engine_specification();
 
     struct BetweenRange {
         std::unique_ptr<Sql::AST::Expression> min;

@@ -154,8 +154,8 @@ Db::Core::DbErrorOr<Structure::Database> MySQLDatabaseClient::structure() const 
 Db::Core::DbErrorOr<void> MySQLDatabaseClient::import(std::string const& filename, std::string const& table_name, Db::Core::ImportMode mode) {
     assert(mode == Db::Core::ImportMode::Csv);
 
-    Db::Core::MemoryBackedTable table { nullptr, table_name };
     auto csv_file = TRY(Db::Storage::CSVFile::import(filename, {}));
+    Db::Core::MemoryBackedTable table { nullptr, { table_name, csv_file.columns() } };
     TRY(table.import_from_csv(nullptr, csv_file));
 
     // TODO: Escape

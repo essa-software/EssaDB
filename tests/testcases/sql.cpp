@@ -204,7 +204,7 @@ int main(int argc, char* argv[]) {
 
             Db::Core::Database db;
             if (use_edb) {
-                db.set_default_engine(Db::Core::Database::Engine::EDB);
+                db.set_default_engine(Db::Core::DatabaseEngine::EDB);
             }
 
             bool success = true;

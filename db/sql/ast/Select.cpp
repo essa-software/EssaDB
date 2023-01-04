@@ -1,4 +1,3 @@
-#include "db/sql/SQLError.hpp"
 #include <db/sql/ast/Select.hpp>
 
 #include <db/core/TupleFromValues.hpp>
@@ -19,15 +18,15 @@ SQLErrorOr<std::unique_ptr<Core::Relation>> SelectTableExpression::evaluate(Eval
     }
     auto result = TRY(m_select.execute(context));
 
-    auto table = std::make_unique<Core::MemoryBackedTable>(nullptr, "");
-
+    std::vector<Core::Column> columns;
     size_t i = 0;
     for (const auto& name : result.column_names()) {
         Core::Value::Type type = result.rows().empty() ? Core::Value::Type::Null : result.rows().front().value(i).type();
-        TRY(table->add_column(Core::Column(name, type, 0, 0, 0)).map_error(DbToSQLError { start() }));
+        columns.push_back(Core::Column(name, type, 0, 0, 0));
         i++;
     }
 
+    auto table = std::make_unique<Core::MemoryBackedTable>(nullptr, Core::TableSetup { "SelectTableExpression", columns });
     for (const auto& row : result.rows()) {
         TRY(table->insert(context.db, row).map_error(DbToSQLError { start() }));
     }

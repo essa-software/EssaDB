@@ -29,7 +29,7 @@ DbErrorOr<void> csv_export_import() {
     auto table = TRY(db.table("test"));
     table->export_to_csv("test.csv");
 
-    auto new_table = TRY(db.import_to_table("test.csv", "newtest", Db::Core::ImportMode::Csv, Db::Core::Database::Engine::Memory));
+    auto new_table = TRY(db.import_to_table("test.csv", "newtest", Db::Core::ImportMode::Csv, Db::Core::DatabaseEngine::Memory));
     auto result = TRY(Db::Sql::run_query(db, "SELECT * FROM newtest;").map_error(sql_to_db_error)).as_result_set();
 
     TRY(expect_equal(table->size(), new_table->size(), "original and imported tables have equal sizes"));
@@ -46,7 +46,7 @@ DbErrorOr<void> csv_export_import_with_aliases() {
     auto table = TRY(db.create_table_from_query(result, "test_from_query"));
     table->export_to_csv("test.csv");
 
-    auto new_table = TRY(db.import_to_table("test.csv", "new_test", Db::Core::ImportMode::Csv, Db::Core::Database::Engine::Memory));
+    auto new_table = TRY(db.import_to_table("test.csv", "new_test", Db::Core::ImportMode::Csv, Db::Core::DatabaseEngine::Memory));
     result = TRY(Db::Sql::run_query(db, "SELECT * FROM [new_test];").map_error(sql_to_db_error)).as_result_set();
     result.dump(std::cout, Db::Core::ResultSet::FancyDump::Yes);
 

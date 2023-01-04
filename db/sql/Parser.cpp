@@ -558,7 +558,7 @@ SQLErrorOr<std::unique_ptr<AST::CreateTable>> Parser::parse_create_table() {
 
     auto paren_open = m_tokens[m_offset];
     if (paren_open.type != Token::Type::ParenOpen)
-        return std::make_unique<AST::CreateTable>(start, table_name.value, std::vector<AST::ParsedColumn> {}, std::make_shared<AST::Check>(start), Core::Database::Engine::Memory);
+        return std::make_unique<AST::CreateTable>(start, table_name.value, std::vector<AST::ParsedColumn> {}, std::make_shared<AST::Check>(start), Core::DatabaseEngine::Memory);
     m_offset++;
 
     std::vector<AST::ParsedColumn> columns;
@@ -978,16 +978,16 @@ SQLErrorOr<std::unique_ptr<AST::Expression>> Parser::parse_expression_or_index(A
     return parse_expression();
 }
 
-SQLErrorOr<std::optional<Core::Database::Engine>> Parser::parse_engine_specification() {
+SQLErrorOr<std::optional<Core::DatabaseEngine>> Parser::parse_engine_specification() {
     if (m_tokens[m_offset].type == Token::Type::KeywordEngine) {
         m_offset++;
         auto engine_identifier = m_tokens[m_offset++];
         if (engine_identifier.type == Token::Type::Identifier) {
             if (compare_case_insensitive(engine_identifier.value, "EDB")) {
-                return Core::Database::Engine::EDB;
+                return Core::DatabaseEngine::EDB;
             }
             else if (compare_case_insensitive(engine_identifier.value, "MEMORY")) {
-                return Core::Database::Engine::Memory;
+                return Core::DatabaseEngine::Memory;
             }
             else {
                 return SQLError { "Invalid database engine, expected 'EDB' or 'MEMORY'", m_offset - 1 };
@@ -997,7 +997,7 @@ SQLErrorOr<std::optional<Core::Database::Engine>> Parser::parse_engine_specifica
             return expected("identifier", engine_identifier, m_offset - 1);
         }
     }
-    return std::optional<Core::Database::Engine> {};
+    return std::optional<Core::DatabaseEngine> {};
 }
 
 SQLErrorOr<std::unique_ptr<AST::Literal>> Parser::parse_literal() {

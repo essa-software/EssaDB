@@ -153,66 +153,20 @@ DbErrorOr<void> Table::insert(Database* db, Tuple const& row) {
 }
 
 DbErrorOr<std::unique_ptr<MemoryBackedTable>> MemoryBackedTable::create_from_select_result(ResultSet const& select) {
-    std::unique_ptr<MemoryBackedTable> table = std::make_unique<MemoryBackedTable>(nullptr, "");
 
-    auto const& columns = select.column_names();
     auto const& rows = select.rows();
-
-    size_t i = 0;
-    for (const auto& col : columns) {
-        TRY(table->add_column(Column(col, rows[0].value(i).type(), false, false, false)));
-        i++;
+    std::vector<Column> columns;
+    {
+        size_t i = 0;
+        for (auto const& column : select.column_names()) {
+            columns.push_back(Column { column, rows[0].value(i).type(), false, false, false });
+            i++;
+        }
     }
+
+    std::unique_ptr<MemoryBackedTable> table = std::make_unique<MemoryBackedTable>(nullptr, TableSetup { "SelectResult", columns });
     table->m_rows = rows;
     return table;
-}
-
-DbErrorOr<void> MemoryBackedTable::add_column(Column column) {
-    if (!column.original_table())
-        column.set_table(this);
-    m_columns.push_back(std::move(column));
-
-    for (auto& row : m_rows) {
-        row.extend();
-    }
-
-    return {};
-}
-
-DbErrorOr<void> MemoryBackedTable::alter_column(Column column) {
-    if (!get_column(column.name())) {
-        return DbError { "Couldn't find column '" + column.name() + "'" };
-    }
-
-    for (size_t i = 0; i < m_columns.size(); i++) {
-        if (m_columns[i].name() == column.name()) {
-            m_columns[i] = std::move(column);
-        }
-    }
-    return {};
-}
-
-DbErrorOr<void> MemoryBackedTable::drop_column(std::string const& column) {
-    if (!get_column(column)) {
-        return DbError { "Couldn't find column '" + column + "'" };
-    }
-
-    std::vector<Column> vec;
-
-    for (size_t i = 0; i < m_columns.size(); i++) {
-        if (m_columns[i].name() == column) {
-            for (auto& row : m_rows) {
-                row.remove(i);
-            }
-        }
-        else {
-            vec.push_back(std::move(m_columns[i]));
-        }
-    }
-
-    m_columns = std::move(vec);
-
-    return {};
 }
 
 DbErrorOr<void> MemoryBackedTable::perform_database_integrity_checks(Database* db, Tuple const& row) const {
@@ -254,6 +208,11 @@ DbErrorOr<void> MemoryBackedTable::perform_database_integrity_checks(Database* d
                 return DbError { "Values doesn't match '" + expr.first + "' check rule specified for this table" };
         }
     }
+    return {};
+}
+
+DbErrorOr<void> MemoryBackedTable::rename(std::string const& new_name) {
+    m_name = new_name;
     return {};
 }
 

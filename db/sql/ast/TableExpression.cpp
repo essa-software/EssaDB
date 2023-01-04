@@ -1,4 +1,5 @@
 #include "TableExpression.hpp"
+#include "db/core/TableSetup.hpp"
 #include "db/sql/SQLError.hpp"
 
 #include <EssaUtil/Config.hpp>
@@ -89,14 +90,13 @@ SQLErrorOr<size_t> TableIdentifier::column_count(Core::Database* db) const {
 }
 
 SQLErrorOr<std::unique_ptr<Core::Relation>> JoinExpression::evaluate(EvaluationContext& context) const {
-    auto table = std::make_unique<Core::MemoryBackedTable>(nullptr, "");
-
     auto lhs = TRY(m_lhs->evaluate(context));
     auto rhs = TRY(m_rhs->evaluate(context));
 
+    std::vector<Core::Column> columns;
     std::multimap<Core::Value, std::pair<Core::Relation*, Core::Tuple>, Core::ValueSorter> contents;
 
-    auto add_columns = [table = table.get(), &contents, this](Core::Relation& source_table, Identifier const* on_id) -> SQLErrorOr<void> {
+    auto add_columns = [&columns, &contents, this](Core::Relation& source_table, Identifier const* on_id) -> SQLErrorOr<void> {
         bool add_to_index = true;
         size_t index = 0;
         for (const auto& column : source_table.columns()) {
@@ -104,8 +104,7 @@ SQLErrorOr<std::unique_ptr<Core::Relation>> JoinExpression::evaluate(EvaluationC
                 add_to_index = false;
             if (add_to_index)
                 index++;
-            TRY(table->add_column(Core::Column(column.name(), column.type(), false, false, false))
-                    .map_error(DbToSQLError { start() }));
+            columns.push_back(Core::Column(column.name(), column.type(), false, false, false));
         }
         TRY(source_table.rows().try_for_each_row([&](auto const& row) -> SQLErrorOr<void> {
             if (index >= row.value_count()) {
@@ -119,6 +118,7 @@ SQLErrorOr<std::unique_ptr<Core::Relation>> JoinExpression::evaluate(EvaluationC
 
     TRY(add_columns(*lhs, m_on_lhs.get()));
     TRY(add_columns(*rhs, m_on_rhs.get()));
+    auto table = std::make_unique<Core::MemoryBackedTable>(nullptr, Core::TableSetup { "Join", columns });
 
     auto beg = contents.begin();
     beg++;
@@ -248,20 +248,17 @@ SQLErrorOr<size_t> JoinExpression::column_count(Core::Database* db) const {
 }
 
 SQLErrorOr<std::unique_ptr<Core::Relation>> CrossJoinExpression::evaluate(EvaluationContext& context) const {
-    auto table = std::make_unique<Core::MemoryBackedTable>(nullptr, "");
-
     auto lhs = TRY(m_lhs->evaluate(context));
     auto rhs = TRY(m_rhs->evaluate(context));
 
+    std::vector<Core::Column> columns;
     for (const auto& column : lhs->columns()) {
-        TRY(table->add_column(Core::Column(column.name(), column.type(), false, false, false))
-                .map_error(DbToSQLError { start() }));
+        columns.push_back(Core::Column(column.name(), column.type(), false, false, false));
     }
-
     for (const auto& column : rhs->columns()) {
-        TRY(table->add_column(Core::Column(column.name(), column.type(), false, false, false))
-                .map_error(DbToSQLError { start() }));
+        columns.push_back(Core::Column(column.name(), column.type(), false, false, false));
     }
+    auto table = std::make_unique<Core::MemoryBackedTable>(nullptr, Core::TableSetup { "CrossJoin", columns });
 
     TRY(lhs->rows().try_for_each_row([&](auto const& lhs_row) -> Core::DbErrorOr<void> {
                        TRY(rhs->rows().try_for_each_row([&](auto const& rhs_row) -> Core::DbErrorOr<void> {
