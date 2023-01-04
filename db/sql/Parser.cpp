@@ -498,7 +498,7 @@ SQLErrorOr<AST::ParsedColumn> Parser::parse_column() {
             auto default_ptr = TRY(parse_literal());
 
             if (default_value)
-                return SQLError { "Column already has its default value!", m_offset };
+                return SQLError { "Column already has its default value", m_offset };
             default_value = default_ptr->value();
         }
         else if (param.type == Token::Type::KeywordPrimary) {
@@ -589,7 +589,7 @@ SQLErrorOr<std::unique_ptr<AST::CreateTable>> Parser::parse_create_table() {
                 m_offset++;
 
                 if (check->constraints().find(identifier.value) != check->constraints().end())
-                    return SQLError { "Constraint with name '" + identifier.value + "' already exists!", m_offset - 1 };
+                    return SQLError { "Constraint with name '" + identifier.value + "' already exists", m_offset - 1 };
 
                 if (m_tokens[m_offset].type != Token::Type::KeywordCheck)
                     return expected("'CHECK' after identifier", identifier, m_offset - 1);
@@ -668,7 +668,7 @@ SQLErrorOr<std::unique_ptr<AST::AlterTable>> Parser::parse_alter_table() {
             }
             else if (thing_to_add.type == Token::Type::KeywordCheck) {
                 if (check_to_add)
-                    SQLError { "Check already added!", m_offset };
+                    SQLError { "Check already added", m_offset };
                 check_to_add = TRY(parse_expression());
             }
             else if (thing_to_add.type == Token::Type::KeywordConstraint) {
@@ -698,7 +698,7 @@ SQLErrorOr<std::unique_ptr<AST::AlterTable>> Parser::parse_alter_table() {
             }
             else if (thing_to_alter.type == Token::Type::KeywordCheck) {
                 if (check_to_alter)
-                    SQLError { "Check already altered!", m_offset };
+                    SQLError { "Check already altered", m_offset };
                 check_to_alter = TRY(parse_expression());
             }
             else if (thing_to_alter.type == Token::Type::KeywordConstraint) {
@@ -739,7 +739,7 @@ SQLErrorOr<std::unique_ptr<AST::AlterTable>> Parser::parse_alter_table() {
             }
             else if (thing_to_drop.type == Token::Type::KeywordCheck) {
                 if (check_to_drop)
-                    SQLError { "Check already dropped!", m_offset };
+                    SQLError { "Check already dropped", m_offset };
                 check_to_drop = true;
             }
             else if (thing_to_drop.type == Token::Type::KeywordConstraint) {

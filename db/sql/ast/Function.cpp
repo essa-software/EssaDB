@@ -282,7 +282,7 @@ static void setup_sql_functions() {
             return Core::Value::create_float(std::fabs(TRY(value.to_float())));
         if (value.is_null())
             return Core::Value::null();
-        return Core::DbError(TRY(value.to_string()) + " is not a valid type!");
+        return Core::DbError { TRY(value.to_string()) + " is not a valid type" };
     });
     register_sql_function("ACOS", [](ArgumentList args) -> Core::DbErrorOr<Core::Value> {
         auto a = TRY(TRY(args.get_required(0, "number")).to_float());

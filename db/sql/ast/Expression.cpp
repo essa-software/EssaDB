@@ -41,7 +41,7 @@ SQLErrorOr<void> Check::add_check(std::shared_ptr<AST::Expression> expr) {
 
 SQLErrorOr<void> Check::alter_check(std::shared_ptr<AST::Expression> expr) {
     if (!m_main_check)
-        return SQLError { "No check to alter!", start() };
+        return SQLError { "No check to alter", start() };
 
     m_main_check = std::move(expr);
 
@@ -50,7 +50,7 @@ SQLErrorOr<void> Check::alter_check(std::shared_ptr<AST::Expression> expr) {
 
 SQLErrorOr<void> Check::drop_check() {
     if (!m_main_check)
-        return SQLError { "No check to drop!", start() };
+        return SQLError { "No check to drop", start() };
 
     delete m_main_check.get();
     m_main_check = nullptr;
