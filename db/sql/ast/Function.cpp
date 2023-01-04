@@ -443,6 +443,18 @@ SQLErrorOr<Core::Value> Function::evaluate(EvaluationContext& context) const {
     return SQLError { "Undefined function: '" + m_name + "'", start() };
 }
 
+std::string Function::to_string() const {
+    std::string str = m_name + "(";
+    for (size_t s = 0; s < m_args.size(); s++) {
+        str += m_args[s]->to_string();
+        if (s != m_args.size() - 1) {
+            str += ", ";
+        }
+    }
+    str += ")";
+    return str;
+}
+
 SQLErrorOr<Core::Value> AggregateFunction::evaluate(EvaluationContext& context) const {
     auto& frame = context.current_frame();
     if (frame.row_group) {

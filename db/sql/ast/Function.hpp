@@ -12,7 +12,7 @@ public:
         , m_args(std::move(args)) { }
 
     virtual SQLErrorOr<Core::Value> evaluate(EvaluationContext&) const override;
-    virtual std::string to_string() const override { return m_name + "(TODO)"; }
+    virtual std::string to_string() const override;
 
     virtual std::vector<std::string> referenced_columns() const override {
         std::vector<std::string> columns;
