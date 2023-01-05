@@ -12,7 +12,7 @@ public:
         , m_select(std::move(select)) { }
 
     virtual SQLErrorOr<Core::Value> evaluate(EvaluationContext&) const override;
-    virtual std::string to_string() const override { return "(SELECT TODO)"; }
+    virtual std::string to_string() const override { return "(" + m_select.to_string() + ")"; }
 
 private:
     Select m_select;
@@ -25,7 +25,7 @@ public:
         , m_select(std::move(select)) { }
 
     virtual SQLErrorOr<std::unique_ptr<Core::Relation>> evaluate(EvaluationContext& context) const override;
-    virtual std::string to_string() const override { return "(SELECT TODO)"; }
+    virtual std::string to_string() const override { return "(" + m_select.to_string() + ")"; }
     virtual SQLErrorOr<std::optional<size_t>> resolve_identifier(Core::Database* db, Identifier const&) const override;
     virtual SQLErrorOr<size_t> column_count(Core::Database* db) const override;
 

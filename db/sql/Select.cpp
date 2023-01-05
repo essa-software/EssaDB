@@ -8,6 +8,7 @@
 #include <db/core/Table.hpp>
 #include <db/core/Tuple.hpp>
 #include <db/core/Value.hpp>
+#include <db/sql/Printing.hpp>
 #include <db/sql/SQLError.hpp>
 #include <memory>
 
@@ -300,6 +301,83 @@ SQLErrorOr<std::vector<Core::TupleWithSource>> Select::collect_rows(EvaluationCo
     }
 
     return aggregated_rows;
+}
+
+std::string Select::to_string() const {
+    std::string string = "SELECT ";
+
+    // DISTINCT
+    if (m_options.distinct) {
+        string += "DISTINCT ";
+    }
+
+    // TOP
+    if (m_options.top) {
+        string += "TOP ";
+        string += std::to_string(m_options.top->value) + " ";
+        if (m_options.top->unit == Top::Unit::Perc) {
+            string += "PERC ";
+        }
+    }
+
+    // Columns
+    if (m_options.columns.select_all()) {
+        string += "*";
+    }
+    else {
+        auto const& columns = m_options.columns.columns();
+        size_t s = 0;
+        for (auto const& column : columns) {
+            string += column.column->to_string();
+            if (column.alias) {
+                string += " AS " + Printing::escape_identifier(*column.alias);
+            }
+            if (s != columns.size() - 1) {
+                string += ", ";
+            }
+            s++;
+        }
+    }
+
+    // INTO
+    if (m_options.select_into) {
+        string += " INTO " + Printing::escape_identifier(*m_options.select_into);
+    }
+
+    // FROM
+    if (m_options.from) {
+        string += " FROM " + m_options.from->to_string();
+    }
+
+    // GROUP BY
+    if (m_options.group_by) {
+        string += m_options.group_by->type == GroupBy::GroupOrPartition::GROUP ? " GROUP BY " : " PARTITION BY ";
+        for (size_t s = 0; s < m_options.group_by->columns.size(); s++) {
+            string += Printing::escape_identifier(m_options.group_by->columns[s]);
+            if (s != m_options.group_by->columns.size() - 1) {
+                string += ", ";
+            }
+        }
+    }
+
+    // HAVING
+    if (m_options.having) {
+        string += " HAVING " + m_options.having->to_string();
+    }
+
+    // ORDER BY
+    if (m_options.order_by) {
+        string += " ORDER BY ";
+        for (size_t s = 0; s < m_options.order_by->columns.size(); s++) {
+            string += m_options.order_by->columns[s].expression->to_string() + " ";
+            string += m_options.order_by->columns[s].order == OrderBy::Order::Ascending ? "ASC" : "DESC";
+            if (s != m_options.order_by->columns.size() - 1) {
+                string += ", ";
+            }
+        }
+    }
+
+    return string;
 }
 
 }

@@ -70,8 +70,8 @@ public:
         , m_options(std::move(options)) { }
 
     SQLErrorOr<Core::ResultSet> execute(EvaluationContext&) const;
-
     auto const& from() const { return m_options.from; }
+    std::string to_string() const;
 
 private:
     SQLErrorOr<std::vector<Core::TupleWithSource>> collect_rows(EvaluationContext&, Core::Relation&) const;
