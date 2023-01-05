@@ -78,7 +78,7 @@ public:
         , m_join_type(join_type) { }
 
     virtual SQLErrorOr<std::unique_ptr<Core::Relation>> evaluate(EvaluationContext& context) const override;
-    virtual std::string to_string() const override { return "JoinExpression(TODO)"; }
+    virtual std::string to_string() const override;
     virtual SQLErrorOr<std::optional<size_t>> resolve_identifier(Core::Database* db, Identifier const&) const override;
     virtual SQLErrorOr<size_t> column_count(Core::Database* db) const override;
 

@@ -243,6 +243,37 @@ SQLErrorOr<std::optional<size_t>> JoinExpression::resolve_identifier(Core::Datab
     return *rhs_id + TRY(m_lhs->column_count(db));
 }
 
+std::string JoinExpression::to_string() const {
+    std::string string = "(";
+    string += m_lhs->to_string() + " ";
+
+    switch (m_join_type) {
+    case Type::InnerJoin:
+        string += "INNER JOIN ";
+        break;
+    case Type::LeftJoin:
+        string += "LEFT JOIN ";
+        break;
+    case Type::RightJoin:
+        string += "RIGHT JOIN ";
+        break;
+    case Type::OuterJoin:
+        string += "OUTER JOIN ";
+        break;
+    case Type::Invalid:
+        string += "INVALID ";
+        break;
+    }
+
+    string += m_rhs->to_string();
+    string += " ON ";
+    string += m_lhs->to_string() + "." + m_on_lhs->to_string();
+    string += " = ";
+    string += m_rhs->to_string() + "." + m_on_rhs->to_string();
+
+    return string + ")";
+}
+
 SQLErrorOr<size_t> JoinExpression::column_count(Core::Database* db) const {
     return TRY(m_lhs->column_count(db)) + TRY(m_rhs->column_count(db));
 }
