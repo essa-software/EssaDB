@@ -2,6 +2,7 @@
 
 #include <EssaUtil/Config.hpp>
 #include <EssaUtil/ScopeGuard.hpp>
+#include <db/core/DbError.hpp>
 #include <db/sql/Parser.hpp>
 #include <db/sql/SQLError.hpp>
 #include <db/storage/CSVFile.hpp>
@@ -88,6 +89,7 @@ Db::Sql::SQLErrorOr<Db::Core::ValueOrResultSet> MySQLDatabaseClient::do_run_quer
 }
 
 Db::Sql::SQLErrorOr<Db::Core::ValueOrResultSet> MySQLDatabaseClient::run_query(std::string const& query) {
+    fmt::print("run_query: {}\n", query);
     auto result = TRY(do_run_query(query));
     m_connection_data.database = TRY(get_current_database());
     return result;
@@ -155,14 +157,12 @@ Db::Core::DbErrorOr<void> MySQLDatabaseClient::import(std::string const& filenam
     assert(mode == Db::Core::ImportMode::Csv);
 
     auto csv_file = TRY(Db::Storage::CSVFile::import(filename, {}));
-    Db::Core::MemoryBackedTable table { nullptr, { table_name, csv_file.columns() } };
-    TRY(table.import_from_csv(nullptr, csv_file));
 
     // TODO: Escape
     std::string create_query = "CREATE TABLE `" + table_name + "`(";
     bool first = true;
 
-    for (const auto& column : table.columns()) {
+    for (const auto& column : csv_file.columns()) {
         if (!first) {
             create_query += ", ";
         }
@@ -199,7 +199,35 @@ Db::Core::DbErrorOr<void> MySQLDatabaseClient::import(std::string const& filenam
         return Db::Core::DbError { fmt::format("Error querying server: {}", mysql_error(m_mysql_connection)) };
     }
 
-    // TODO: Actually insert the data
+    // Actually insert the data
+    for (auto const& row : csv_file.rows()) {
+        std::string query = "INSERT INTO `" + table_name + "` (";
+        {
+            size_t s = 0;
+            for (auto const& column : csv_file.columns()) {
+                query += "`" + column.name() + "`";
+                if (s != csv_file.columns().size() - 1) {
+                    query += ", ";
+                }
+                s++;
+            }
+        }
+        query += ") VALUES(";
+        {
+            size_t s = 0;
+            for (auto const& value : row) {
+                query += value.to_sql_serialized_string();
+                if (s != row.value_count() - 1) {
+                    query += ", ";
+                }
+                s++;
+            }
+        }
+        query += ");";
+        TRY(run_query(query).map_error([](Db::Sql::SQLError const& error) -> Db::Core::DbError {
+            return Db::Core::DbError { "Insert failed: " + error.message() };
+        }));
+    }
 
     return {};
 }
