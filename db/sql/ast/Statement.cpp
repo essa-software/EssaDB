@@ -93,13 +93,14 @@ SQLErrorOr<Core::ValueOrResultSet> Update::execute(Core::Database& db) const {
 }
 
 bool TableStatement::table_exists(Core::Database& db, std::string const& name) const {
-    if (m_existence == ExistanceCondition::UNSPECIFIED) {
+    if (m_existence == ExistenceCondition::UNSPECIFIED) {
         return true;
     }
 
-    if(m_existence == ExistanceCondition::EXISTS){
+    if (m_existence == ExistenceCondition::EXISTS) {
         return db.exists(name);
-    }else{
+    }
+    else {
         return !db.exists(name);
     }
 }
@@ -146,7 +147,7 @@ SQLErrorOr<Core::ValueOrResultSet> TruncateTable::execute(Core::Database& db) co
     if (!table_exists(db, m_name)) {
         return { Core::Value::null() };
     }
-    
+
     // Just drop table and recreate it with the same settings :^)
     // FIXME: Handle primary and foreign keys
     auto table = TRY(db.table(m_name).map_error(DbToSQLError { start() }));
@@ -164,7 +165,7 @@ SQLErrorOr<Core::ValueOrResultSet> AlterTable::execute(Core::Database& db) const
     if (!table_exists(db, m_name)) {
         return { Core::Value::null() };
     }
-    
+
     auto table = TRY(db.table(m_name).map_error(DbToSQLError { start() }));
 
     std::vector<Core::Column> new_columns = table->columns();

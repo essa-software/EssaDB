@@ -99,24 +99,24 @@ private:
 
 class TableStatement : public Statement {
 public:
-    enum class ExistanceCondition {
+    enum class ExistenceCondition {
         EXISTS,
         NOTEXISTS,
         UNSPECIFIED
     };
-    TableStatement(ssize_t start, ExistanceCondition existence)
+    TableStatement(ssize_t start, ExistenceCondition existence)
         : Statement(start)
         , m_existence(existence) { }
 
 protected:
-    ExistanceCondition m_existence = ExistanceCondition::UNSPECIFIED;
+    ExistenceCondition m_existence = ExistenceCondition::UNSPECIFIED;
 
     bool table_exists(Core::Database& db, std::string const& name) const;
 };
 
 class CreateTable : public TableStatement {
 public:
-    CreateTable(ssize_t start, ExistanceCondition existence, std::string name, std::vector<ParsedColumn> columns, std::shared_ptr<AST::Check> check, std::optional<Core::DatabaseEngine> engine)
+    CreateTable(ssize_t start, ExistenceCondition existence, std::string name, std::vector<ParsedColumn> columns, std::shared_ptr<AST::Check> check, std::optional<Core::DatabaseEngine> engine)
         : TableStatement(start, existence)
         , m_name(std::move(name))
         , m_columns(std::move(columns))
@@ -135,7 +135,7 @@ private:
 
 class DropTable : public TableStatement {
 public:
-    DropTable(ssize_t start, ExistanceCondition existence, std::string name)
+    DropTable(ssize_t start, ExistenceCondition existence, std::string name)
         : TableStatement(start, existence)
         , m_name(std::move(name)) { }
 
@@ -147,7 +147,7 @@ private:
 
 class TruncateTable : public TableStatement {
 public:
-    TruncateTable(ssize_t start, ExistanceCondition existence, std::string name)
+    TruncateTable(ssize_t start, ExistenceCondition existence, std::string name)
         : TableStatement(start, existence)
         , m_name(std::move(name)) { }
 
@@ -159,7 +159,7 @@ private:
 
 class AlterTable : public TableStatement {
 public:
-    AlterTable(ssize_t start, ExistanceCondition existence, std::string name, std::vector<ParsedColumn> to_add, std::vector<ParsedColumn> to_alter, std::vector<std::string> to_drop,
+    AlterTable(ssize_t start, ExistenceCondition existence, std::string name, std::vector<ParsedColumn> to_add, std::vector<ParsedColumn> to_alter, std::vector<std::string> to_drop,
         std::shared_ptr<Expression> check_to_add, std::shared_ptr<Expression> check_to_alter, bool check_to_drop,
         std::vector<std::pair<std::string, std::shared_ptr<Expression>>> constraint_to_add, std::vector<std::pair<std::string, std::shared_ptr<Expression>>> constraint_to_alter, std::vector<std::string> constraint_to_drop)
         : TableStatement(start, existence)

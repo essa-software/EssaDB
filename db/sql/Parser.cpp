@@ -548,23 +548,23 @@ SQLErrorOr<AST::ParsedColumn> Parser::parse_column() {
     };
 }
 
-SQLErrorOr<AST::TableStatement::ExistanceCondition> Parser::parse_table_existence() {
+SQLErrorOr<AST::TableStatement::ExistenceCondition> Parser::parse_table_existence() {
     if (m_tokens[m_offset].type != Token::Type::KeywordIf) {
-        return AST::TableStatement::ExistanceCondition::UNSPECIFIED;
+        return AST::TableStatement::ExistenceCondition::UNSPECIFIED;
     }
     m_offset++;
 
     auto first_keyword = m_tokens[m_offset++];
 
     if (first_keyword.type == Token::Type::KeywordExists) {
-        return AST::TableStatement::ExistanceCondition::EXISTS;
+        return AST::TableStatement::ExistenceCondition::EXISTS;
     }
     else if (first_keyword.type == Token::Type::KeywordNot) {
         if (m_tokens[m_offset].type != Token::Type::KeywordExists) {
             return expected("\'EXISTS\' after \"NOT\'", m_tokens[m_offset], m_offset);
         }
         m_offset++;
-        return AST::TableStatement::ExistanceCondition::NOTEXISTS;
+        return AST::TableStatement::ExistenceCondition::NOTEXISTS;
     }
 
     return expected("\'EXISTS\' or \"NOT EXISTS\'", first_keyword, m_offset - 1);
@@ -574,8 +574,8 @@ SQLErrorOr<std::unique_ptr<AST::CreateTable>> Parser::parse_create_table() {
     auto start = m_offset;
     m_offset += 2; // CREATE TABLE
 
-    AST::TableStatement::ExistanceCondition table_existence = TRY(parse_table_existence());
-    if (table_existence == AST::TableStatement::ExistanceCondition::EXISTS) {
+    AST::TableStatement::ExistenceCondition table_existence = TRY(parse_table_existence());
+    if (table_existence == AST::TableStatement::ExistenceCondition::EXISTS) {
         return SQLError { "EXISTS existence condition cannot be used with CREATE TABLE", m_offset - 1 };
     }
 
@@ -647,8 +647,8 @@ SQLErrorOr<std::unique_ptr<AST::DropTable>> Parser::parse_drop_table() {
     auto start = m_offset;
     m_offset += 2; // DROP TABLE
 
-    AST::TableStatement::ExistanceCondition table_existence = TRY(parse_table_existence());
-    if (table_existence == AST::TableStatement::ExistanceCondition::NOTEXISTS) {
+    AST::TableStatement::ExistenceCondition table_existence = TRY(parse_table_existence());
+    if (table_existence == AST::TableStatement::ExistenceCondition::NOTEXISTS) {
         return SQLError { "NOT EXISTS existence condition cannot be used with DROP TABLE", m_offset - 1 };
     }
 
@@ -663,8 +663,8 @@ SQLErrorOr<std::unique_ptr<AST::TruncateTable>> Parser::parse_truncate_table() {
     auto start = m_offset;
     m_offset += 2; // TRUNCATE TABLE
 
-    AST::TableStatement::ExistanceCondition table_existence = TRY(parse_table_existence());
-    if (table_existence == AST::TableStatement::ExistanceCondition::NOTEXISTS) {
+    AST::TableStatement::ExistenceCondition table_existence = TRY(parse_table_existence());
+    if (table_existence == AST::TableStatement::ExistenceCondition::NOTEXISTS) {
         return SQLError { "NOT EXISTS existence condition cannot be used with TRUNCATE TABLE", m_offset - 1 };
     }
 
@@ -679,7 +679,7 @@ SQLErrorOr<std::unique_ptr<AST::AlterTable>> Parser::parse_alter_table() {
     auto start = m_offset;
     m_offset += 2; // ALTER TABLE
 
-    AST::TableStatement::ExistanceCondition table_existence = TRY(parse_table_existence());
+    AST::TableStatement::ExistenceCondition table_existence = TRY(parse_table_existence());
 
     auto table_name = m_tokens[m_offset++];
     if (table_name.type != Token::Type::Identifier)
