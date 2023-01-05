@@ -548,9 +548,32 @@ SQLErrorOr<AST::ParsedColumn> Parser::parse_column() {
     };
 }
 
+SQLErrorOr<AST::TableStatement::ExistanceCondition> Parser::parse_table_existence(){
+    if(m_tokens[m_offset].type != Token::Type::KeywordIf){
+        return AST::TableStatement::ExistanceCondition::UNSPECIFIED;
+    }
+    m_offset++;
+
+    auto first_keyword = m_tokens[m_offset++];
+
+    if(first_keyword.type == Token::Type::KeywordExists){
+        return AST::TableStatement::ExistanceCondition::EXISTS;
+    }else if(first_keyword.type == Token::Type::KeywordNot){
+        if(m_tokens[m_offset].type != Token::Type::KeywordExists){
+            return expected("\'EXISTS\' after \"NOT\'", m_tokens[m_offset], m_offset);
+        }
+        m_offset++;
+        return AST::TableStatement::ExistanceCondition::NOTEXISTS;
+    }
+    
+    return expected("\'EXISTS\' or \"NOT EXISTS\'", first_keyword, m_offset - 1);
+}
+
 SQLErrorOr<std::unique_ptr<AST::CreateTable>> Parser::parse_create_table() {
     auto start = m_offset;
     m_offset += 2; // CREATE TABLE
+
+    AST::TableStatement::ExistanceCondition table_existence = TRY(parse_table_existence());
 
     auto table_name = m_tokens[m_offset++];
     if (table_name.type != Token::Type::Identifier)
@@ -558,7 +581,7 @@ SQLErrorOr<std::unique_ptr<AST::CreateTable>> Parser::parse_create_table() {
 
     auto paren_open = m_tokens[m_offset];
     if (paren_open.type != Token::Type::ParenOpen)
-        return std::make_unique<AST::CreateTable>(start, table_name.value, std::vector<AST::ParsedColumn> {}, std::make_shared<AST::Check>(start), Core::DatabaseEngine::Memory);
+        return std::make_unique<AST::CreateTable>(start, table_existence, table_name.value, std::vector<AST::ParsedColumn> {}, std::make_shared<AST::Check>(start), Core::DatabaseEngine::Memory);
     m_offset++;
 
     std::vector<AST::ParsedColumn> columns;
@@ -613,34 +636,40 @@ SQLErrorOr<std::unique_ptr<AST::CreateTable>> Parser::parse_create_table() {
         return expected("')' to close column list", paren_close, m_offset - 1);
 
     auto engine = TRY(parse_engine_specification());
-    return std::make_unique<AST::CreateTable>(start, table_name.value, std::move(columns), std::move(check), engine);
+    return std::make_unique<AST::CreateTable>(start, table_existence, table_name.value, std::move(columns), std::move(check), engine);
 }
 
 SQLErrorOr<std::unique_ptr<AST::DropTable>> Parser::parse_drop_table() {
     auto start = m_offset;
     m_offset += 2; // DROP TABLE
 
+    AST::TableStatement::ExistanceCondition table_existence = TRY(parse_table_existence());
+
     auto table_name = m_tokens[m_offset++];
     if (table_name.type != Token::Type::Identifier)
         return expected("table name", table_name, m_offset - 1);
 
-    return std::make_unique<AST::DropTable>(start, table_name.value);
+    return std::make_unique<AST::DropTable>(start, table_existence, table_name.value);
 }
 
 SQLErrorOr<std::unique_ptr<AST::TruncateTable>> Parser::parse_truncate_table() {
     auto start = m_offset;
     m_offset += 2; // TRUNCATE TABLE
 
+    AST::TableStatement::ExistanceCondition table_existence = TRY(parse_table_existence());
+
     auto table_name = m_tokens[m_offset++];
     if (table_name.type != Token::Type::Identifier)
         return expected("table name", table_name, m_offset - 1);
 
-    return std::make_unique<AST::TruncateTable>(start, table_name.value);
+    return std::make_unique<AST::TruncateTable>(start, table_existence, table_name.value);
 }
 
 SQLErrorOr<std::unique_ptr<AST::AlterTable>> Parser::parse_alter_table() {
     auto start = m_offset;
     m_offset += 2; // ALTER TABLE
+
+    AST::TableStatement::ExistanceCondition table_existence = TRY(parse_table_existence());
 
     auto table_name = m_tokens[m_offset++];
     if (table_name.type != Token::Type::Identifier)
@@ -761,7 +790,7 @@ SQLErrorOr<std::unique_ptr<AST::AlterTable>> Parser::parse_alter_table() {
         m_offset++;
     }
 
-    return std::make_unique<AST::AlterTable>(start, table_name.value,
+    return std::make_unique<AST::AlterTable>(start, table_existence, table_name.value,
         std::move(to_add), std::move(to_alter), std::move(to_drop),
         std::move(check_to_add), std::move(check_to_alter), check_to_drop,
         std::move(constraint_to_add), std::move(constraint_to_alter), std::move(constraint_to_drop));

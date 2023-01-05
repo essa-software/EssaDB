@@ -11,6 +11,8 @@
 #include <db/core/ValueOrResultSet.hpp>
 #include <db/sql/ast/EvaluationContext.hpp>
 #include <db/sql/ast/TableExpression.hpp>
+#include <iostream>
+#include <string>
 
 namespace Db::Sql::AST {
 
@@ -90,7 +92,23 @@ SQLErrorOr<Core::ValueOrResultSet> Update::execute(Core::Database& db) const {
     return Core::Value::null();
 }
 
+bool TableStatement::table_exists(Core::Database& db, std::string const& name) const {
+    if (m_existence == ExistanceCondition::UNSPECIFIED) {
+        return true;
+    }
+
+    if(m_existence == ExistanceCondition::EXISTS){
+        return db.exists(name);
+    }else{
+        return !db.exists(name);
+    }
+}
+
 SQLErrorOr<Core::ValueOrResultSet> CreateTable::execute(Core::Database& db) const {
+    if (!table_exists(db, m_name)) {
+        return { Core::Value::null() };
+    }
+
     Core::TableSetup setup;
     setup.name = m_name;
     for (auto const& column : m_columns) {
@@ -115,12 +133,20 @@ SQLErrorOr<Core::ValueOrResultSet> CreateTable::execute(Core::Database& db) cons
 }
 
 SQLErrorOr<Core::ValueOrResultSet> DropTable::execute(Core::Database& db) const {
+    if (!table_exists(db, m_name)) {
+        return { Core::Value::null() };
+    }
+
     TRY(db.drop_table(m_name).map_error(DbToSQLError { start() }));
 
     return { Core::Value::null() };
 }
 
 SQLErrorOr<Core::ValueOrResultSet> TruncateTable::execute(Core::Database& db) const {
+    if (!table_exists(db, m_name)) {
+        return { Core::Value::null() };
+    }
+    
     // Just drop table and recreate it with the same settings :^)
     // FIXME: Handle primary and foreign keys
     auto table = TRY(db.table(m_name).map_error(DbToSQLError { start() }));
@@ -135,6 +161,10 @@ SQLErrorOr<Core::ValueOrResultSet> TruncateTable::execute(Core::Database& db) co
 }
 
 SQLErrorOr<Core::ValueOrResultSet> AlterTable::execute(Core::Database& db) const {
+    if (!table_exists(db, m_name)) {
+        return { Core::Value::null() };
+    }
+    
     auto table = TRY(db.table(m_name).map_error(DbToSQLError { start() }));
 
     std::vector<Core::Column> new_columns = table->columns();

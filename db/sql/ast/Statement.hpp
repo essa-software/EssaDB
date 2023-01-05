@@ -1,5 +1,6 @@
 #pragma once
 
+#include <EssaUtil/UString.hpp>
 #include <db/core/Column.hpp>
 #include <db/core/Database.hpp>
 #include <db/core/ImportMode.hpp>
@@ -8,6 +9,7 @@
 #include <db/sql/ast/ASTNode.hpp>
 #include <db/sql/ast/Expression.hpp>
 #include <map>
+#include <sys/types.h>
 
 namespace Db::Core {
 class Database;
@@ -95,10 +97,27 @@ private:
     std::optional<Core::DatabaseEngine> m_engine;
 };
 
-class CreateTable : public Statement {
+class TableStatement : public Statement {
 public:
-    CreateTable(ssize_t start, std::string name, std::vector<ParsedColumn> columns, std::shared_ptr<AST::Check> check, std::optional<Core::DatabaseEngine> engine)
+    enum class ExistanceCondition {
+        EXISTS,
+        NOTEXISTS,
+        UNSPECIFIED
+    };
+    TableStatement(ssize_t start, ExistanceCondition existence)
         : Statement(start)
+        , m_existence(existence) { }
+
+protected:
+    ExistanceCondition m_existence = ExistanceCondition::UNSPECIFIED;
+
+    bool table_exists(Core::Database& db, std::string const& name) const;
+};
+
+class CreateTable : public TableStatement {
+public:
+    CreateTable(ssize_t start, ExistanceCondition existence, std::string name, std::vector<ParsedColumn> columns, std::shared_ptr<AST::Check> check, std::optional<Core::DatabaseEngine> engine)
+        : TableStatement(start, existence)
         , m_name(std::move(name))
         , m_columns(std::move(columns))
         , m_check(std::move(check))
@@ -114,10 +133,10 @@ private:
     std::optional<Core::DatabaseEngine> m_engine;
 };
 
-class DropTable : public Statement {
+class DropTable : public TableStatement {
 public:
-    DropTable(ssize_t start, std::string name)
-        : Statement(start)
+    DropTable(ssize_t start, ExistanceCondition existence, std::string name)
+        : TableStatement(start, existence)
         , m_name(std::move(name)) { }
 
     virtual SQLErrorOr<Core::ValueOrResultSet> execute(Core::Database&) const override;
@@ -126,10 +145,10 @@ private:
     std::string m_name;
 };
 
-class TruncateTable : public Statement {
+class TruncateTable : public TableStatement {
 public:
-    TruncateTable(ssize_t start, std::string name)
-        : Statement(start)
+    TruncateTable(ssize_t start, ExistanceCondition existence, std::string name)
+        : TableStatement(start, existence)
         , m_name(std::move(name)) { }
 
     virtual SQLErrorOr<Core::ValueOrResultSet> execute(Core::Database&) const override;
@@ -138,12 +157,12 @@ private:
     std::string m_name;
 };
 
-class AlterTable : public Statement {
+class AlterTable : public TableStatement {
 public:
-    AlterTable(ssize_t start, std::string name, std::vector<ParsedColumn> to_add, std::vector<ParsedColumn> to_alter, std::vector<std::string> to_drop,
+    AlterTable(ssize_t start, ExistanceCondition existence, std::string name, std::vector<ParsedColumn> to_add, std::vector<ParsedColumn> to_alter, std::vector<std::string> to_drop,
         std::shared_ptr<Expression> check_to_add, std::shared_ptr<Expression> check_to_alter, bool check_to_drop,
         std::vector<std::pair<std::string, std::shared_ptr<Expression>>> constraint_to_add, std::vector<std::pair<std::string, std::shared_ptr<Expression>>> constraint_to_alter, std::vector<std::string> constraint_to_drop)
-        : Statement(start)
+        : TableStatement(start, existence)
         , m_name(std::move(name))
         , m_to_add(std::move(to_add))
         , m_to_alter(std::move(to_alter))

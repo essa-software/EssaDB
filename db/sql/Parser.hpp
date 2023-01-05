@@ -67,6 +67,7 @@ private:
     SQLErrorOr<std::unique_ptr<AST::Expression>> parse_function(std::string name);
     SQLErrorOr<Parser::InArgs> parse_in();
     SQLErrorOr<Parser::IsArgs> parse_is();
+    SQLErrorOr<AST::TableStatement::ExistanceCondition> parse_table_existence();
     SQLErrorOr<std::unique_ptr<AST::Identifier>> parse_identifier();
     SQLErrorOr<std::unique_ptr<AST::Literal>> parse_literal();
     SQLErrorOr<AST::ParsedColumn> parse_column();
