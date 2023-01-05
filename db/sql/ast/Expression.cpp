@@ -119,57 +119,57 @@ SQLErrorOr<Core::Value> Identifier::evaluate(EvaluationContext& context) const {
     return TRY(context.current_frame().columns.resolve_value(context, *this));
 }
 
-// FIXME: char ranges doesn't work in row
-static Core::DbErrorOr<bool> wildcard_parser(std::string const& lhs, std::string const& rhs) {
-    auto is_string_valid = [](std::string const& lhs, std::string const& rhs) {
+// FIXME: Char ranges doesn't work in row
+static Core::DbErrorOr<bool> wildcard_parser(std::string const& needle, std::string const& pattern) {
+    auto is_string_valid = [](std::string const& needle, std::string const& pattern) {
         size_t len = 0;
 
-        for (auto left_it = lhs.begin(), right_it = rhs.begin(); left_it < lhs.end() || right_it < rhs.end(); left_it++, right_it++) {
+        for (auto needle_it = needle.begin(), pattern_it = pattern.begin(); needle_it < needle.end() || pattern_it < pattern.end(); needle_it++, pattern_it++) {
             len++;
-            if (*right_it == '?') {
-                if (lhs.size() < len)
+            if (*pattern_it == '?') {
+                if (needle.size() < len)
                     return false;
                 continue;
             }
-            else if (*right_it == '#') {
-                if (!isdigit(*left_it) || lhs.size() < len)
+            else if (*pattern_it == '#') {
+                if (!isdigit(*needle_it) || needle.size() < len)
                     return false;
             }
-            else if (*right_it == '[') {
-                if (lhs.size() < len)
+            else if (*pattern_it == '[') {
+                if (needle.size() < len)
                     return false;
 
-                right_it++;
+                pattern_it++;
                 bool negate = 0;
-                if (*right_it == '!') {
+                if (*pattern_it == '!') {
                     negate = 1;
-                    right_it++;
+                    pattern_it++;
                 }
 
                 std::vector<char> allowed_chars;
 
-                for (auto it = right_it; *it != ']'; it++) {
+                for (auto it = pattern_it; *it != ']'; it++) {
                     allowed_chars.push_back(*it);
-                    right_it++;
+                    pattern_it++;
                 }
-                right_it++;
+                pattern_it++;
 
                 if (allowed_chars.size() == 3 && allowed_chars[1] == '-') {
-                    bool in_range = (allowed_chars[0] <= *left_it && *left_it <= allowed_chars[2]);
+                    bool in_range = (allowed_chars[0] <= *needle_it && *needle_it <= allowed_chars[2]);
                     if (negate ? in_range : !in_range)
                         return false;
                 }
                 else {
                     bool exists = 0;
                     for (const auto& c : allowed_chars) {
-                        exists |= (c == *left_it);
+                        exists |= (c == *needle_it);
                     }
 
                     if (negate ? exists : !exists)
                         return false;
                 }
             }
-            else if (*right_it != *left_it) {
+            else if (*pattern_it != *needle_it) {
                 return false;
             }
         }
@@ -177,16 +177,16 @@ static Core::DbErrorOr<bool> wildcard_parser(std::string const& lhs, std::string
         return true;
     };
 
-    bool result = 0;
-    auto left_it = lhs.begin(), right_it = rhs.begin();
+    bool result = false;
+    auto needle_it = needle.begin(), pattern_it = pattern.begin();
 
-    for (left_it = lhs.begin(), right_it = rhs.begin(); left_it < lhs.end(); left_it++) {
+    for (needle_it = needle.begin(), pattern_it = pattern.begin(); needle_it < needle.end(); needle_it++) {
         size_t dist_to_next_asterisk = 0, substr_len = 0;
         bool brackets = false;
-        if (*right_it == '*')
-            right_it++;
+        if (*pattern_it == '*')
+            pattern_it++;
 
-        for (auto it = right_it; it < rhs.end() && *it != '*'; it++) {
+        for (auto it = pattern_it; it < pattern.end() && *it != '*'; it++) {
             dist_to_next_asterisk++;
 
             if (brackets && *it != ']')
@@ -198,20 +198,20 @@ static Core::DbErrorOr<bool> wildcard_parser(std::string const& lhs, std::string
                 brackets = true;
         }
 
-        size_t lstart = static_cast<size_t>(left_it - lhs.begin());
-        size_t rstart = static_cast<size_t>(right_it - rhs.begin());
+        size_t lstart = static_cast<size_t>(needle_it - needle.begin());
+        size_t rstart = static_cast<size_t>(pattern_it - pattern.begin());
         try {
-            if (is_string_valid(lhs.substr(lstart, substr_len), rhs.substr(rstart, dist_to_next_asterisk))) {
-                left_it += substr_len;
-                right_it += dist_to_next_asterisk;
+            if (is_string_valid(needle.substr(lstart, substr_len), pattern.substr(rstart, dist_to_next_asterisk))) {
+                needle_it += substr_len;
+                pattern_it += dist_to_next_asterisk;
 
-                result = 1;
+                result = true;
             }
         } catch (...) {
             return false;
         }
     }
-    if (right_it != rhs.end() && rhs.back() != '*')
+    if (pattern_it != pattern.end() && pattern.back() != '*')
         return false;
     return result;
 }
