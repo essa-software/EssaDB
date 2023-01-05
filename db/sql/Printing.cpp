@@ -10,4 +10,9 @@ std::string Printing::escape_identifier(std::string const& id) {
     return id;
 }
 
+std::string Printing::escape_string_literal(std::string const& id) {
+    // FIXME: Actually escape special characters
+    return "'" + id + "'";
+}
+
 }
