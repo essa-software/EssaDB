@@ -5,6 +5,9 @@
 #include "ResultSet.hpp"
 #include "Tuple.hpp"
 
+#include <EssaUtil/Config.hpp>
+#include <db/sql/Printing.hpp>
+
 #include <cctype>
 #include <ctime>
 #include <limits>
@@ -223,6 +226,21 @@ std::string Value::to_debug_string() const {
         return "time " + value;
     }
     __builtin_unreachable();
+}
+
+std::string Value::to_sql_serialized_string() const {
+    switch (m_type) {
+    case Type::Null:
+        return "NULL";
+    case Type::Int:
+    case Type::Float:
+    case Type::Bool:
+    case Type::Time:
+        return MUST(to_string());
+    case Type::Varchar:
+        return Sql::Printing::escape_string_literal(std::get<std::string>(*this));
+    }
+    ESSA_UNREACHABLE;
 }
 
 void Value::repl_dump(std::ostream& out) const {
