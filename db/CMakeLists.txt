@@ -11,6 +11,7 @@ add_library(
 
     sql/Lexer.cpp
     sql/Parser.cpp
+    sql/Printing.cpp
     sql/SQL.cpp
     sql/Select.cpp
     sql/ast/Expression.cpp
