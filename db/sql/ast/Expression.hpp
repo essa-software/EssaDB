@@ -1,7 +1,8 @@
 #pragma once
 
-#include "db/core/DbError.hpp"
+#include <db/core/DbError.hpp>
 #include <db/core/Tuple.hpp>
+#include <db/sql/Printing.hpp>
 #include <db/sql/SQLError.hpp>
 #include <db/sql/ast/ASTNode.hpp>
 #include <list>
@@ -82,7 +83,7 @@ public:
         , m_table(std::move(table)) { }
 
     virtual SQLErrorOr<Core::Value> evaluate(EvaluationContext&) const override;
-    virtual std::string to_string() const override { return m_id; }
+    virtual std::string to_string() const override { return Printing::escape_identifier(m_id); }
     virtual std::vector<std::string> referenced_columns() const override { return { m_id }; }
 
     std::string id() const { return m_id; }
