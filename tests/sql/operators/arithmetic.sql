@@ -5,12 +5,12 @@
 SELECT 69 + 5;
 
 -- output:
--- | (69 + null) |
+-- | (69 + NULL) |
 -- |        null |
 SELECT 69 + NULL;
 
 -- output:
--- | (null + 5) |
+-- | (NULL + 5) |
 -- |       null |
 SELECT NULL + 5;
 
@@ -21,12 +21,12 @@ SELECT NULL + 5;
 SELECT 69 - 5;
 
 -- output:
--- | (69 - null) |
+-- | (69 - NULL) |
 -- |        null |
 SELECT 69 - NULL;
 
 -- output:
--- | (null - 5) |
+-- | (NULL - 5) |
 -- |       null |
 SELECT NULL - 5;
 
@@ -37,12 +37,12 @@ SELECT NULL - 5;
 SELECT 69 * 5;
 
 -- output:
--- | (69 * null) |
+-- | (69 * NULL) |
 -- |        null |
 SELECT 69 * NULL;
 
 -- output:
--- | (null * 5) |
+-- | (NULL * 5) |
 -- |       null |
 SELECT NULL * 5;
 
@@ -63,12 +63,12 @@ SELECT 5 * (33 + 36);
 SELECT 69 / 5;
 
 -- output:
--- | (69 / null) |
+-- | (69 / NULL) |
 -- |        null |
 SELECT 69 / NULL;
 
 -- output:
--- | (null / 5) |
+-- | (NULL / 5) |
 -- |       null |
 SELECT NULL / 5;
 

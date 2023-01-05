@@ -91,6 +91,10 @@ SQLErrorOr<void> Check::drop_constraint(const std::string& name) {
     return {};
 }
 
+std::string Literal::to_string() const {
+    return m_value.to_sql_serialized_string();
+}
+
 SQLErrorOr<Core::Value> Identifier::evaluate(EvaluationContext& context) const {
     if (!context.db) {
         return SQLError { "Identifiers cannot be resolved without database", start() };

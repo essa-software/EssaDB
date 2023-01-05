@@ -67,7 +67,7 @@ public:
         , m_value(std::move(val)) { }
 
     virtual SQLErrorOr<Core::Value> evaluate(EvaluationContext&) const override { return m_value; }
-    virtual std::string to_string() const override { return m_value.to_string().release_value_but_fixme_should_propagate_errors(); }
+    virtual std::string to_string() const override;
 
     Core::Value value() const { return m_value; }
 
