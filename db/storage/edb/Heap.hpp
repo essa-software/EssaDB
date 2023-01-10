@@ -40,7 +40,7 @@ class HeapBlock {
 public:
     void init(EDBFile&);
     Util::OsErrorOr<std::optional<uint32_t>> alloc(EDBFile&, size_t size);
-    Util::OsErrorOr<void> free(HeapPtr addr);
+    Util::OsErrorOr<void> free(uint32_t offset);
     void leak_check();
     void dump(EDBFile&, BlockIndex);
 

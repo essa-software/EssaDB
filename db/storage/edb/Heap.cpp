@@ -121,9 +121,10 @@ Util::OsErrorOr<std::optional<uint32_t>> HeapBlock::alloc(EDBFile& file, size_t 
     }
 }
 
-Util::OsErrorOr<void> HeapBlock::free(HeapPtr addr) {
-    (void)addr;
-    // TODO
+Util::OsErrorOr<void> HeapBlock::free(uint32_t offset) {
+    AlignedAccess<HeapHeader> header { m_data + offset - sizeof(HeapHeader) };
+    header->signature = Signature::Freed;
+    // TODO: Merge and cleanup
     return {};
 }
 
@@ -175,8 +176,10 @@ void Heap::leak_check() const {
     // TODO
 }
 
-Util::OsErrorOr<void> Heap::free(HeapPtr) {
-    // TODO
+Util::OsErrorOr<void> Heap::free(HeapPtr ptr) {
+    auto block = m_file.access<HeapBlock>(HeapPtr { ptr.block, sizeof(Block) }, m_file.block_size() - sizeof(Block));
+    TRY(block->free(ptr.offset - sizeof(Block)));
+    block.flush();
     return {};
 }
 

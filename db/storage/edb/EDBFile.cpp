@@ -294,7 +294,7 @@ Util::OsErrorOr<void> EDBFile::flush_header() {
 }
 
 Util::OsErrorOr<void> EDBFile::rename(std::string const& new_name) {
-    // FIXME: Free the old name
+    TRY(heap_free(m_header.table_name.offset));
     m_header.table_name = TRY(copy_to_heap(new_name));
     return {};
 }
@@ -435,6 +435,10 @@ Util::OsErrorOr<HeapSpan> EDBFile::heap_allocate(size_t size) {
     // fmt::print("Dump after alloc({}):\n", size);
     // m_heap.dump();
     return span;
+}
+
+Util::OsErrorOr<void> EDBFile::heap_free(HeapPtr ptr) {
+    return m_heap.free(ptr);
 }
 
 }
