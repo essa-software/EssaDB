@@ -11,10 +11,10 @@ public:
         : m_file(file)
         , m_row_ptr { 1, sizeof(Block) + sizeof(Table::TableBlock) } { }
 
-    virtual std::optional<Core::Tuple> next() override;
+    virtual std::unique_ptr<Core::RowReference> next() override;
 
 private:
-    Util::OsErrorOr<std::optional<Core::Tuple>> next_impl();
+    Util::OsErrorOr<std::unique_ptr<Core::RowReference>> next_impl();
     
     EDBFile& m_file;
     HeapPtr m_row_ptr;

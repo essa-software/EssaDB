@@ -26,6 +26,7 @@ public:
 
     virtual std::vector<Core::Column> const& columns() const { return m_other.columns(); }
     virtual Core::RelationIterator rows() const { return m_other.rows(); }
+    virtual Core::MutableRelationIterator writable_rows() { ESSA_UNREACHABLE; }
     virtual size_t size() const { return m_other.size(); }
 
 private:

@@ -27,8 +27,10 @@ public:
 
     Util::OsErrorOr<std::vector<Core::Column>> read_columns() const;
     auto const& header() const { return m_header; }
+    auto const& raw_columns() const { return m_columns; }
 
     size_t block_size() const;
+    size_t row_size() const;
 
     uint8_t* heap_ptr_to_mapped_ptr(HeapPtr);
     uint8_t const* heap_ptr_to_mapped_ptr(HeapPtr) const;
@@ -86,8 +88,6 @@ public:
     Util::OsErrorOr<Value> write_edb_value(Core::Value const&);
 
 private:
-    friend class EDBRelationIteratorImpl;
-
     EDBFile(Util::File, MappedFile);
 
     size_t header_size() const;
@@ -107,7 +107,6 @@ private:
     // Find first free block or expand file if it is not possible (Max O(n))
     Util::OsErrorOr<BlockIndex> allocate_block(BlockType);
 
-    size_t row_size() const;
     size_t block_count() const { return (m_file_size - header_size()) / block_size(); }
 
     EDBHeader m_header;

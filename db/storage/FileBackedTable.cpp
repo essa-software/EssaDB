@@ -40,6 +40,10 @@ Core::RelationIterator FileBackedTable::rows() const {
     return Core::RelationIterator { std::make_unique<EDB::EDBRelationIteratorImpl>(*m_file) };
 }
 
+Core::MutableRelationIterator FileBackedTable::writable_rows() {
+    return Core::MutableRelationIterator { std::make_unique<EDB::EDBRelationIteratorImpl>(*m_file) };
+}
+
 size_t FileBackedTable::size() const {
     return m_file->header().row_count;
 }

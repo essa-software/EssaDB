@@ -15,6 +15,7 @@ public:
     // ^Relation
     virtual std::vector<Core::Column> const& columns() const override;
     virtual Core::RelationIterator rows() const override;
+    virtual Core::MutableRelationIterator writable_rows() override;
     virtual size_t size() const override;
 
     // ^Table

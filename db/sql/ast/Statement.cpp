@@ -1,3 +1,4 @@
+#include "db/core/Relation.hpp"
 #include "db/core/TableSetup.hpp"
 #include "db/sql/SQLError.hpp"
 #include <db/sql/ast/Statement.hpp>
@@ -71,22 +72,24 @@ SQLErrorOr<Core::ValueOrResultSet> DeleteFrom::execute(Core::Database& db) const
 
 SQLErrorOr<Core::ValueOrResultSet> Update::execute(Core::Database& db) const {
     auto table = TRY(db.table(m_table).map_error(DbToSQLError { start() }));
-    auto memory_backed_table = dynamic_cast<Core::MemoryBackedTable*>(table);
-    if (!memory_backed_table) {
-        return SQLError { "TODO: Support other table classes than MemoryBackedTable", start() };
-    }
+
     EvaluationContext context { .db = &db };
     AST::SimpleTableExpression id { 0, *table };
     SelectColumns columns;
     context.frames.emplace_back(&id, columns);
 
+    // FIXME: Integrity
+    // FIXME: This can be optimized to write for every column, not for every written value.
     for (const auto& update_pair : m_to_update) {
         auto column = table->get_column(update_pair.column);
 
-        for (auto& tuple : memory_backed_table->raw_rows()) {
+        TRY(table->writable_rows().try_for_each_row_reference([&](Core::RowReference& row) -> SQLErrorOr<void> {
+            auto tuple = row.read();
             context.current_frame().row = { .tuple = tuple, .source = {} };
             tuple.set_value(column->index, TRY(update_pair.expr->evaluate(context)));
-        }
+            row.write(tuple);
+            return {};
+        }));
     }
 
     return Core::Value::null();
