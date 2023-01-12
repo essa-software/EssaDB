@@ -48,8 +48,8 @@ private:
 
 class MemoryBackedTable : public Table {
 public:
-    auto begin() { return m_rows.data(); }
-    auto end() { return m_rows.data() + m_rows.size(); }
+    auto begin() { return m_rows.begin(); }
+    auto end() { return m_rows.end(); }
 
     MemoryBackedTable(std::shared_ptr<Sql::AST::Check> check, TableSetup const& setup)
         : m_columns(setup.columns)
@@ -70,8 +70,8 @@ public:
 
     virtual size_t size() const override { return m_rows.size(); }
 
-    std::vector<Tuple> const& raw_rows() const { return m_rows; }
-    std::vector<Tuple>& raw_rows() { return m_rows; }
+    std::list<Tuple> const& raw_rows() const { return m_rows; }
+    std::list<Tuple>& raw_rows() { return m_rows; }
     virtual std::string name() const override { return m_name; }
 
     std::shared_ptr<Sql::AST::Check>& check() { return m_check; }
@@ -85,7 +85,7 @@ private:
     virtual DbErrorOr<void> rename(std::string const& new_name) override;
     virtual DbErrorOr<void> perform_database_integrity_checks(Database* db, Tuple const& row) const override;
 
-    std::vector<Tuple> m_rows;
+    std::list<Tuple> m_rows;
     std::vector<Column> m_columns;
     std::shared_ptr<Sql::AST::Check> m_check;
     std::map<std::string, int> m_auto_increment_values;

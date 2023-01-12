@@ -14,6 +14,7 @@
 #include <db/sql/ast/TableExpression.hpp>
 #include <iostream>
 #include <string>
+#include <type_traits>
 
 namespace Db::Sql::AST {
 
@@ -50,22 +51,18 @@ SQLErrorOr<Core::ValueOrResultSet> DeleteFrom::execute(Core::Database& db) const
 
     // TODO: Maintain integrity on error
     std::optional<Core::DbError> error;
-    std::vector<size_t> rows_to_remove;
+    using Iterator = std::remove_reference_t<decltype(memory_backed_table->raw_rows())>::iterator;
+    std::vector<Iterator> rows_to_remove;
 
-    size_t idx = 0;
-    TRY(table->rows().try_for_each_row([&](auto const& row) -> SQLErrorOr<void> {
-        Util::ScopeGuard guard {
-            [&idx] { idx++; }
-        };
-        auto should_include = TRY(should_include_row(row));
+    for (auto it = memory_backed_table->begin(); it != memory_backed_table->end(); it++) {
+        auto should_include = TRY(should_include_row(*it));
         if (should_include) {
-            rows_to_remove.push_back(idx);
+            rows_to_remove.push_back(it);
         }
-        return {};
-    }));
+    }
 
     for (auto it = rows_to_remove.rbegin(); it != rows_to_remove.rend(); it++) {
-        memory_backed_table->raw_rows().erase(memory_backed_table->raw_rows().begin() + *it);
+        memory_backed_table->raw_rows().erase(*it);
     }
     return Core::Value::null();
 }

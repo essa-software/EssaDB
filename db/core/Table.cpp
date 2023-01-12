@@ -165,7 +165,7 @@ DbErrorOr<std::unique_ptr<MemoryBackedTable>> MemoryBackedTable::create_from_sel
     }
 
     std::unique_ptr<MemoryBackedTable> table = std::make_unique<MemoryBackedTable>(nullptr, TableSetup { "SelectResult", columns });
-    table->m_rows = rows;
+    std::copy(rows.begin(), rows.end(), std::back_inserter(table->m_rows));
     return table;
 }
 
