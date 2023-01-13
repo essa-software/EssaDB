@@ -24,6 +24,7 @@ add_library(
 
     storage/CSVFile.cpp
     storage/FileBackedTable.cpp
+    storage/edb/Definitions.cpp
     storage/edb/EDBFile.cpp
     storage/edb/EDBRelationIterator.cpp
     storage/edb/Heap.cpp

@@ -187,24 +187,6 @@ Util::OsErrorOr<BlockIndex> EDBFile::allocate_block(BlockType block_type) {
     return allocated_block;
 }
 
-static uint8_t value_size_for_type(Core::Value::Type type) {
-    switch (type) {
-    case Core::Value::Type::Null:
-        return 0;
-    case Core::Value::Type::Int:
-        return sizeof(Value::int_value);
-    case Core::Value::Type::Float:
-        return sizeof(Value::float_value);
-    case Core::Value::Type::Varchar:
-        return sizeof(Value::varchar_value);
-    case Core::Value::Type::Bool:
-        return sizeof(Value::bool_value);
-    case Core::Value::Type::Time:
-        return sizeof(Value::time_value);
-    }
-    ESSA_UNREACHABLE;
-}
-
 Util::OsErrorOr<void> EDBFile::write_header_first_pass(Db::Core::TableSetup const& setup) {
     uint32_t block_size = 0;
     block_size += sizeof(Table::RowSpec) - 1;

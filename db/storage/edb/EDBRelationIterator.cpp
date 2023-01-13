@@ -21,7 +21,7 @@ public:
 
     ~EDBRowReference() {
         auto row = m_file.access<Table::RowSpec>(m_row_ptr, m_file.row_size() + sizeof(Table::RowSpec));
-        // TODO: Free old data if required
+        row->free_data(m_file).release_value_but_fixme_should_propagate_errors();
         Util::WritableMemoryStream stream;
         Util::Writer writer { stream };
         Serializer::write_row(m_file, writer, m_file.raw_columns(), m_tuple).release_value_but_fixme_should_propagate_errors();

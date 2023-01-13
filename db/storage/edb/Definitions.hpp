@@ -9,6 +9,8 @@ namespace Db::Storage::EDB {
 
 using BlockIndex = uint32_t;
 
+class EDBFile;
+
 constexpr uint8_t Magic[] = { 0x65, 0x73, 0x64, 0x62, 0x0d, 0x0a }; // esdb\r\n
 constexpr uint16_t CurrentVersion = 0x0001;
 constexpr size_t RowsPerBlock = 256;
@@ -60,6 +62,8 @@ struct Date {
     uint8_t day;
 };
 
+uint8_t value_size_for_type(Core::Value::Type type);
+
 union Value {
     LittleEndian<uint32_t> int_value;
     LittleEndian<float> float_value;
@@ -86,7 +90,12 @@ struct RowSpec {
     HeapPtr next_row;
     uint8_t is_used;
     uint8_t row[0];
+
+    // Free heap-stored data on row's fields. This is only varchar string
+    // for now. This doesn't mark row as unused.
+    Util::OsErrorOr<void> free_data(EDBFile&);
 };
+
 static_assert(sizeof(RowSpec) == 9);
 
 struct TableBlock {
