@@ -36,7 +36,8 @@ private:
         m_tuple = tuple;
     }
     virtual void remove() override {
-        // TODO
+    virtual std::unique_ptr<RowReference> clone() const override {
+        return std::make_unique<EDBRowReference>(*this);
     }
 
     Core::Tuple m_tuple;

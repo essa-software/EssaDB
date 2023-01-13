@@ -32,10 +32,6 @@ SQLErrorOr<Core::ValueOrResultSet> StatementList::execute(Core::Database& db) co
 
 SQLErrorOr<Core::ValueOrResultSet> DeleteFrom::execute(Core::Database& db) const {
     auto table = TRY(db.table(m_from).map_error(DbToSQLError { start() }));
-    auto memory_backed_table = dynamic_cast<Core::MemoryBackedTable*>(table);
-    if (!memory_backed_table) {
-        return SQLError { "TODO: Support other table classes than MemoryBackedTable", start() };
-    }
 
     EvaluationContext context { .db = &db };
     AST::SimpleTableExpression id { 0, *table };
@@ -49,21 +45,19 @@ SQLErrorOr<Core::ValueOrResultSet> DeleteFrom::execute(Core::Database& db) const
         return TRY(m_where->evaluate(context)).to_bool().map_error(DbToSQLError { start() });
     };
 
-    // TODO: Maintain integrity on error
-    std::optional<Core::DbError> error;
-    using Iterator = std::remove_reference_t<decltype(memory_backed_table->raw_rows())>::iterator;
-    std::vector<Iterator> rows_to_remove;
-
-    for (auto it = memory_backed_table->begin(); it != memory_backed_table->end(); it++) {
-        auto should_include = TRY(should_include_row(*it));
+    std::vector<std::unique_ptr<Core::RowReference>> rows_to_remove;
+    TRY(table->writable_rows().try_for_each_row_reference([&](Core::RowReference const& ref) -> SQLErrorOr<void> {
+        auto should_include = TRY(should_include_row(ref.read()));
         if (should_include) {
-            rows_to_remove.push_back(it);
+            rows_to_remove.push_back(ref.clone());
         }
+        return {};
+    }));
+
+    for (auto const& ref : rows_to_remove) {
+        ref->remove();
     }
 
-    for (auto it = rows_to_remove.rbegin(); it != rows_to_remove.rend(); it++) {
-        memory_backed_table->raw_rows().erase(*it);
-    }
     return Core::Value::null();
 }
 

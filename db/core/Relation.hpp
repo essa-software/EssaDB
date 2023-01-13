@@ -5,6 +5,7 @@
 
 #include <EssaUtil/Config.hpp>
 #include <EssaUtil/Error.hpp>
+#include <list>
 #include <memory>
 #include <type_traits>
 #include <vector>
@@ -14,11 +15,13 @@ namespace Db::Core {
 class RowReference {
 public:
     RowReference() = default;
-    RowReference(RowReference const&) = delete;
     virtual ~RowReference() = default;
     virtual Tuple read() const = 0;
     virtual void write(Tuple const&) = 0;
+
+    // Remove a row. This must NOT invalidate other references.
     virtual void remove() = 0;
+    virtual std::unique_ptr<RowReference> clone() const = 0;
 };
 
 class RelationIteratorImpl {
@@ -115,52 +118,95 @@ public:
 
 // An abstract table iterator that iterates over a container
 // of rows stored in memory.
-template<class It>
-    requires(std::forward_iterator<It>)
+
 class MemoryBackedRelationIteratorImpl : public RelationIteratorImpl {
 public:
-    explicit MemoryBackedRelationIteratorImpl(It begin, It end)
-        : m_begin(begin)
-        , m_current(begin)
-        , m_end(end) { }
+    using List = std::list<Tuple>;
+    using Iterator = List::const_iterator;
+
+    explicit MemoryBackedRelationIteratorImpl(List const& list)
+        : m_list(list)
+        , m_current(list.begin()) { }
 
     class RowReferenceImpl : public RowReference {
     public:
-        explicit RowReferenceImpl(It it)
+        explicit RowReferenceImpl(Iterator it)
             : m_it(it) {
         }
 
         virtual Tuple read() const override {
             return *m_it;
         }
-        virtual void write(Tuple const& tuple) override {
-            // FIXME: This is quite hacky, maybe RowReference should be separated
-            //        into const and non-const version?
-            if constexpr (requires() { *m_it = tuple; }) {
-                *m_it = tuple;
-            }
-            else {
-                ESSA_UNREACHABLE;
-            }
+        virtual void write(Tuple const&) override {
+            ESSA_UNREACHABLE;
         }
         virtual void remove() override {
-            fmt::print("TODO\n");
+            ESSA_UNREACHABLE;
+        }
+        virtual std::unique_ptr<RowReference> clone() const override {
+            return std::make_unique<RowReferenceImpl>(*this);
         }
 
     private:
-        It m_it;
+        Iterator m_it;
     };
 
     virtual std::unique_ptr<RowReference> next() override {
-        if (m_current == m_end)
+        if (m_current == m_list.end())
             return {};
         return std::make_unique<RowReferenceImpl>(m_current++);
     }
 
 private:
-    It m_begin;
-    It m_current;
-    It m_end;
+    List const& m_list;
+    Iterator m_current;
+};
+
+// An abstract table iterator that iterates over a container
+// of rows stored in memory.
+class MutableMemoryBackedRelationIteratorImpl : public RelationIteratorImpl {
+public:
+    using List = std::list<Tuple>;
+    using Iterator = List::iterator;
+
+    explicit MutableMemoryBackedRelationIteratorImpl(List& list)
+        : m_list(list)
+        , m_current(list.begin()) { }
+
+    class RowReferenceImpl : public RowReference {
+    public:
+        explicit RowReferenceImpl(List& list, Iterator it)
+            : m_list(list)
+            , m_it(it) {
+        }
+
+        virtual Tuple read() const override {
+            return *m_it;
+        }
+        virtual void write(Tuple const& tuple) override {
+            *m_it = tuple;
+        }
+        virtual void remove() override {
+            m_list.erase(m_it);
+        }
+        virtual std::unique_ptr<RowReference> clone() const override {
+            return std::make_unique<RowReferenceImpl>(*this);
+        }
+
+    private:
+        List& m_list;
+        Iterator m_it;
+    };
+
+    virtual std::unique_ptr<RowReference> next() override {
+        if (m_current == m_list.end())
+            return {};
+        return std::make_unique<RowReferenceImpl>(m_list, m_current++);
+    }
+
+private:
+    List& m_list;
+    Iterator m_current;
 };
 
 }

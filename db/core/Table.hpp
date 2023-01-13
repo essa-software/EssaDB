@@ -62,10 +62,10 @@ public:
     virtual std::vector<Column> const& columns() const override { return m_columns; }
 
     virtual RelationIterator rows() const override {
-        return RelationIterator { std::make_unique<MemoryBackedRelationIteratorImpl<decltype(m_rows)::const_iterator>>(m_rows.begin(), m_rows.end()) };
+        return RelationIterator { std::make_unique<MemoryBackedRelationIteratorImpl>(m_rows) };
     }
     virtual MutableRelationIterator writable_rows() override {
-        return MutableRelationIterator { std::make_unique<MemoryBackedRelationIteratorImpl<decltype(m_rows)::iterator>>(m_rows.begin(), m_rows.end()) };
+        return MutableRelationIterator { std::make_unique<MutableMemoryBackedRelationIteratorImpl>(m_rows) };
     }
 
     virtual size_t size() const override { return m_rows.size(); }
