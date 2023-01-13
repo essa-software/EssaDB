@@ -1,5 +1,6 @@
 #include <EssaUtil/DisplayError.hpp>
 #include <EssaUtil/Stream.hpp>
+#include <EssaUtil/Stream/File.hpp>
 #include <db/core/Database.hpp>
 #include <db/sql/Lexer.hpp>
 #include <db/sql/Parser.hpp>
@@ -58,15 +59,26 @@ int run_sql_file(Db::Core::Database& db, std::string const& file_name) {
 
     Db::Sql::Parser parser { tokens };
     auto statement_list = parser.parse_statement_list();
+
     if (statement_list.is_error()) {
         auto error = statement_list.release_error();
-        display_error(error, tokens[error.token()].start, tokens[error.token()].end, file_name);
+
+        auto query = Util::ReadableFileStream::read_file(file_name);
+        if (query.is_error()) {
+            query = Util::Buffer {};
+        }
+        display_error(error, tokens[error.token()].start, tokens[error.token()].end, query.release_value().decode().encode());
         return 1;
     }
     auto result = statement_list.release_value().execute(db);
     if (result.is_error()) {
         auto error = result.release_error();
-        display_error(error, tokens[error.token()].start, tokens[error.token()].end, file_name);
+
+        auto query = Util::ReadableFileStream::read_file(file_name);
+        if (query.is_error()) {
+            query = Util::Buffer {};
+        }
+        display_error(error, tokens[error.token()].start, tokens[error.token()].end, query.release_value().decode().encode());
         return 1;
     }
     result.release_value().repl_dump(std::cerr, Db::Core::ResultSet::FancyDump::Yes);
