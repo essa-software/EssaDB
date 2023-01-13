@@ -16,31 +16,40 @@ Every table is stored in a separate file. This file consists of header and a hea
 ## General table file layout
 
 ### Header
-Header structure
+Header structure (packed)
 
-| Size (B)  | Offset (B)        | Type          | Usage
-|-          |-                  |-              | -
-| 6         | 0                 |               | Filemagic (`esdb\r\n` / `65 73 64 62 0d 0a`).
-| 2         | 6                 | `u16 LE`      | File version. This document describes version `0x0000`.
-| 4         | 8                 | `u32 LE`      | Block size
-| 8         | 12                | `u64 LE`      | Number of rows
-| 1         | 20                | `u8`          | Number of columns (`Col`)
-| 8         | 21                | `HeapPtr`     | Pointer to last row
-| 4         | 29                | `BlockIndex`  | Index of last table block
-| 4         | 33                | `BlockIndex`  | Index of last heap block
-| 16        | 37                | `HeapSpan`    | Table name
-| 16        | 53                | `HeapSpan`    | Check SQL statement
-| 1         | 69                | `u8`          | Number of auto-increment variables (`Aiv`)
-| 1         | 70                | `u8`          | Number of keys (`Key`)
-| `Col`     | 71                | `Col[]`       | Column definitions
-| `Aiv`     | 71+`Col`          | `Aiv[]`       | Auto-increment variable definitions
-| `Key`     | 71+`Col`+`Aiv`    | `Key[]`       | Keys
+```c++
+struct EDBHeader {
+    u8 magic[6];                   // Filemagic (`esdb\r\n` / `65 73 64 62 0d 0a`).
+    u16le version;                 // File version. This document describes version `0x0000`.
+
+    u32le block_size;              // Block size
+
+    u64le row_count;               // Number of rows
+    u8 column_count;               // Number of columns
+
+    HeapPtr first_row_ptr;         // Pointer to first row (MUST be null if table is empty)
+    HeapPtr last_row_ptr;          // Pointer to last row (MUST be null if table is empty)
+    BlockIndex last_table_block;   // Index of last table block
+    BlockIndex last_heap_block;    // Index of last heap block
+    
+    HeapSpan table_name;           // Pointer to table name
+    HeapSpan check_statement;      // Pointer to check statement (stored as SQL expression)
+
+    u8 auto_increment_value_count; // Number of auto-increment variables
+    u8 key_count;                  // Number of keys
+
+    Col columns[column_count];     // Column definitions
+    Aiv ai_values[ai_value_count]; // Auto-increment variable definitions
+    Key keys[key_count];           // Key definitions
+}
+```
 
 Header size can be calculated using following formula:
 
-`51` + sizeof(*Col*) * *Number of columns* + sizeof(*Aiv*) * *Number of auto-increment variables* + sizeof(*Key*) * *Number of keys*
+sizeof(`EDBHeader`) + sizeof(`Col`) * `column_count` + sizeof(`Aiv`) * `auto_increment_value_count` + sizeof(`Key`) * `key_count`
 
-Column format (`Col`):
+#### Column format (`Col`):
 
 | Size (B)  | Offset (B)    | Type                              | Usage
 |-          |-              |-                                  |-
@@ -52,14 +61,14 @@ Column format (`Col`):
 | 1         | 18            | `bool`                            | Has default value
 | 14        | 19            | [`Value`](#value)                 | Default value
 
-Auto-increment variable format (`Aiv`):
+#### Auto-increment variable format (`Aiv`):
 
 | Size (B)  | Offset (B)    | Type          | Usage
 |-          |-              |-              |-
 | 1         | 0             | `u8`          | Column index
 | 8         | 1             | `u64 LE`      | Value
 
-Key format (`Key`):
+#### Key format (`Key`):
 
 | Size (B)  | Offset (B)    | Type          | Usage
 |-          |-              |-              |-
@@ -68,7 +77,7 @@ Key format (`Key`):
 | 14        | 2             | `HeapSpan`    | References table (for FOREIGN KEY)
 | 1         | 16            | `u8`          | References column (for FOREIGN KEY)
 
-Key types:
+#### Key types:
 * `0x00` - PRIMARY
 * `0x01` - FOREIGN
 

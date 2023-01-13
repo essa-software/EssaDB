@@ -24,6 +24,7 @@ public:
 
     Util::OsErrorOr<void> rename(std::string const& new_name);
     Util::OsErrorOr<void> insert(Core::Tuple const& tuple);
+    Util::OsErrorOr<void> remove(HeapPtr row, HeapPtr prev_row);
 
     Util::OsErrorOr<std::vector<Core::Column>> read_columns() const;
     auto const& header() const { return m_header; }

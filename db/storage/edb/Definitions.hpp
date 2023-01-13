@@ -1,7 +1,9 @@
 #pragma once
 
+#include <EssaUtil/Error.hpp>
 #include <cstddef>
 #include <cstdint>
+#include <db/core/Value.hpp>
 #include <db/storage/edb/Endian.hpp>
 #include <sys/types.h>
 
@@ -33,6 +35,7 @@ struct [[gnu::packed]] EDBHeader {
     LittleEndian<uint32_t> block_size;
     LittleEndian<uint64_t> row_count;
     uint8_t column_count;
+    HeapPtr first_row_ptr;
     HeapPtr last_row_ptr;
     BlockIndex last_table_block;
     BlockIndex last_heap_block;
@@ -106,3 +109,13 @@ struct TableBlock {
 }
 
 }
+
+template<>
+class fmt::formatter<Db::Storage::EDB::HeapPtr> : public fmt::formatter<std::string_view> {
+public:
+    template<typename FormatContext>
+    constexpr auto format(Db::Storage::EDB::HeapPtr const& p, FormatContext& ctx) const {
+        fmt::format_to(ctx.out(), "{}:{}", p.block, p.offset);
+        return ctx.out();
+    }
+};

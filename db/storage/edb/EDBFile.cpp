@@ -223,7 +223,8 @@ Util::OsErrorOr<void> EDBFile::write_header(Db::Core::TableSetup const& setup) {
         .block_size = m_header.block_size,
         .row_count = 0,
         .column_count = static_cast<uint8_t>(setup.columns.size()),
-        .last_row_ptr = { 1, 0 },
+        .first_row_ptr = { 0, 0 },
+        .last_row_ptr = { 0, 0 },
         .last_table_block = 1,
         .last_heap_block = 2,
         .table_name = table_name.heap_span,
@@ -290,7 +291,7 @@ Util::OsErrorOr<void> EDBFile::insert(Core::Tuple const& tuple) {
         place_for_allocation = { 1, sizeof(Block) + sizeof(Table::TableBlock) };
     }
     else {
-        HeapPtr last_row_ptr { 1, sizeof(Block) + sizeof(Table::TableBlock) };
+        HeapPtr last_row_ptr = { 1, sizeof(Block) + sizeof(Table::TableBlock) };
         while (true) {
             if (last_row_ptr.offset + sizeof(Table::RowSpec) + row_size() > block_size()) {
                 // TODO: Skip blocks that are full (rows_in_block == 255)
@@ -332,17 +333,51 @@ Util::OsErrorOr<void> EDBFile::insert(Core::Tuple const& tuple) {
         std::copy(stream.data().begin(), stream.data().end(), row->row);
     }
 
-    // 4. Point last row into the newly placed row, if it exists
+    // 4. Point last row or header into the newly placed row.
     if (m_header.row_count > 0) {
         auto last_row = access<Table::RowSpec>(m_header.last_row_ptr);
         last_row->next_row = *place_for_allocation;
     }
+    else {
+        m_header.first_row_ptr = *place_for_allocation;
+    }
 
-    // 5. Update headers
+    // 5. Update headers (EDB: last row, row count; block: rows in block)
     m_header.last_row_ptr = *place_for_allocation;
     m_header.row_count = m_header.row_count + 1;
     access<Table::TableBlock>({ place_for_allocation->block, sizeof(Block) })->rows_in_block++;
     TRY(flush_header());
+    return {};
+}
+
+Util::OsErrorOr<void> EDBFile::remove(HeapPtr row, HeapPtr prev_row) {
+    // 1. Mark row as unused
+    auto current = access<Table::RowSpec>(row, row_size() + sizeof(Table::RowSpec));
+    current->is_used = false;
+    // fmt::print("remove before {}..{}..{}\n", prev_row, row, current->next_row);
+
+    // 2. Heap free data
+    TRY(current->free_data(*this));
+
+    // 3. Point previous row or header to next row
+    if (!prev_row.is_null()) {
+        auto previous = access<Table::RowSpec>(prev_row);
+        previous->next_row = current->next_row;
+    }
+    else {
+        m_header.first_row_ptr = current->next_row;
+    }
+
+    // 4. Update block row count
+    access<Table::TableBlock>({ row.block, sizeof(Block) })->rows_in_block--;
+
+    // FIXME: 5. Free block if needed
+
+    // 6. Update main header (last block, row count)
+    if (current->next_row.is_null()) {
+        m_header.last_row_ptr = prev_row;
+    }
+    m_header.row_count = m_header.row_count - 1;
     return {};
 }
 
