@@ -1,7 +1,9 @@
+#include "CommandLine.hpp"
 #include <EssaUtil/DisplayError.hpp>
 #include <EssaUtil/Stream.hpp>
 #include <EssaUtil/Stream/File.hpp>
 #include <db/core/Database.hpp>
+#include <db/core/DatabaseEngine.hpp>
 #include <db/sql/Lexer.hpp>
 #include <db/sql/Parser.hpp>
 #include <db/sql/SQL.hpp>
@@ -87,16 +89,37 @@ int run_sql_file(Db::Core::Database& db, std::string const& file_name) {
 
 int main(int argc, char* argv[]) {
     Db::Core::Database db;
+    db.set_default_engine(Db::Core::DatabaseEngine::EDB);
 
     if (argc == 1) {
         MUST(db.create_table({ "test", {} }, nullptr, Db::Core::DatabaseEngine::Memory));
+        CommandLine::Line line;
+        line.set_prompt("> \e[32m");
+
         while (true) {
-            std::cout << "> \e[32m";
-            std::string query;
-            if (!std::getline(std::cin, query))
-                return 1;
+            auto query = line.get();
+            if (query.is_error()) {
+                std::optional<int> exit_code;
+                std::visit(
+                    Util::Overloaded {
+                        [&](CommandLine::GetLineResult result) {
+                            switch (result) {
+                            case CommandLine::GetLineResult::EndOfFile:
+                                exit_code = 0;
+                                break;
+                            }
+                        },
+                        [&](Util::OsError const& error) {
+                            fmt::print("Error while reading line: {}\n", error);
+                            exit_code = 2;
+                        } },
+                    query.release_error_variant());
+                if (exit_code) {
+                    return *exit_code;
+                }
+            }
             std::cout << "\e[m";
-            run_query(db, query);
+            run_query(db, query.release_value().encode());
         }
     }
     else if (argc == 2) {
