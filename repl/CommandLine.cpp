@@ -47,8 +47,8 @@ GetLineErrorOr<uint8_t> GetLineSession::get_byte() {
 }
 
 GetLineErrorOr<void> GetLineSession::handle_csi() {
-    // From Wikipedia (https://en.wikipedia.org/wiki/ANSI_escape_code#CSI_(Control_Sequence_Introducer)_sequences)
-    // the 'ESC [' is followed by any number (including none) of
+    // From Wikipedia (https://en.wikipedia.org/wiki/ANSI_escape_code#CSI_(Control_Sequence_Introducer)_sequences):
+    // The 'ESC [' is followed by any number (including none) of
     // "parameter bytes" in the range 0x30–0x3F (ASCII 0–9:;<=>?),
     auto parameters = TRY(m_reader.read_while([&](uint8_t byte) {
         return byte >= 0x30 && byte <= 0x3f;
@@ -57,7 +57,7 @@ GetLineErrorOr<void> GetLineSession::handle_csi() {
     // then by any number of "intermediate bytes"
     // in the range 0x20–0x2F (ASCII space and !"#$%&'()*+,-./),
     auto intermediate = TRY(m_reader.read_while([&](uint8_t byte) {
-        return byte >= 0x30 && byte <= 0x3f;
+        return byte >= 0x20 && byte <= 0x2f;
     }));
 
     // then finally by a single "final byte" in the range 0x40–0x7E (ASCII @A–Z[\]^_`a–z{|}~).
