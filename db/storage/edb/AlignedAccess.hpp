@@ -97,7 +97,7 @@ public:
         if (this == &other) {
             return *this;
         }
-        ~AllocatingAlignedAccess();
+        this->~AllocatingAlignedAccess();
         m_ptr = std::exchange(other.m_ptr, nullptr);
         m_object = std::exchange(other.m_object, nullptr);
         m_size = std::exchange(other.m_size, 0);
