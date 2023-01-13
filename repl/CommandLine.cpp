@@ -20,18 +20,99 @@ public:
 private:
     void redraw();
     void bell() { std::cout << (char)0x07 << std::flush; }
+    GetLineErrorOr<uint8_t> get_byte();
+    GetLineErrorOr<void> handle_csi();
+    std::string get_input_text() const;
+    void select_current_history_entry();
+
+    Util::BinaryReader m_reader { Util::std_in() };
     Util::Buffer m_input;
     Line const& m_line;
+    size_t m_history_index = 0;
 };
 
 void GetLineSession::redraw() {
-    std::cout << "\r\e[K\e[m"; // move cursor to beginning, clear line,
+    std::cout << "\r\e[K\e[m"; // move cursor to beginning, clear line, clear style
     std::cout << m_line.m_prompt.encode();
-    std::cout.write(reinterpret_cast<char const*>(m_input.begin()), m_input.size());
+    std::cout << get_input_text();
     std::cout << std::flush;
 }
 
-Util::ErrorOr<Util::UString, GetLineResult, Util::OsError> GetLineSession::run() {
+GetLineErrorOr<uint8_t> GetLineSession::get_byte() {
+    auto input = TRY(m_reader.get());
+    if (!input) {
+        return GetLineResult::EndOfFile;
+    }
+    return *input;
+}
+
+GetLineErrorOr<void> GetLineSession::handle_csi() {
+    // From Wikipedia (https://en.wikipedia.org/wiki/ANSI_escape_code#CSI_(Control_Sequence_Introducer)_sequences)
+    // the 'ESC [' is followed by any number (including none) of
+    // "parameter bytes" in the range 0x30–0x3F (ASCII 0–9:;<=>?),
+    auto parameters = TRY(m_reader.read_while([&](uint8_t byte) {
+        return byte >= 0x30 && byte <= 0x3f;
+    }));
+
+    // then by any number of "intermediate bytes"
+    // in the range 0x20–0x2F (ASCII space and !"#$%&'()*+,-./),
+    auto intermediate = TRY(m_reader.read_while([&](uint8_t byte) {
+        return byte >= 0x30 && byte <= 0x3f;
+    }));
+
+    // then finally by a single "final byte" in the range 0x40–0x7E (ASCII @A–Z[\]^_`a–z{|}~).
+    auto final_byte = TRY(get_byte());
+    if (!(final_byte >= 0x40 && final_byte <= 0x7e)) {
+        return {};
+    }
+
+    switch (final_byte) {
+    case 'A': // up
+        if (m_input.size() == 0) {
+            if (m_history_index < m_line.m_history.size()) {
+                m_history_index++;
+                redraw();
+            }
+        }
+        break;
+    case 'B': // down
+        if (m_input.size() == 0) {
+            if (m_history_index > 0) {
+                m_history_index--;
+                redraw();
+            }
+        }
+        break;
+    case 'C': // right
+        // TODO
+        break;
+    case 'D': // left
+        // TODO
+        break;
+    default:
+        break;
+    }
+    return {};
+}
+
+std::string GetLineSession::get_input_text() const {
+    if (m_history_index == 0) {
+        return m_input.decode().encode();
+    }
+    else {
+        return m_line.m_history[m_line.m_history.size() - m_history_index].encode();
+    }
+}
+
+void GetLineSession::select_current_history_entry() {
+    if (m_input.size() == 0 && m_history_index != 0) {
+        auto string = m_line.m_history[m_line.m_history.size() - m_history_index].encode();
+        m_input = Util::Buffer { { reinterpret_cast<uint8_t const*>(string.data()), string.size() } };
+        m_history_index = 0;
+    }
+}
+
+GetLineErrorOr<Util::UString> GetLineSession::run() {
     // Standard input - disable echoing + line buffering
     termios old_termios;
     tcgetattr(STDIN_FILENO, &old_termios);
@@ -44,17 +125,11 @@ Util::ErrorOr<Util::UString, GetLineResult, Util::OsError> GetLineSession::run()
 
     redraw();
 
-    Util::BinaryReader reader { Util::std_in() };
-
     while (true) {
-        auto maybe_input = TRY(reader.get());
-        if (!maybe_input) {
-            return GetLineResult::EndOfFile;
-        }
-        auto input = *maybe_input;
+        auto input = TRY(get_byte());
         // std::cout << std::hex << (int)input << std::endl;
         if ((input >= 0x20 && input < 0x7f)) { // ASCII
-            std::cout << input << std::flush;
+            select_current_history_entry();
             m_input.append(input);
             redraw();
         }
@@ -69,6 +144,7 @@ Util::ErrorOr<Util::UString, GetLineResult, Util::OsError> GetLineSession::run()
         }
         else if (input == 0x7f) { // Backspace
             // FIXME: Implement proper UTF-8 support instead of just popping a single byte
+            select_current_history_entry();
             if (m_input.size() != 0) {
                 m_input.take_from_back();
                 redraw();
@@ -78,7 +154,9 @@ Util::ErrorOr<Util::UString, GetLineResult, Util::OsError> GetLineSession::run()
             }
         }
         else if (input == '\e') {
-            // TODO
+            if (TRY(get_byte()) == '[') {
+                TRY(handle_csi());
+            }
         }
         else if (input == '\n') {
             std::cout << std::endl;
@@ -88,12 +166,16 @@ Util::ErrorOr<Util::UString, GetLineResult, Util::OsError> GetLineSession::run()
         }
     }
 
-    return m_input.decode();
+    return Util::UString { get_input_text() };
 }
 
-Util::ErrorOr<Util::UString, GetLineResult, Util::OsError> Line::get() {
+GetLineErrorOr<Util::UString> Line::get() {
     GetLineSession read { *this };
-    return read.run();
+    auto result = TRY(read.run());
+    if (!result.is_empty()) {
+        m_history.push_back(result);
+    }
+    return result;
 }
 
 }

@@ -2,6 +2,7 @@
 
 #include <EssaUtil/Stream.hpp>
 #include <EssaUtil/UString.hpp>
+#include <list>
 
 namespace CommandLine {
 
@@ -9,13 +10,14 @@ enum class GetLineResult {
     EndOfFile, // ^D
 };
 
-using GetLineResultOrString = Util::ErrorOr<Util::UString, GetLineResult, Util::OsError>;
+template<class T>
+using GetLineErrorOr = Util::ErrorOr<T, GetLineResult, Util::OsError>;
 
 class Line {
 public:
     void set_prompt(Util::UString prompt) { m_prompt = std::move(prompt); }
 
-    Util::ErrorOr<Util::UString, GetLineResult, Util::OsError> get();
+    GetLineErrorOr<Util::UString> get();
 
 private:
     friend class GetLineSession;
@@ -23,6 +25,7 @@ private:
     void redraw();
 
     Util::UString m_prompt;
+    std::vector<Util::UString> m_history;
 };
 
 }
