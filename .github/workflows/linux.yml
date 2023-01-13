@@ -37,3 +37,8 @@ jobs:
       env:
         LD_LIBRARY_PATH: /usr/local/lib
       run: for test in ./tests/test-*; do ./$test; done
+    - name: Run EDB test
+      working-directory: build
+      env:
+        LD_LIBRARY_PATH: /usr/local/lib
+      run: ./tests-sql edb
