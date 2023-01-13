@@ -111,6 +111,9 @@ SQLErrorOr<std::unique_ptr<AST::Statement>> Parser::parse_statement() {
         }
         return expected("'TABLES'", m_tokens[m_offset], m_offset);
     }
+    else if (keyword.type == Token::Type::KeywordPrint) {
+        return TRY(parse_print());
+    }
     return expected("statement", keyword, m_offset);
 }
 
@@ -416,6 +419,14 @@ SQLErrorOr<std::unique_ptr<AST::Import>> Parser::parse_import() {
 
     auto engine = TRY(parse_engine_specification());
     return std::make_unique<AST::Import>(start, mode, file_name.value, table_name.value, engine);
+}
+
+SQLErrorOr<std::unique_ptr<AST::Print>> Parser::parse_print() {
+    auto start = m_offset;
+    m_offset++; // PRINT
+
+    auto statement = TRY(parse_statement());
+    return std::make_unique<AST::Print>(start, std::move(statement));
 }
 
 SQLErrorOr<std::unique_ptr<AST::DeleteFrom>> Parser::parse_delete_from() {

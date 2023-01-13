@@ -264,4 +264,10 @@ SQLErrorOr<Core::ValueOrResultSet> Import::execute(Core::Database& db) const {
     return Core::Value::null();
 }
 
+SQLErrorOr<Core::ValueOrResultSet> Print::execute(Core::Database& db) const {
+    auto result = TRY(m_statement->execute(db));
+    result.repl_dump(std::cout, Core::ResultSet::FancyDump::Yes);
+    return result;
+}
+
 }

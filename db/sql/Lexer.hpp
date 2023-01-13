@@ -52,6 +52,7 @@ struct Token {
         KeywordOver,
         KeywordPartition,
         KeywordPrimary,
+        KeywordPrint,
         KeywordReferences,
         KeywordSelect,
         KeywordSet,

@@ -97,6 +97,7 @@ std::vector<Token> Lexer::lex() {
                 { "OVER", Token::Type::KeywordOver },
                 { "PARTITION", Token::Type::KeywordPartition },
                 { "PRIMARY", Token::Type::KeywordPrimary },
+                { "PRINT", Token::Type::KeywordPrint },
                 { "REFERENCES", Token::Type::KeywordReferences },
                 { "SELECT", Token::Type::KeywordSelect },
                 { "SET", Token::Type::KeywordSet },

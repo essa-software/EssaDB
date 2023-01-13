@@ -35,6 +35,7 @@ private:
     SQLErrorOr<std::unique_ptr<AST::DeleteFrom>> parse_delete_from();
     SQLErrorOr<std::unique_ptr<AST::Update>> parse_update();
     SQLErrorOr<std::unique_ptr<AST::Import>> parse_import();
+    SQLErrorOr<std::unique_ptr<AST::Print>> parse_print();
     SQLErrorOr<std::unique_ptr<AST::Expression>> parse_expression(int min_precedence = 0);
     SQLErrorOr<std::unique_ptr<AST::Expression>> parse_expression_or_index(Sql::AST::SelectColumns const&);
     SQLErrorOr<std::optional<Core::DatabaseEngine>> parse_engine_specification();

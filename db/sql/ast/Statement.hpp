@@ -97,6 +97,18 @@ private:
     std::optional<Core::DatabaseEngine> m_engine;
 };
 
+class Print : public Statement {
+public:
+    Print(ssize_t start, std::unique_ptr<Statement> statement)
+        : Statement(start)
+        , m_statement(std::move(statement)) { }
+
+    virtual SQLErrorOr<Core::ValueOrResultSet> execute(Core::Database&) const override;
+
+private:
+    std::unique_ptr<Statement> m_statement;
+};
+
 class TableStatement : public Statement {
 public:
     enum class ExistenceCondition {
