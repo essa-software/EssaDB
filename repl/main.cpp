@@ -69,7 +69,7 @@ int run_sql_file(Db::Core::Database& db, std::string const& file_name) {
         if (query.is_error()) {
             query = Util::Buffer {};
         }
-        display_error(error, tokens[error.token()].start, tokens[error.token()].end, query.release_value().decode().encode());
+        display_error(error, tokens[error.token()].start, tokens[error.token()].end, query.release_value().decode_infallible().encode());
         return 1;
     }
     auto result = statement_list.release_value().execute(db);
@@ -80,7 +80,7 @@ int run_sql_file(Db::Core::Database& db, std::string const& file_name) {
         if (query.is_error()) {
             query = Util::Buffer {};
         }
-        display_error(error, tokens[error.token()].start, tokens[error.token()].end, query.release_value().decode().encode());
+        display_error(error, tokens[error.token()].start, tokens[error.token()].end, query.release_value().decode_infallible().encode());
         return 1;
     }
     result.release_value().repl_dump(std::cerr, Db::Core::ResultSet::FancyDump::Yes);

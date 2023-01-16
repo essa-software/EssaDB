@@ -396,7 +396,7 @@ Util::OsErrorOr<std::vector<Core::Column>> EDBFile::read_columns() const {
     std::vector<Core::Column> columns;
     for (auto const& column : m_columns) {
         columns.push_back(Core::Column {
-            read_heap(column.column_name).decode().encode(),
+            read_heap(column.column_name).decode_infallible().encode(),
             static_cast<Core::Value::Type>(column.type),
             static_cast<bool>(column.auto_increment),
             static_cast<bool>(column.unique),
@@ -416,7 +416,7 @@ Core::Value EDBFile::read_edb_value(Core::Value::Type type, Value const& value) 
     case Core::Value::Type::Float:
         return Core::Value::create_float(value.float_value);
     case Core::Value::Type::Varchar:
-        return Core::Value::create_varchar(read_heap(value.varchar_value).decode().encode());
+        return Core::Value::create_varchar(read_heap(value.varchar_value).decode_infallible().encode());
     case Core::Value::Type::Bool:
         return Core::Value::create_bool(value.bool_value);
     case Core::Value::Type::Time:

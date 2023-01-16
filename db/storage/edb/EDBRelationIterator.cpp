@@ -97,7 +97,7 @@ Util::OsErrorOr<std::unique_ptr<Core::RowReference>> EDBRelationIteratorImpl::ne
         }
         case Core::Value::Type::Varchar: {
             auto span = TRY(writer.read_struct<HeapSpan>());
-            values.push_back(is_null ? Core::Value::null() : Core::Value::create_varchar(m_file.read_heap(span).decode().encode()));
+            values.push_back(is_null ? Core::Value::null() : Core::Value::create_varchar(m_file.read_heap(span).decode_infallible().encode()));
             break;
         }
         case Core::Value::Type::Bool: {

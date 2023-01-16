@@ -49,7 +49,7 @@ size_t FileBackedTable::size() const {
 }
 
 std::string FileBackedTable::name() const {
-    return m_file->read_heap(m_file->header().table_name).decode().encode();
+    return m_file->read_heap(m_file->header().table_name).decode_infallible().encode();
 }
 
 int FileBackedTable::next_auto_increment_value(std::string const&) {
