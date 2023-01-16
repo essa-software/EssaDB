@@ -76,6 +76,7 @@ GetLineErrorOr<void> GetLineSession::handle_csi() {
         if (m_input.size() == 0) {
             if (m_history_index < m_line.m_history.size()) {
                 m_history_index++;
+                m_cursor = get_input_text().size();
                 redraw();
             }
         }
@@ -84,12 +85,13 @@ GetLineErrorOr<void> GetLineSession::handle_csi() {
         if (m_input.size() == 0) {
             if (m_history_index > 0) {
                 m_history_index--;
+                m_cursor = get_input_text().size();
                 redraw();
             }
         }
         break;
     case 'C': // right
-        if (m_cursor < m_input.size()) {
+        if (m_cursor < get_input_text().size()) {
             m_cursor++;
             redraw();
         }
