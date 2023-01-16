@@ -26,8 +26,9 @@ uint8_t value_size_for_type(Core::Value::Type type) {
 Util::OsErrorOr<void> Table::RowSpec::free_data(EDBFile& file) {
     size_t offset = 0;
     for (auto const& column : file.raw_columns()) {
+        auto value_size = value_size_for_type(static_cast<Core::Value::Type>(column.type));
         Util::ScopeGuard guard {
-            [&]() { offset += value_size_for_type(static_cast<Core::Value::Type>(column.type)); }
+            [&]() { offset += value_size; }
         };
         if (!column.not_null) {
             uint8_t is_null = row[offset];
@@ -36,7 +37,8 @@ Util::OsErrorOr<void> Table::RowSpec::free_data(EDBFile& file) {
                 continue;
             }
         }
-        AlignedAccess<Value> value { &row[offset] };
+        assert(offset + value_size <= file.row_size());
+        AllocatingAlignedAccess<Value> value { &row[offset], value_size };
 
         switch (static_cast<Core::Value::Type>(column.type)) {
         case Core::Value::Type::Null:
