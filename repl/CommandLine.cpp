@@ -24,12 +24,14 @@ private:
     GetLineErrorOr<void> handle_csi();
     std::string get_input_text() const;
     void select_current_history_entry();
+    void insert(Util::UString str);
 
     Util::BinaryReader m_reader { Util::std_in() };
     Util::UString m_input;
     // Temporary buffer used for building codepoinds from UTF-8 characters.
     Util::Buffer m_codepoint_buffer;
     Line const& m_line;
+    size_t m_cursor = 0;
     size_t m_history_index = 0;
 };
 
@@ -37,6 +39,7 @@ void GetLineSession::redraw() {
     std::cout << "\r\e[K\e[m"; // move cursor to beginning, clear line, clear style
     std::cout << m_line.m_prompt.encode();
     std::cout << get_input_text();
+    std::cout << "\e[" << (m_cursor + 3) << "G";
     std::cout << std::flush;
 }
 
@@ -86,10 +89,16 @@ GetLineErrorOr<void> GetLineSession::handle_csi() {
         }
         break;
     case 'C': // right
-        // TODO
+        if (m_cursor < m_input.size()) {
+            m_cursor++;
+            redraw();
+        }
         break;
     case 'D': // left
-        // TODO
+        if (m_cursor > 0) {
+            m_cursor--;
+            redraw();
+        }
         break;
     default:
         break;
@@ -113,6 +122,13 @@ void GetLineSession::select_current_history_entry() {
     }
 }
 
+void GetLineSession::insert(Util::UString str) {
+    m_input = m_input.insert(std::move(str), m_cursor);
+    select_current_history_entry();
+    m_cursor++;
+    redraw();
+}
+
 GetLineErrorOr<Util::UString> GetLineSession::run() {
     // Standard input - disable echoing + line buffering
     termios old_termios;
@@ -133,16 +149,12 @@ GetLineErrorOr<Util::UString> GetLineSession::run() {
             m_codepoint_buffer.append(input);
             auto decoded = m_codepoint_buffer.decode();
             if (!decoded.is_error()) {
-                m_input = m_input.insert(decoded.release_value(), m_input.size());
-                select_current_history_entry();
-                redraw();
+                insert(decoded.release_value());
                 m_codepoint_buffer.clear();
             }
         }
         else if (input >= 0x20 && input < 0x7f) { // ASCII
-            m_input = m_input.insert(Util::UString { input }, m_input.size());
-            select_current_history_entry();
-            redraw();
+            insert(Util::UString { input });
         }
         else if (input == 0x04) { // EOF
             std::cout << "\n";
@@ -155,8 +167,9 @@ GetLineErrorOr<Util::UString> GetLineSession::run() {
         }
         else if (input == 0x7f) { // Backspace
             select_current_history_entry();
-            if (m_input.size() != 0) {
-                m_input = m_input.substring(0, m_input.size() - 1);
+            if (m_cursor > 0) {
+                m_input = m_input.erase(m_cursor - 1, 1);
+                m_cursor--;
                 redraw();
             }
             else {
