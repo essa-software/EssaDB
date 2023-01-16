@@ -10,15 +10,15 @@ Resources required by GUI (textures and fonts)
 
 Code for the EssaDB engine itself - runtime and SQL parser.
 
-### `core`
+### `db/core`
 
 The runtime. Contains abstractions for databases, tables, rows, columns, values etc. Handles actual running of SQL code.
 
-### `sql`
+### `db/sql`
 
 The SQL parser and lexer, along with some high-level functions for running SQL queries. Depends on `core`.
 
-### `storage`
+### `db/storage`
 
 Code for reading and writing EssaDB databases to files. Depends on `core`.
 
@@ -38,10 +38,10 @@ Code for the EssaDB REPL - the interactive (Essa)SQL console like `mysql`.
 
 Unit tests for EssaDB.
 
-### `sql`
+### `tests/sql`
 
 Contains SQL files to be tested along with expected output/error.
 
-### `testcases`
+### `tests/testcases`
 
 Contains harness for running SQL and some test that are not yet ported to SQL or cannot be run yet in SQL (e.g [tuple comparison](/tests/testcases/arithmetic.cpp))
