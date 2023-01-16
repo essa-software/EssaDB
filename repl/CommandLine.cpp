@@ -125,8 +125,8 @@ void GetLineSession::select_current_history_entry() {
 }
 
 void GetLineSession::insert(Util::UString str) {
-    m_input = m_input.insert(std::move(str), m_cursor);
     select_current_history_entry();
+    m_input = m_input.insert(std::move(str), m_cursor);
     m_cursor++;
     redraw();
 }
@@ -198,7 +198,9 @@ GetLineErrorOr<Util::UString> Line::get() {
     GetLineSession read { *this };
     auto result = TRY(read.run());
     if (!result.is_empty()) {
-        m_history.push_back(result);
+        if (!(!m_history.empty() && m_history.back() == result)) {
+            m_history.push_back(result);
+        }
     }
     return result;
 }
