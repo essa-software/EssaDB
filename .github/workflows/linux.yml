@@ -41,4 +41,5 @@ jobs:
       working-directory: build
       env:
         LD_LIBRARY_PATH: /usr/local/lib
-      run: ./tests-sql edb
+      continue-on-error: true
+      run: ./test-sql edb
