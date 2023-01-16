@@ -26,7 +26,9 @@ private:
     void select_current_history_entry();
 
     Util::BinaryReader m_reader { Util::std_in() };
-    Util::Buffer m_input;
+    Util::UString m_input;
+    // Temporary buffer used for building codepoinds from UTF-8 characters.
+    Util::Buffer m_codepoint_buffer;
     Line const& m_line;
     size_t m_history_index = 0;
 };
@@ -97,7 +99,7 @@ GetLineErrorOr<void> GetLineSession::handle_csi() {
 
 std::string GetLineSession::get_input_text() const {
     if (m_history_index == 0) {
-        return m_input.decode().encode();
+        return m_input.encode();
     }
     else {
         return m_line.m_history[m_line.m_history.size() - m_history_index].encode();
@@ -106,8 +108,7 @@ std::string GetLineSession::get_input_text() const {
 
 void GetLineSession::select_current_history_entry() {
     if (m_input.size() == 0 && m_history_index != 0) {
-        auto string = m_line.m_history[m_line.m_history.size() - m_history_index].encode();
-        m_input = Util::Buffer { { reinterpret_cast<uint8_t const*>(string.data()), string.size() } };
+        m_input = m_line.m_history[m_line.m_history.size() - m_history_index];
         m_history_index = 0;
     }
 }
@@ -128,9 +129,19 @@ GetLineErrorOr<Util::UString> GetLineSession::run() {
     while (true) {
         auto input = TRY(get_byte());
         // std::cout << std::hex << (int)input << std::endl;
-        if ((input >= 0x20 && input < 0x7f)) { // ASCII
+        if (input & 0x80) { // UTF-8
+            m_codepoint_buffer.append(input);
+            auto decoded = m_codepoint_buffer.decode();
+            if (!decoded.is_error()) {
+                m_input = m_input.insert(decoded.release_value(), m_input.size());
+                select_current_history_entry();
+                redraw();
+                m_codepoint_buffer.clear();
+            }
+        }
+        else if (input >= 0x20 && input < 0x7f) { // ASCII
+            m_input = m_input.insert(Util::UString { input }, m_input.size());
             select_current_history_entry();
-            m_input.append(input);
             redraw();
         }
         else if (input == 0x04) { // EOF
@@ -143,10 +154,9 @@ GetLineErrorOr<Util::UString> GetLineSession::run() {
             redraw();
         }
         else if (input == 0x7f) { // Backspace
-            // FIXME: Implement proper UTF-8 support instead of just popping a single byte
             select_current_history_entry();
             if (m_input.size() != 0) {
-                m_input.take_from_back();
+                m_input = m_input.substring(0, m_input.size() - 1);
                 redraw();
             }
             else {
