@@ -103,6 +103,8 @@ int main(int argc, char* argv[]) {
 
     std::filesystem::recursive_directory_iterator directory { tests_dir };
 
+    bool something_failed = false;
+
     for (auto file_it : directory) {
         // std::cout << "file: " << file_it << std::endl;
 
@@ -228,9 +230,10 @@ int main(int argc, char* argv[]) {
             auto result = run_test();
             if (result.is_error()) {
                 fmt::print("\e[41m FAIL \e[0m {}\n", test_name.string());
+                something_failed = true;
             }
         }
     }
 
-    return 0;
+    return something_failed ? 1 : 0;
 }
