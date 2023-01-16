@@ -12,15 +12,17 @@ Code for the EssaDB engine itself - runtime and SQL parser.
 
 ### `db/core`
 
-The runtime. Contains abstractions for databases, tables, rows, columns, values etc. Handles actual running of SQL code.
+The runtime. Contains abstractions for databases, tables, rows, columns, values etc.
 
 ### `db/sql`
 
-The SQL parser and lexer, along with some high-level functions for running SQL queries. Depends on `core`.
+The SQL parser, lexer and interpreter, along with some high-level functions for running SQL queries.
 
 ### `db/storage`
 
-Code for reading and writing EssaDB databases to files. Depends on `core`.
+Code for reading, writing and importing databases from files. Supported formats are:
+- [EDB](EDBFileFormat.md), custom database file format
+- CSV (only importing)
 
 ## `docs`
 
@@ -28,7 +30,7 @@ Documentation.
 
 ## `gui`
 
-Code for the EssaDB GUI - MS Access-like graphical frontend for EssaDB.
+Code for the EssaDB GUI - simple graphical frontend for EssaDB.
 
 ## `repl`
 
