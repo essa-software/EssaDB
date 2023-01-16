@@ -2,6 +2,7 @@
 
 #include "Lexer.hpp"
 #include "Parser.hpp"
+#include "db/sql/SQLError.hpp"
 
 #include <EssaUtil/DisplayError.hpp>
 #include <EssaUtil/Stream/MemoryStream.hpp>
@@ -19,8 +20,7 @@ SQLErrorOr<Core::ValueOrResultSet> run_query(Core::Database& db, std::string con
     //     std::cout << (int)token.type << ": " << token.value << std::endl;
     // }
 
-    Db::Sql::Parser parser { std::move(tokens) };
-    auto statement = TRY(parser.parse_statement());
+    auto statement = TRY(Db::Sql::Parser::parse_statement(tokens));
     auto result = TRY(statement->execute(db));
     // result.repl_dump(std::cerr);
     return result;

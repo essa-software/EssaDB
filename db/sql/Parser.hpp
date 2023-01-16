@@ -17,15 +17,18 @@ namespace Db::Sql {
 
 class Parser {
 public:
+    static SQLErrorOr<std::unique_ptr<AST::Statement>> parse_statement(std::vector<Token> const& tokens);
+    static SQLErrorOr<AST::StatementList> parse_statement_list(std::vector<Token> const& tokens);
+
+    bool static compare_case_insensitive(std::string const& lhs, std::string const& rhs);
+
+private:
     // NOTE: This stores a reference.
     explicit Parser(std::vector<Token> const& tokens)
         : m_tokens(std::move(tokens)) { }
 
-    SQLErrorOr<std::unique_ptr<AST::Statement>> parse_statement();
-    SQLErrorOr<AST::StatementList> parse_statement_list();
-    bool static compare_case_insensitive(std::string const& lhs, std::string const& rhs);
-
-private:
+    SQLErrorOr<std::unique_ptr<AST::Statement>> parse_statement_impl();
+    SQLErrorOr<AST::StatementList> parse_statement_list_impl();
     SQLErrorOr<AST::Select> parse_select();
     SQLErrorOr<std::unique_ptr<AST::CreateTable>> parse_create_table();
     SQLErrorOr<std::unique_ptr<AST::DropTable>> parse_drop_table();

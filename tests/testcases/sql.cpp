@@ -37,8 +37,7 @@ Db::Sql::SQLErrorOr<Db::Core::ValueOrResultSet> run_query(Db::Core::Database& db
     //     std::cout << (int)token.type << ": " << token.value << std::endl;
     // }
 
-    Db::Sql::Parser parser { tokens };
-    auto statement = parser.parse_statement();
+    auto statement = Db::Sql::Parser::parse_statement(tokens);
     if (statement.is_error()) {
         auto error = statement.release_error();
         if (sql_statement.display)

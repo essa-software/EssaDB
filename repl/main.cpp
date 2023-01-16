@@ -21,8 +21,7 @@ void run_query(Db::Core::Database& db, std::string const& query) {
     //     std::cout << (int)token.type << ": " << token.value << std::endl;
     // }
 
-    Db::Sql::Parser parser { tokens };
-    auto statement = parser.parse_statement();
+    auto statement = Db::Sql::Parser::parse_statement(tokens);
     if (statement.is_error()) {
         auto error = statement.release_error();
         Db::Sql::display_error(error, tokens[error.token()].start, tokens[error.token()].end, query);
@@ -59,8 +58,7 @@ int run_sql_file(Db::Core::Database& db, std::string const& file_name) {
     //     std::cout << (int)token.type << ": " << token.value << std::endl;
     // }
 
-    Db::Sql::Parser parser { tokens };
-    auto statement_list = parser.parse_statement_list();
+    auto statement_list = Db::Sql::Parser::parse_statement_list(tokens);
 
     if (statement_list.is_error()) {
         auto error = statement_list.release_error();

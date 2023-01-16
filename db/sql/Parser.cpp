@@ -34,7 +34,29 @@ bool Parser::compare_case_insensitive(const std::string& lhs, const std::string&
     return true;
 }
 
-SQLErrorOr<std::unique_ptr<AST::Statement>> Parser::parse_statement() {
+SQLErrorOr<std::unique_ptr<AST::Statement>> Parser::parse_statement(std::vector<Token> const& tokens) {
+    Parser parser { tokens };
+    auto stmt = TRY(parser.parse_statement_impl());
+
+    if (parser.m_tokens[parser.m_offset].type == Token::Type::Semicolon) {
+        parser.m_offset++;
+    }
+    if (parser.m_tokens[parser.m_offset].type != Token::Type::Eof) {
+        return SQLError { "Trailing code found", parser.m_offset };
+    }
+    return stmt;
+}
+
+SQLErrorOr<AST::StatementList> Parser::parse_statement_list(std::vector<Token> const& tokens) {
+    Parser parser { tokens };
+    auto stmt = TRY(parser.parse_statement_list_impl());
+    if (parser.m_tokens[parser.m_offset].type != Token::Type::Eof) {
+        return SQLError { "Trailing code found", parser.m_offset };
+    }
+    return stmt;
+}
+
+SQLErrorOr<std::unique_ptr<AST::Statement>> Parser::parse_statement_impl() {
     auto keyword = m_tokens[m_offset];
     // std::cout << keyword.value << "\n";
     if (keyword.type == Token::Type::KeywordSelect) {
@@ -117,13 +139,13 @@ SQLErrorOr<std::unique_ptr<AST::Statement>> Parser::parse_statement() {
     return expected("statement", keyword, m_offset);
 }
 
-SQLErrorOr<AST::StatementList> Parser::parse_statement_list() {
+SQLErrorOr<AST::StatementList> Parser::parse_statement_list_impl() {
     std::vector<std::unique_ptr<AST::Statement>> statement_list;
     while (true) {
         if (m_tokens[m_offset].type == Token::Type::Eof) {
             break;
         }
-        statement_list.push_back(TRY(parse_statement()));
+        statement_list.push_back(TRY(parse_statement_impl()));
         if (m_tokens[m_offset++].type != Token::Type::Semicolon) {
             return expected("semicolon at the end of statement", m_tokens[m_offset - 1], m_offset - 2);
         }
@@ -425,7 +447,7 @@ SQLErrorOr<std::unique_ptr<AST::Print>> Parser::parse_print() {
     auto start = m_offset;
     m_offset++; // PRINT
 
-    auto statement = TRY(parse_statement());
+    auto statement = TRY(parse_statement_impl());
     return std::make_unique<AST::Print>(start, std::move(statement));
 }
 
