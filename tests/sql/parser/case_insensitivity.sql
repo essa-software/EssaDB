@@ -46,5 +46,3 @@ SELECT false;
 -- | false |
 -- | false |
 SELECT FaLsE;
-
--- TODO: Asc/Desc
