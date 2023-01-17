@@ -24,8 +24,8 @@ bool Parser::compare_case_insensitive(const std::string& lhs, const std::string&
     if (lhs.size() != rhs.size())
         return false;
     for (auto l = lhs.begin(), r = rhs.begin(); l != lhs.end() && r != rhs.end(); l++, r++) {
-        char c1 = (*l > 97) ? *l - 32 : *l;
-        char c2 = (*r > 97) ? *r - 32 : *r;
+        char c1 = (islower(*l)) ? toupper(*l) : *l;
+        char c2 = (islower(*r)) ? toupper(*r) : *r;
 
         if (c1 != c2)
             return false;
