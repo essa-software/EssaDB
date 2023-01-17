@@ -1,12 +1,13 @@
-#include <Essa/GUI/EML/EMLResource.hpp>
 #include <Essa/GUI/Application.hpp>
-#include <Essa/GUI/Widgets/Console.hpp>
+#include <Essa/GUI/EML/EMLResource.hpp>
 #include <Essa/GUI/Overlays/MessageBox.hpp>
+#include <Essa/GUI/Widgets/Console.hpp>
 #include <Essa/GUI/Widgets/TreeView.hpp>
 #include <EssaUtil/UString.hpp>
 #include <algorithm>
 #include <db/core/Table.hpp>
 #include <db/core/Value.hpp>
+#include <db/sql/Lexer.hpp>
 #include <db/sql/SQL.hpp>
 #include <gui/ConnectDialog.hpp>
 #include <gui/DatabaseModel.hpp>
@@ -16,10 +17,9 @@
 #include <gui/client/EssaDBDatabaseClient.hpp>
 #include <gui/client/MySQLDatabaseClient.hpp>
 #include <iomanip>
+#include <mysql.h>
 #include <optional>
 #include <sstream>
-
-#include <mysql.h>
 #include <string>
 #include <vector>
 
@@ -77,7 +77,33 @@ int main() {
         console->append_content({ .color = Util::Color { 100, 100, 255 }, .text = "> " + query });
         auto result = client->run_query(query.encode());
         if (result.is_error()) {
-            console->append_content({ .color = Util::Colors::Red, .text = Util::UString { result.release_error().message() } });
+            auto error = result.release_error();
+            console->append_content({ .color = Util::Colors::Red, .text = Util::UString { error.message() } });
+
+            // FIXME: Find a way to not lex twice. Possible solution to this
+            //        is finally storing full code range in tokens.
+            std::istringstream iss { query.encode() };
+            Db::Sql::Lexer lexer { iss };
+            auto tokens = lexer.lex();
+
+            auto token = tokens[error.token()];
+            auto token_start = text_editor->index_to_position(token.start);
+            auto token_end = text_editor->index_to_position(token.end);
+            if (token_end == GUI::TextPosition {}) {
+                // FIXME: This is workaround for lexer bug that makes it set [0:0]
+                //        as end of last token (for some reason).
+                token_end = text_editor->index_to_position(text_editor->content().size());
+            }
+            if (token_start > token_end) {
+                std::swap(token_start, token_end);
+            }
+            if (token_start == token_end) {
+                token_end.column++;
+            }
+            fmt::print("{}:{} {}:{}\n", token_start.line, token_start.column, token_end.line, token_end.column);
+            text_editor->set_error_spans({
+                { GUI::TextEditor::ErrorSpan::Type::Error, { token_start, token_end } },
+            });
         }
         else {
             std::ostringstream oss;
