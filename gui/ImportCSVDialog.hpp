@@ -1,10 +1,10 @@
 #pragma once
 
-#include <Essa/GUI/Overlays/FileExplorer.hpp>
 #include <Essa/GUI/HostWindow.hpp>
+#include <Essa/GUI/Overlays/FileExplorer.hpp>
+#include <Essa/GUI/Overlays/ToolWindow.hpp>
 #include <Essa/GUI/Widgets/TextButton.hpp>
 #include <Essa/GUI/Widgets/TextEditor.hpp>
-#include <Essa/GUI/Overlays/ToolWindow.hpp>
 
 namespace EssaDB {
 
@@ -28,6 +28,9 @@ public:
             file_explorer_wnd.center_on_screen();
             file_explorer_wnd.on_submit = [this](std::filesystem::path path) {
                 m_csv_file->set_content(Util::UString { path.string() });
+                if (m_table_name->is_empty()) {
+                    m_table_name->set_content(Util::UString { path.stem().string() });
+                }
             };
 
             file_explorer_wnd.show_modal();
