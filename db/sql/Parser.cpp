@@ -1090,7 +1090,7 @@ SQLErrorOr<std::unique_ptr<AST::Literal>> Parser::parse_literal() {
     }
     else if (token.type == Token::Type::Bool) {
         m_offset++;
-        return std::make_unique<AST::Literal>(start, Core::Value::create_bool((token.value == "true") ? 1 : 0));
+        return std::make_unique<AST::Literal>(start, Core::Value::create_bool(token.value == "TRUE" ? true : false));
     }
     else if (token.type == Token::Type::Date) {
         m_offset++;

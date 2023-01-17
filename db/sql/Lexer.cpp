@@ -126,8 +126,11 @@ std::vector<Token> Lexer::lex() {
 
             if (found) {
             }
-            else if (Db::Sql::Parser::compare_case_insensitive(id, "true") || Db::Sql::Parser::compare_case_insensitive(id, "false")) {
-                tokens.push_back(Token { .type = Token::Type::Bool, .value = id, .start = start, .end = tell() });
+            else if (Db::Sql::Parser::compare_case_insensitive(id, "TRUE")) {
+                tokens.push_back(Token { .type = Token::Type::Bool, .value = "TRUE", .start = start, .end = tell() });
+            }
+            else if (Db::Sql::Parser::compare_case_insensitive(id, "FALSE")) {
+                tokens.push_back(Token { .type = Token::Type::Bool, .value = "FALSE", .start = start, .end = tell() });
             }
             else if (Db::Sql::Parser::compare_case_insensitive(id, "ASC") || Db::Sql::Parser::compare_case_insensitive(id, "DESC")) {
                 tokens.push_back(Token { .type = Token::Type::OrderByParam, .value = id, .start = start, .end = tell() });
