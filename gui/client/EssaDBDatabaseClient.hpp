@@ -13,7 +13,7 @@ public:
     virtual Util::UString status_string() const override;
 
 private:
-    Db::Core::Database m_db;
+    Db::Core::Database m_db = Db::Core::Database::create_memory_backed();
 };
 
 class EssaDBDatabaseClientType : public DatabaseClientType {

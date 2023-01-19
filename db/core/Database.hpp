@@ -12,6 +12,9 @@ namespace Db::Core {
 
 class Database : public Util::NonCopyable {
 public:
+    static Util::OsErrorOr<Database> create_or_open_file_backed(std::string const& path);
+    static Database create_memory_backed();
+
     void set_default_engine(DatabaseEngine e) { m_default_engine = e; }
     DatabaseEngine default_engine() const { return m_default_engine; }
 
@@ -48,7 +51,9 @@ public:
     }
 
 private:
-    std::optional<std::string> m_path = "database";
+    Database() = default;
+
+    std::optional<std::string> m_path;
     std::unordered_map<std::string, std::unique_ptr<Table>> m_tables;
     DatabaseEngine m_default_engine = DatabaseEngine::Memory;
 };

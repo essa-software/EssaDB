@@ -12,7 +12,7 @@ using namespace Db::Core;
 auto sql_to_db_error(Db::Sql::SQLError&& e) { return DbError { e.message() }; }
 
 DbErrorOr<Database> setup_db() {
-    Database db;
+    Database db = Database::create_memory_backed();
     TRY(Db::Sql::run_query(db, "CREATE TABLE test (id INT, number INT, string VARCHAR, integer INT)").map_error(sql_to_db_error));
     TRY(Db::Sql::run_query(db, "INSERT INTO test (id, number, string, integer) VALUES (0, 69, 'test', 48)").map_error(sql_to_db_error));
     TRY(Db::Sql::run_query(db, "INSERT INTO test (id, number, integer) VALUES (1, 2137, 65)").map_error(sql_to_db_error));

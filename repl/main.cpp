@@ -86,8 +86,7 @@ int run_sql_file(Db::Core::Database& db, std::string const& file_name) {
 }
 
 int main(int argc, char* argv[]) {
-    Db::Core::Database db;
-    db.set_default_engine(Db::Core::DatabaseEngine::EDB);
+    auto db = Db::Core::Database::create_memory_backed();
 
     if (argc == 1) {
         MUST(db.create_table({ "test", {} }, nullptr, Db::Core::DatabaseEngine::Memory));

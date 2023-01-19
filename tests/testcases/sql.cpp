@@ -100,6 +100,7 @@ int main(int argc, char* argv[]) {
     const auto tests_dir = std::filesystem::absolute(TestPath).lexically_normal();
 
     std::cout << "Running tests in dir: " << tests_dir << std::endl;
+    auto database_path = std::filesystem::current_path() / "database";
 
     std::filesystem::recursive_directory_iterator directory { tests_dir };
 
@@ -110,7 +111,7 @@ int main(int argc, char* argv[]) {
 
         auto test_name = file_it.path().lexically_relative(tests_dir);
 
-        auto run_test = [file_it, tests_dir, test_name, &use_edb]() -> Db::Core::DbErrorOr<void> {
+        auto run_test = [file_it, tests_dir, test_name, database_path, &use_edb]() -> Db::Core::DbErrorOr<void> {
             const auto cwd = tests_dir / file_it.path().parent_path();
             // std::cout << "chdir " << cwd << std::endl;
             std::filesystem::current_path(cwd);
@@ -203,10 +204,15 @@ int main(int argc, char* argv[]) {
                 }
             }
 
-            Db::Core::Database db;
+            // Always clear environment
             if (use_edb) {
-                db.set_default_engine(Db::Core::DatabaseEngine::EDB);
+                std::filesystem::remove_all(database_path);
             }
+            Db::Core::Database db = use_edb
+                ? TRY(Db::Core::Database::create_or_open_file_backed(database_path.string()).map_error([](Util::OsError const& error) {
+                      return Db::Core::DbError { fmt::format("Opening database failed: {}", error) };
+                  }))
+                : Db::Core::Database::create_memory_backed();
 
             bool success = true;
             for (auto const& statement : statements) {

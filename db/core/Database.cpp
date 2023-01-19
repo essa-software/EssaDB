@@ -9,6 +9,33 @@
 
 namespace Db::Core {
 
+Util::OsErrorOr<Database> Database::create_or_open_file_backed(std::string const& path) {
+    Database db;
+    db.m_path = path;
+    db.set_default_engine(DatabaseEngine::EDB);
+
+    if (!std::filesystem::is_directory(path)) {
+        std::error_code err;
+        std::filesystem::create_directory(path, err);
+        if (err) {
+            return Util::OsError { .error = err.value(), .function = "Database create directory" };
+        }
+    }
+
+    // Open all existing tables as edb files
+    for (auto const& entry : std::filesystem::directory_iterator { path }) {
+        if (entry.path().extension() == ".edb") {
+            auto table = TRY(Storage::FileBackedTable::open(path, entry.path().stem()));
+            db.m_tables.insert({ table->name(), std::move(table) });
+        }
+    }
+    return db;
+}
+
+Database Database::create_memory_backed() {
+    return Database {};
+}
+
 Core::DbErrorOr<Table*> Database::create_table(TableSetup table_setup, std::shared_ptr<Sql::AST::Check> check, DatabaseEngine engine) {
     if (m_tables.contains(table_setup.name)) {
         return Core::DbError { fmt::format("Table '{}' already exists", table_setup.name) };
