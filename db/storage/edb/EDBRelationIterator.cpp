@@ -15,21 +15,23 @@ std::unique_ptr<Core::RowReference> EDBRelationIteratorImpl::next() {
 
 class EDBRowReference : public Core::RowReference {
 public:
-    explicit EDBRowReference(Core::Tuple tuple, HeapPtr ptr, HeapPtr prev_ptr, EDBFile& file)
+    explicit EDBRowReference(Core::Tuple tuple, HeapPtr ptr, HeapPtr prev_ptr, EDBRelationIteratorImpl& iterator)
         : m_tuple(tuple)
         , m_row_ptr(ptr)
         , m_prev_row_ptr(prev_ptr)
-        , m_file(file) { }
+        , m_iterator(iterator) { }
+
+    auto& file() { return m_iterator.m_file; }
 
     ~EDBRowReference() {
         if (m_removed) {
             return;
         }
-        auto row = m_file.access<Table::RowSpec>(m_row_ptr, m_file.row_size() + sizeof(Table::RowSpec));
-        row->free_data(m_file).release_value_but_fixme_should_propagate_errors();
+        auto row = file().access<Table::RowSpec>(m_row_ptr, file().row_size() + sizeof(Table::RowSpec));
+        row->free_data(file()).release_value_but_fixme_should_propagate_errors();
         Util::WritableMemoryStream stream;
         Util::Writer writer { stream };
-        Serializer::write_row(m_file, writer, m_file.raw_columns(), m_tuple).release_value_but_fixme_should_propagate_errors();
+        Serializer::write_row(file(), writer, file().raw_columns(), m_tuple).release_value_but_fixme_should_propagate_errors();
         std::copy(stream.data().begin(), stream.data().end(), row->row);
     }
 
@@ -41,8 +43,9 @@ private:
         m_tuple = tuple;
     }
     virtual void remove() override {
-        m_file.remove(m_row_ptr, m_prev_row_ptr).release_value_but_fixme_should_propagate_errors();
+        file().remove(m_row_ptr, m_prev_row_ptr).release_value_but_fixme_should_propagate_errors();
         m_removed = true;
+        m_iterator.m_prev_row_ptr = m_prev_row_ptr;
     }
     virtual std::unique_ptr<RowReference> clone() const override {
         return std::make_unique<EDBRowReference>(*this);
@@ -52,7 +55,7 @@ private:
     HeapPtr m_row_ptr;
     HeapPtr m_prev_row_ptr { 0, 0 };
     bool m_removed = false;
-    EDBFile& m_file;
+    EDBRelationIteratorImpl& m_iterator;
 };
 
 Util::OsErrorOr<std::unique_ptr<Core::RowReference>> EDBRelationIteratorImpl::next_impl() {
@@ -61,12 +64,11 @@ Util::OsErrorOr<std::unique_ptr<Core::RowReference>> EDBRelationIteratorImpl::ne
     }
 
     auto row = m_file.access<Table::RowSpec>(m_row_ptr, m_file.row_size() + sizeof(Table::RowSpec));
+    // fmt::print("{}..{}..{}\n", m_prev_row_ptr, m_row_ptr, row->next_row);
     if (!row->is_used) {
         fmt::print("{} is already freed, aborting\n", m_row_ptr);
         return Util::OsError { 0, "EDBRelationIterator: Row points to freed row" };
     }
-
-    // fmt::print("{}..{}..{}\n", m_prev_row_ptr, m_row_ptr, row->next_row);
 
     auto prev_row_ptr = m_prev_row_ptr;
     m_prev_row_ptr = m_row_ptr;
@@ -116,7 +118,7 @@ Util::OsErrorOr<std::unique_ptr<Core::RowReference>> EDBRelationIteratorImpl::ne
     // }
     // fmt::print("\n");
 
-    return std::make_unique<EDBRowReference>(Core::Tuple { values }, m_prev_row_ptr, prev_row_ptr, m_file);
+    return std::make_unique<EDBRowReference>(Core::Tuple { values }, m_prev_row_ptr, prev_row_ptr, *this);
 }
 
 }

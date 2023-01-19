@@ -14,6 +14,8 @@ public:
     virtual std::unique_ptr<Core::RowReference> next() override;
 
 private:
+    friend class EDBRowReference;
+
     Util::OsErrorOr<std::unique_ptr<Core::RowReference>> next_impl();
 
     EDBFile& m_file;
