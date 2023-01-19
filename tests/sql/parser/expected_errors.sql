@@ -19,7 +19,7 @@ SELECT COUNT(
 -- error: Expected expression, got 'EOF'
 SELECT CHAR(
 
--- error: Expected ')' to close function, got 'EOF'
+-- error: Expected ')' to close argument list, got 'EOF'
 SELECT CHAR(a
 
 -- error: Expected expression, got ','
@@ -31,7 +31,7 @@ SELECT CHAR(a,
 -- error: Expected expression, got ','
 SELECT CHAR(a,,,,,a)
 
--- error: Expected ')' to close function, got 'FROM'
+-- error: Expected ')' to close argument list, got 'FROM'
 SELECT CHAR(a FROM test
 
 -- error: Expected expression, got 'FROM'

@@ -1,5 +1,4 @@
 #include "Parser.hpp"
-#include "db/sql/SQLError.hpp"
 
 #include <db/core/Column.hpp>
 #include <db/core/DbError.hpp>
@@ -7,6 +6,7 @@
 #include <db/core/Table.hpp>
 #include <db/core/Value.hpp>
 #include <db/sql/Lexer.hpp>
+#include <db/sql/SQLError.hpp>
 #include <db/sql/Select.hpp>
 #include <db/sql/ast/Function.hpp>
 #include <db/sql/ast/Show.hpp>
@@ -874,25 +874,7 @@ SQLErrorOr<std::unique_ptr<AST::InsertInto>> Parser::parse_insert_into() {
 
     auto value_token = m_tokens[m_offset++];
     if (value_token.type == Token::Type::KeywordValues) {
-        std::vector<std::unique_ptr<AST::Expression>> values;
-
-        paren_open = m_tokens[m_offset];
-        if (paren_open.type != Token::Type::ParenOpen)
-            return std::make_unique<AST::InsertInto>(start, table_name.value, std::vector<std::string> {}, std::vector<std::unique_ptr<AST::Expression>> {});
-        m_offset++;
-
-        while (true) {
-            values.push_back(TRY(parse_expression()));
-
-            auto comma = m_tokens[m_offset];
-            if (comma.type != Token::Type::Comma)
-                break;
-            m_offset++;
-        }
-
-        auto paren_close = m_tokens[m_offset++];
-        if (paren_close.type != Token::Type::ParenClose)
-            return expected("')' to close values list", paren_close, m_offset - 1);
+        std::vector<std::unique_ptr<AST::Expression>> values = TRY(parse_expression_list("value list"));
         return std::make_unique<AST::InsertInto>(start, table_name.value, std::move(columns), std::move(values));
     }
     else if (value_token.type == Token::Type::KeywordSelect) {
@@ -1397,7 +1379,6 @@ SQLErrorOr<std::unique_ptr<AST::TableExpression>> Parser::parse_join_expression(
 }
 
 AST::AggregateFunction::Function to_aggregate_function(std::string const& name) {
-    // TODO: Case-insensitive match
     if (Parser::compare_case_insensitive(name, "COUNT"))
         return AST::AggregateFunction::Function::Count;
     else if (Parser::compare_case_insensitive(name, "SUM"))
@@ -1411,60 +1392,79 @@ AST::AggregateFunction::Function to_aggregate_function(std::string const& name) 
     return AST::AggregateFunction::Function::Invalid;
 }
 
-SQLErrorOr<std::unique_ptr<AST::Expression>> Parser::parse_function(std::string name) {
-    auto start = m_offset - 1;
+SQLErrorOr<std::vector<std::unique_ptr<AST::Expression>>> Parser::parse_expression_list(std::string const& name_in_error_message) {
+    if (m_tokens[m_offset].type != Token::Type::ParenOpen) {
+        return expected(fmt::format("'(' to open {}", name_in_error_message), m_tokens[m_offset], m_offset);
+    }
     m_offset++; // (
 
     std::vector<std::unique_ptr<AST::Expression>> args;
-    while (true) {
-        // std::cout << "PARSE EXPRESSION AT " << m_offset << std::endl;
-
-        auto aggregate_function = to_aggregate_function(name);
-        if (aggregate_function != AST::AggregateFunction::Function::Invalid) {
+    if (m_tokens[m_offset].type != Token::Type::ParenClose) {
+        while (true) {
             auto expression = TRY(parse_expression());
+            args.push_back(std::move(expression));
 
-            if (m_tokens[m_offset++].type != Token::Type::ParenClose)
-                return expected("')' to close aggregate function", m_tokens[m_offset], m_offset - 1);
-
-            std::optional<std::string> over;
-
-            if (m_tokens[m_offset].type == Token::Type::KeywordOver) {
+            auto comma_or_paren_close = m_tokens[m_offset];
+            if (comma_or_paren_close.type == Token::Type::ParenClose) {
                 m_offset++;
-                if (m_tokens[m_offset++].type != Token::Type::ParenOpen)
-                    return expected("'(' for 'OVER PARTITION' clause", m_tokens[m_offset], m_offset - 1);
-
-                if (m_tokens[m_offset++].type != Token::Type::KeywordPartition)
-                    return expected("'PARTITION' for 'OVER PARTITION' clause", m_tokens[m_offset], m_offset - 1);
-
-                if (m_tokens[m_offset++].type != Token::Type::KeywordBy)
-                    return expected("'BY' after 'PARTITION'", m_tokens[m_offset], m_offset - 1);
-
-                auto identifier = m_tokens[m_offset++];
-
-                if (identifier.type != Token::Type::Identifier)
-                    return expected("identifier after 'PARTITION BY'", m_tokens[m_offset], m_offset - 1);
-
-                over = identifier.value;
-
-                if (m_tokens[m_offset++].type != Token::Type::ParenClose)
-                    return expected("')' to close 'OVER' clause", m_tokens[m_offset], m_offset - 1);
+                break;
             }
-
-            return { std::make_unique<AST::AggregateFunction>(m_offset, aggregate_function, std::move(expression), std::move(over)) };
+            if (comma_or_paren_close.type == Token::Type::Comma) {
+                m_offset++;
+            }
+            else {
+                return expected(fmt::format("')' to close {}", name_in_error_message),
+                    comma_or_paren_close, m_offset);
+            }
         }
-
-        auto expression = TRY(parse_expression());
-        args.push_back(std::move(expression));
-
-        auto comma_or_paren_close = m_tokens[m_offset];
-        if (comma_or_paren_close.type != Token::Type::Comma) {
-            if (comma_or_paren_close.type != Token::Type::ParenClose)
-                return expected("')' to close function", comma_or_paren_close, m_offset);
-            m_offset++;
-            break;
-        }
+    }
+    else {
         m_offset++;
     }
+    return args;
+}
+
+SQLErrorOr<std::unique_ptr<AST::Expression>> Parser::parse_function(std::string name) {
+    auto start = m_offset - 1;
+
+    auto aggregate_function = to_aggregate_function(name);
+    if (aggregate_function != AST::AggregateFunction::Function::Invalid) {
+        // Aggregate function
+        m_offset++; // (
+        auto expression = TRY(parse_expression());
+
+        if (m_tokens[m_offset++].type != Token::Type::ParenClose)
+            return expected("')' to close aggregate function", m_tokens[m_offset], m_offset - 1);
+
+        std::optional<std::string> over;
+
+        if (m_tokens[m_offset].type == Token::Type::KeywordOver) {
+            m_offset++;
+            if (m_tokens[m_offset++].type != Token::Type::ParenOpen)
+                return expected("'(' for 'OVER PARTITION' clause", m_tokens[m_offset], m_offset - 1);
+
+            if (m_tokens[m_offset++].type != Token::Type::KeywordPartition)
+                return expected("'PARTITION' for 'OVER PARTITION' clause", m_tokens[m_offset], m_offset - 1);
+
+            if (m_tokens[m_offset++].type != Token::Type::KeywordBy)
+                return expected("'BY' after 'PARTITION'", m_tokens[m_offset], m_offset - 1);
+
+            auto identifier = m_tokens[m_offset++];
+
+            if (identifier.type != Token::Type::Identifier)
+                return expected("identifier after 'PARTITION BY'", m_tokens[m_offset], m_offset - 1);
+
+            over = identifier.value;
+
+            if (m_tokens[m_offset++].type != Token::Type::ParenClose)
+                return expected("')' to close 'OVER' clause", m_tokens[m_offset], m_offset - 1);
+        }
+
+        return { std::make_unique<AST::AggregateFunction>(m_offset, aggregate_function, std::move(expression), std::move(over)) };
+    }
+
+    // Normal function
+    auto args = TRY(parse_expression_list("argument list"));
     return std::make_unique<AST::Function>(start, std::move(name), std::move(args));
 }
 

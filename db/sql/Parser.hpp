@@ -41,6 +41,7 @@ private:
     SQLErrorOr<std::unique_ptr<AST::Print>> parse_print();
     SQLErrorOr<std::unique_ptr<AST::Expression>> parse_expression(int min_precedence = 0);
     SQLErrorOr<std::unique_ptr<AST::Expression>> parse_expression_or_index(Sql::AST::SelectColumns const&);
+    SQLErrorOr<std::vector<std::unique_ptr<AST::Expression>>> parse_expression_list(std::string const& name_in_error_message = "expression list");
     SQLErrorOr<std::optional<Core::DatabaseEngine>> parse_engine_specification();
 
     struct BetweenRange {
