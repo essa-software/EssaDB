@@ -20,11 +20,13 @@ Core::DbErrorOr<Table*> Database::create_table(TableSetup table_setup, std::shar
         return &table;
     }
     case DatabaseEngine::EDB: {
-        if (!std::filesystem::is_directory("database")) {
-            std::filesystem::create_directory("database");
+        if (!m_path) {
+            return Core::DbError { fmt::format("Cannot create file-backed tables in memory-backed database") };
         }
-        auto filename = fmt::format("database/{}.edb", table_setup.name);
-        auto result = Storage::FileBackedTable::initialize(filename, table_setup);
+        if (!std::filesystem::is_directory(*m_path)) {
+            std::filesystem::create_directory(*m_path);
+        }
+        auto result = Storage::FileBackedTable::initialize(*m_path, table_setup);
         if (result.is_error()) {
             return Core::DbError { fmt::format("Creating table failed: {}", result.release_error()) };
         }

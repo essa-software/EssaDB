@@ -48,6 +48,7 @@ public:
     }
 
 private:
+    std::optional<std::string> m_path = "database";
     std::unordered_map<std::string, std::unique_ptr<Table>> m_tables;
     DatabaseEngine m_default_engine = DatabaseEngine::Memory;
 };

@@ -19,8 +19,8 @@ class EDBFile {
 public:
     EDBFile(EDBFile const&) = delete;
 
-    static Util::OsErrorOr<std::unique_ptr<EDBFile>> initialize(std::string const& path, Db::Core::TableSetup);
-    static Util::OsErrorOr<std::unique_ptr<EDBFile>> open(std::string const& path);
+    static Util::OsErrorOr<std::unique_ptr<EDBFile>> initialize(Util::File, Db::Core::TableSetup);
+    static Util::OsErrorOr<std::unique_ptr<EDBFile>> open(Util::File);
 
     Util::OsErrorOr<void> rename(std::string const& new_name);
     Util::OsErrorOr<void> insert(Core::Tuple const& tuple);

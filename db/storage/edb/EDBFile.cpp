@@ -29,27 +29,23 @@ EDBFile::EDBFile(Util::File f, MappedFile mapped_file)
     , m_file(std::move(f)) {
 }
 
-Util::OsErrorOr<std::unique_ptr<EDBFile>> EDBFile::open(std::string const& path) {
-    Util::File file { ::open(path.c_str(), O_RDWR), true };
+Util::OsErrorOr<std::unique_ptr<EDBFile>> EDBFile::open(Util::File file) {
     struct stat stat;
     if (::fstat(file.fd(), &stat) < 0) {
         return Util::OsError { .error = errno, .function = "EDBFile::open(): stat" };
     }
     auto mapped_file = TRY(MappedFile::map(file.fd(), stat.st_size));
     auto edb_file = std::unique_ptr<EDBFile>(new EDBFile(std::move(file), std::move(mapped_file)));
-    edb_file->m_file_path = path;
     TRY(edb_file->read_header());
     return edb_file;
 }
 
-Util::OsErrorOr<std::unique_ptr<EDBFile>> EDBFile::initialize(std::string const& path, Db::Core::TableSetup setup) {
-    Util::File file { ::open(path.c_str(), O_RDWR | O_CREAT | O_TRUNC, 0644), true };
+Util::OsErrorOr<std::unique_ptr<EDBFile>> EDBFile::initialize(Util::File file, Db::Core::TableSetup setup) {
     if (file.fd() == -1) {
         return Util::OsError { .error = errno, .function = "EDBFile::initialize() open" };
     }
     auto mapped_file = TRY(MappedFile::map(file.fd(), sizeof(EDBHeader)));
     auto edb_file = std::unique_ptr<EDBFile>(new EDBFile(std::move(file), std::move(mapped_file)));
-    edb_file->m_file_path = path;
 
     TRY(edb_file->write_header_first_pass(setup));
 
