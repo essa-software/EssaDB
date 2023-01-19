@@ -45,17 +45,28 @@ SQLErrorOr<Core::ValueOrResultSet> DeleteFrom::execute(Core::Database& db) const
         return TRY(m_where->evaluate(context)).to_bool().map_error(DbToSQLError { start() });
     };
 
-    std::vector<std::unique_ptr<Core::RowReference>> rows_to_remove;
-    TRY(table->writable_rows().try_for_each_row_reference([&](Core::RowReference const& ref) -> SQLErrorOr<void> {
-        auto should_include = TRY(should_include_row(ref.read()));
-        if (should_include) {
-            rows_to_remove.push_back(ref.clone());
-        }
-        return {};
-    }));
+    std::set<size_t> rows_to_remove;
+    {
+        size_t idx = 0;
+        TRY(table->writable_rows().try_for_each_row_reference([&](Core::RowReference const& ref) -> SQLErrorOr<void> {
+            auto should_include = TRY(should_include_row(ref.read()));
+            if (should_include) {
+                rows_to_remove.insert(idx);
+            }
+            idx++;
+            return {};
+        }));
+    }
 
-    for (auto const& ref : rows_to_remove) {
-        ref->remove();
+    {
+        size_t idx = 0;
+        TRY(table->writable_rows().try_for_each_row_reference([&](Core::RowReference& ref) -> SQLErrorOr<void> {
+            if (rows_to_remove.contains(idx)) {
+                ref.remove();
+            }
+            idx++;
+            return {};
+        }));
     }
 
     return Core::Value::null();
