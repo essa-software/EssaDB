@@ -18,6 +18,7 @@ namespace Db::Storage::EDB {
 class EDBFile {
 public:
     EDBFile(EDBFile const&) = delete;
+    ~EDBFile();
 
     static Util::OsErrorOr<std::unique_ptr<EDBFile>> initialize(Util::File, Db::Core::TableSetup);
     static Util::OsErrorOr<std::unique_ptr<EDBFile>> open(Util::File);

@@ -29,6 +29,13 @@ EDBFile::EDBFile(Util::File f, MappedFile mapped_file)
     , m_file(std::move(f)) {
 }
 
+EDBFile::~EDBFile() {
+    auto result = flush_header();
+    if (result.is_error()) {
+        result.dump("Internal error: Failed to flush EDB header on destruction");
+    }
+}
+
 Util::OsErrorOr<std::unique_ptr<EDBFile>> EDBFile::open(Util::File file) {
     struct stat stat;
     if (::fstat(file.fd(), &stat) < 0) {
@@ -374,6 +381,7 @@ Util::OsErrorOr<void> EDBFile::remove(HeapPtr row, HeapPtr prev_row) {
         m_header.last_row_ptr = prev_row;
     }
     m_header.row_count = m_header.row_count - 1;
+    TRY(flush_header());
     return {};
 }
 
