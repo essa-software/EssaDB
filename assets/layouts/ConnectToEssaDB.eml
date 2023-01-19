@@ -1,0 +1,36 @@
+@Container {
+    layout: @VerticalBoxLayout {
+        padding: 15
+        spacing: 15
+    }
+
+    @RadioGroup memory_or_file_backed {
+        @RadioButton {
+            caption: "Create temporary database"
+        }
+        @RadioButton {
+            caption: "Load from file"
+        }
+    }
+
+    define ValueField : @Container {
+        layout: @HorizontalBoxLayout {
+            spacing: 10
+        }
+        height: 30px
+    }
+
+    @ValueField {
+        @Textfield {
+            content: "Database directory:"
+            width: 170px
+        }
+        @TextEditor database_directory {
+            multiline: false
+        }
+        @TextButton load_file {
+            content: "Browse..."
+            width: 150px
+        }
+    }
+}

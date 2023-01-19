@@ -1,10 +1,17 @@
 #include "EssaDBDatabaseClient.hpp"
 
-#include "gui/Structure.hpp"
 #include <db/core/Database.hpp>
 #include <db/sql/SQL.hpp>
+#include <gui/Structure.hpp>
+#include <gui/client/ConnectToEssaDBDialog.hpp>
 
 namespace EssaDB {
+
+Util::OsErrorOr<std::unique_ptr<EssaDBDatabaseClient>> EssaDBDatabaseClient::create(std::optional<std::string> path) {
+    return std::unique_ptr<EssaDBDatabaseClient>(new EssaDBDatabaseClient(path
+            ? TRY(Db::Core::Database::create_or_open_file_backed(*path))
+            : Db::Core::Database::create_memory_backed()));
+}
 
 Db::Sql::SQLErrorOr<Db::Core::ValueOrResultSet> EssaDBDatabaseClient::run_query(std::string const& source) {
     return Db::Sql::run_query(m_db, source);
@@ -32,11 +39,15 @@ Util::UString EssaDBDatabaseClient::status_string() const {
 }
 
 std::shared_ptr<GUI::Container> EssaDBDatabaseClientType::create_settings_widget() {
-    return nullptr;
+    return std::make_unique<ConnectToEssaDBDialog>();
 }
 
-Db::Core::DbErrorOr<std::unique_ptr<DatabaseClient>> EssaDBDatabaseClientType::create(GUI::Container const*) {
-    return std::make_unique<EssaDBDatabaseClient>();
+Db::Core::DbErrorOr<std::unique_ptr<DatabaseClient>> EssaDBDatabaseClientType::create(GUI::Container const* settings_widget) {
+    auto data = static_cast<ConnectToEssaDBDialog const*>(settings_widget)->connection_data();
+    auto connection = TRY(EssaDBDatabaseClient::create(data.path).map_error([](Util::OsError const& error) {
+        return Db::Core::DbError { fmt::format("Opening database failed: {}", error) };
+    }));
+    return connection;
 }
 
 }

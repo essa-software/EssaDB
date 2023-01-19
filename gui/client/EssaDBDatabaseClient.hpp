@@ -7,13 +7,18 @@ namespace EssaDB {
 
 class EssaDBDatabaseClient : public DatabaseClient {
 public:
+    static Util::OsErrorOr<std::unique_ptr<EssaDBDatabaseClient>> create(std::optional<std::string> path);
+
     virtual Db::Sql::SQLErrorOr<Db::Core::ValueOrResultSet> run_query(std::string const& source) override;
     virtual Db::Core::DbErrorOr<Structure::Database> structure() const override;
     virtual Db::Core::DbErrorOr<void> import(std::string const& source, std::string const& table_name, Db::Core::ImportMode) override;
     virtual Util::UString status_string() const override;
 
 private:
-    Db::Core::Database m_db = Db::Core::Database::create_memory_backed();
+    explicit EssaDBDatabaseClient(Db::Core::Database db)
+        : m_db(std::move(db)) { }
+
+    Db::Core::Database m_db;
 };
 
 class EssaDBDatabaseClientType : public DatabaseClientType {
