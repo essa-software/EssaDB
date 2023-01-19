@@ -56,9 +56,6 @@ private:
 };
 
 Util::OsErrorOr<std::unique_ptr<Core::RowReference>> EDBRelationIteratorImpl::next_impl() {
-    if (m_file.header().row_count == 0) {
-        return std::unique_ptr<Core::RowReference> {};
-    }
     if (m_row_ptr.is_null()) {
         return std::unique_ptr<Core::RowReference> {};
     }
