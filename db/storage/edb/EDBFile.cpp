@@ -290,7 +290,7 @@ Util::OsErrorOr<void> EDBFile::insert(Core::Tuple const& tuple) {
 
     // 1. Find free place in Table blocks
     std::optional<HeapPtr> place_for_allocation;
-    if (m_header.row_count == 0) {
+    if (m_header.last_row_ptr.is_null()) {
         place_for_allocation = { 1, sizeof(Block) + sizeof(Table::TableBlock) };
     }
     else {
@@ -337,7 +337,7 @@ Util::OsErrorOr<void> EDBFile::insert(Core::Tuple const& tuple) {
     }
 
     // 4. Point last row or header into the newly placed row.
-    if (m_header.row_count > 0) {
+    if (!m_header.last_row_ptr.is_null()) {
         auto last_row = access<Table::RowSpec>(m_header.last_row_ptr);
         last_row->next_row = *place_for_allocation;
     }
