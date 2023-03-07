@@ -164,7 +164,7 @@ int main() {
             .color = Util::Colors::White,
             .text = Util::UString { "Connected to " + client->status_string() },
         });
-        window.window().set_title("EssaDB - " + client->status_string());
+        window.set_title("EssaDB - " + client->status_string());
         update_db_model();
     };
 
@@ -178,7 +178,7 @@ int main() {
             return;
         }
         client = nullptr;
-        window.window().set_title("EssaDB");
+        window.set_title("EssaDB");
         console->append_content({
             .color = Util::Colors::White,
             .text = Util::UString {

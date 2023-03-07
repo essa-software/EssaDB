@@ -2,6 +2,7 @@
 
 #include <Essa/GUI/Widgets/Container.hpp>
 #include <Essa/GUI/Overlays/MessageBox.hpp>
+#include <Essa/GUI/Widgets/RadioButton.hpp>
 #include <Essa/GUI/Widgets/RadioGroup.hpp>
 #include <Essa/GUI/Widgets/TextButton.hpp>
 #include <Essa/GUI/Overlays/ToolWindow.hpp>
@@ -17,10 +18,12 @@ SelectConnectionTypeDialog::SelectConnectionTypeDialog(GUI::HostWindow& host_win
     container.set_layout<GUI::VerticalBoxLayout>().set_padding(GUI::Boxf::all_equal(10));
 
     auto radio_group = container.add_widget<GUI::RadioGroup>();
+    radio_group->set_layout<GUI::VerticalBoxLayout>().set_spacing(10);
     std::vector<std::string_view> database_type_ids;
     for (auto const& type : DatabaseClient::types()) {
         database_type_ids.push_back(type.first);
-        radio_group->add_radio(type.second->name());
+        auto* btn =  radio_group->add_widget<GUI::RadioButton>();
+        btn->set_caption(type.second->name());
     }
 
     auto submit_container = container.add_widget<GUI::Container>();
