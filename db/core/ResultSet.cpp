@@ -96,12 +96,13 @@ void ResultSet::dump(std::ostream& out, FancyDump fancy) const {
         index = 0;
         for (auto const& value : row) {
             out << (fancy == FancyDump::Yes ? "│ " : "| ");
-            Util::UString value_string { value.to_string().release_value_but_fixme_should_propagate_errors() };
+            auto value_string = value.to_string().release_value_but_fixme_should_propagate_errors();;
+            auto value_string_length = *Util::Utf8::codepoint_count_if_valid(value_string);
             int width = index < widths.size() ? widths[index] : 0;
 
             // FIXME: Port tests to left alignment
             if (fancy == FancyDump::No) {
-                for (size_t s = 0; s < width - value_string.size(); s++) {
+                for (size_t s = 0; s < width - value_string_length; s++) {
                     out << " ";
                 }
             }
@@ -110,14 +111,12 @@ void ResultSet::dump(std::ostream& out, FancyDump fancy) const {
                 out << "\e[30mnull\e[m";
             }
             else {
-                Util::Utf8::encode_to_callback(value_string.span(), [&](uint8_t byte) {
-                    out << byte;
-                });
+                out << value_string;
             }
 
             // FIXME: Port tests to left alignment
             if (fancy == FancyDump::Yes) {
-                for (size_t s = 0; s < width - value_string.size(); s++) {
+                for (size_t s = 0; s < width - value_string_length; s++) {
                     out << " ";
                 }
             }
