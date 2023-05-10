@@ -3,12 +3,14 @@
 #include <Essa/GUI/Overlays/MessageBox.hpp>
 #include <Essa/GUI/Widgets/Console.hpp>
 #include <Essa/GUI/Widgets/TreeView.hpp>
+#include <EssaUtil/Clock.hpp>
 #include <EssaUtil/UString.hpp>
 #include <algorithm>
 #include <db/core/Table.hpp>
 #include <db/core/Value.hpp>
 #include <db/sql/Lexer.hpp>
 #include <db/sql/SQL.hpp>
+#include <fmt/chrono.h>
 #include <gui/ConnectDialog.hpp>
 #include <gui/DatabaseModel.hpp>
 #include <gui/ImportCSVDialog.hpp>
@@ -66,6 +68,8 @@ int main() {
     };
 
     auto run_sql = [&](Util::UString const& query) {
+        Util::Clock clock;
+
         if (!client) {
             console->append_content({
                 .color = Util::Colors::Red,
@@ -112,7 +116,9 @@ int main() {
             console->append_content({ .color = Util::Colors::White, .text = Util::UString { oss.str() } });
         }
         update_db_model();
-        return;
+
+        using namespace std::chrono_literals;
+        fmt::print("run_sql() finished in {:%S}s\n", clock.elapsed());
     };
 
     run_button->on_click = [&]() { run_sql(text_editor->content()); };
