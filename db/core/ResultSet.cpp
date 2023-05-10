@@ -3,8 +3,8 @@
 #include "Database.hpp"
 #include "Table.hpp"
 #include "Tuple.hpp"
-
 #include <EssaUtil/UString.hpp>
+#include <EssaUtil/Utf8.hpp>
 #include <iomanip>
 #include <iostream>
 
@@ -110,9 +110,9 @@ void ResultSet::dump(std::ostream& out, FancyDump fancy) const {
                 out << "\e[30mnull\e[m";
             }
             else {
-                for (auto ch : value_string) {
-                    out << Util::UString(ch).encode();
-                }
+                Util::Utf8::encode_to_callback(value_string.span(), [&](uint8_t byte) {
+                    out << byte;
+                });
             }
 
             // FIXME: Port tests to left alignment
