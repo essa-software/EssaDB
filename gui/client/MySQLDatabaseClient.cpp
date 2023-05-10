@@ -82,10 +82,10 @@ Db::Sql::SQLErrorOr<Db::Core::ValueOrResultSet> MySQLDatabaseClient::do_run_quer
             std::string str = row[i] ? row[i] : "NULL";
             values.push_back(Db::Core::Value::create_varchar(std::move(str)));
         }
-        rows.push_back(Db::Core::Tuple { values });
+        rows.push_back(Db::Core::Tuple { std::move(values) });
     }
 
-    return Db::Core::ResultSet { column_names, rows };
+    return Db::Core::ResultSet { std::move(column_names), std::move(rows) };
 }
 
 Db::Sql::SQLErrorOr<Db::Core::ValueOrResultSet> MySQLDatabaseClient::run_query(std::string const& query) {

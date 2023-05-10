@@ -21,6 +21,10 @@ public:
         std::copy(values.begin(), values.end(), m_values.begin());
     }
 
+    Tuple(std::vector<Value> values)
+        : m_values(std::move(values)) {
+    }
+
     size_t value_count() const { return m_values.size(); }
     Value value(size_t index) const {
         assert(index < m_values.size());
