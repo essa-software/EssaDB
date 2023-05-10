@@ -15,10 +15,10 @@ public:
 private:
     virtual size_t column_count() const override;
     virtual GUI::ModelColumn column(size_t column) const override;
-    virtual GUI::Variant data(Node const&, size_t column) const override;
-    virtual llgl::Texture const* icon(Node const&) const override;
-    virtual size_t children_count(Node const*) const override;
-    virtual Node child(Node const*, size_t idx) const override;
+    virtual GUI::Variant data(Node, size_t column) const override;
+    virtual llgl::Texture const* icon(Node) const override;
+    virtual size_t children_count(std::optional<Node>) const override;
+    virtual NodeData child(std::optional<Node>, size_t idx) const override;
 
     Structure::Database m_structure;
 };

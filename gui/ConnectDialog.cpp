@@ -15,7 +15,7 @@ SelectConnectionTypeDialog::SelectConnectionTypeDialog(GUI::HostWindow& host_win
     set_size({ 250, 120 });
     center_on_screen();
     auto& container = set_main_widget<GUI::Container>();
-    container.set_layout<GUI::VerticalBoxLayout>().set_padding(GUI::Boxf::all_equal(10));
+    container.set_layout<GUI::VerticalBoxLayout>().set_padding(GUI::Boxi::all_equal(10));
 
     auto radio_group = container.add_widget<GUI::RadioGroup>();
     radio_group->set_layout<GUI::VerticalBoxLayout>().set_spacing(10);
@@ -65,7 +65,7 @@ std::unique_ptr<DatabaseClient> connect_to_user_selected_database(GUI::HostWindo
         tool_window.center_on_screen();
 
         auto& container = tool_window.set_main_widget<GUI::Container>();
-        container.set_layout<GUI::VerticalBoxLayout>().set_padding(GUI::Boxf::all_equal(10));
+        container.set_layout<GUI::VerticalBoxLayout>().set_padding(GUI::Boxi::all_equal(10));
 
         container.add_created_widget(settings_widget);
 

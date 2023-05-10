@@ -2,7 +2,13 @@ set(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake)
 
 find_package(MySQL)
 
-add_executable(essadb-gui
+essa_executable(essadb-gui
+    LIBS
+    essadb
+    Essa::GUI
+    ${MYSQL_LIBRARY}
+
+    SOURCES
     client/ConnectToEssaDBDialog.cpp
     client/ConnectToMySQLDialog.cpp
     client/DatabaseClient.cpp
@@ -13,6 +19,5 @@ add_executable(essadb-gui
     main.cpp
     SQLSyntaxHighlighter.cpp
 )
-essautil_setup_target(essadb-gui)
 target_include_directories(essadb-gui PRIVATE ${MYSQL_INCLUDE_DIR})
-target_link_libraries(essadb-gui essadb Essa::GUI ${MYSQL_LIBRARY})
+essa_resources(essadb-gui assets)

@@ -51,26 +51,26 @@ static std::string value_type_icon(Db::Core::Value::Type type) {
     }
 }
 
-GUI::Variant DatabaseModel::data(Node const& node, size_t) const {
-    switch (node.type) {
+GUI::Variant DatabaseModel::data(Node node, size_t) const {
+    switch (node.data.type) {
     case DBModelDataType::Table:
-        return Util::UString { static_cast<Structure::Table const*>(node.data)->name };
+        return Util::UString { static_cast<Structure::Table const*>(node.data.data)->name };
     case DBModelDataType::ColumnList:
         return "Columns";
     case DBModelDataType::Column: {
-        auto column = static_cast<Structure::Column const*>(node.data);
+        auto column = static_cast<Structure::Column const*>(node.data.data);
         return Util::UString { column_to_string(*column) };
     }
     }
     ESSA_UNREACHABLE;
 }
 
-llgl::Texture const* DatabaseModel::icon(Node const& node) const {
-    switch (node.type) {
+llgl::Texture const* DatabaseModel::icon(Node node) const {
+    switch (node.data.type) {
     case DBModelDataType::Table:
         return &GUI::Application::the().resource_manager().require_texture("gui/blockDevice.png");
     case DBModelDataType::Column: {
-        auto column = static_cast<Structure::Column const*>(node.data);
+        auto column = static_cast<Structure::Column const*>(node.data.data);
         return &GUI::Application::the().resource_manager().require_texture("value_types/" + value_type_icon(column->type) + ".png");
     }
     default:
@@ -78,30 +78,30 @@ llgl::Texture const* DatabaseModel::icon(Node const& node) const {
     }
 }
 
-size_t DatabaseModel::children_count(Node const* parent) const {
+size_t DatabaseModel::children_count(std::optional<Node> parent) const {
     if (!parent) {
         return m_structure.tables.size();
     }
-    switch (parent->type) {
+    switch (parent->data.type) {
     case DBModelDataType::Table:
         return 1;
     case DBModelDataType::ColumnList:
-        return static_cast<Structure::Table const*>(parent->data)->columns.size();
+        return static_cast<Structure::Table const*>(parent->data.data)->columns.size();
     case DBModelDataType::Column:
         return 0;
     }
     ESSA_UNREACHABLE;
 }
 
-GUI::Model::Node DatabaseModel::child(Node const* parent, size_t index) const {
+GUI::Model::NodeData DatabaseModel::child(std::optional<Node> parent, size_t index) const {
     if (!parent) {
         return { .type = DBModelDataType::Table, .data = &m_structure.tables[index] };
     }
-    switch (parent->type) {
+    switch (parent->data.type) {
     case DBModelDataType::Table:
-        return { .type = DBModelDataType::ColumnList, .data = parent->data };
+        return { .type = DBModelDataType::ColumnList, .data = parent->data.data };
     case DBModelDataType::ColumnList: {
-        auto table = static_cast<Structure::Table const*>(parent->data);
+        auto table = static_cast<Structure::Table const*>(parent->data.data);
         return { .type = DBModelDataType::Column, .data = &table->columns[index] };
     }
     }

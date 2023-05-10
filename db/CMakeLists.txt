@@ -32,5 +32,7 @@ add_library(
     storage/edb/Serializer.cpp
 )
 
+# FIXME: essautil_setup_target does some unneeded things like
+#        bundling BuildInfo.cpp ...
 essautil_setup_target(essadb)
-target_link_libraries(essadb PUBLIC essautil)
+target_link_libraries(essadb PUBLIC Essa::Util)
