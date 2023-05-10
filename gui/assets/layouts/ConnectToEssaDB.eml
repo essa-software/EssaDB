@@ -5,6 +5,7 @@
     }
 
     @RadioGroup memory_or_file_backed {
+        layout: @VerticalBoxLayout
         @RadioButton {
             caption: "Create temporary database"
         }
