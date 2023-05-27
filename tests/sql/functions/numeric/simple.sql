@@ -1,5 +1,6 @@
 CREATE TABLE test (id INT, number FLOAT, string VARCHAR, integer INT, [to_trim] VARCHAR);
 IMPORT CSV 'data.csv' INTO test;
+IMPORT CSV 'data_asin.csv' INTO test_asin;
 
 -- abs
 -- output:
@@ -13,12 +14,26 @@ IMPORT CSV 'data.csv' INTO test;
 SELECT id, ABS(number) AS [NUM], ABS(integer) AS [INT] FROM test;
 
 -- acos
--- skip add better tests for that that doesn't throw nan
-SELECT id, ACOS(number) AS [NUM], ACOS(integer) AS [INT] FROM test;
+-- output:
+-- | id |      NUM |
+-- |  0 | 1.520775 |
+-- |  1 | 1.355435 |
+-- |  2 | 1.570796 |
+-- |  3 | 2.037562 |
+-- |  4 | 0.400157 |
+-- |  5 | 2.498092 |
+SELECT id, ACOS(number) AS [NUM] FROM test_asin;
 
 -- asin
--- skip add better tests for that that doesn't throw nan
-SELECT ASIN(number) AS [NUM], ASIN(integer) AS [INT] FROM test;
+-- output:
+-- | id |       NUM |
+-- |  0 |  0.050021 |
+-- |  1 |  0.215361 |
+-- |  2 |  0.000000 |
+-- |  3 | -0.466765 |
+-- |  4 |  1.170640 |
+-- |  5 | -0.927295 |
+SELECT id, ASIN(number) AS [NUM] FROM test_asin;
 
 -- atan
 -- output:
@@ -142,7 +157,14 @@ SELECT id, [LOG10](number) AS [NUM], [LOG10](integer) AS [INT] FROM test;
 SELECT id, POWER(number, 2) AS [NUM], POWER(integer, 2) AS [INT] FROM test;
 
 -- radians
--- skip undefined function
+-- output:
+-- | id |       NUM |       INT |
+-- |  0 |  1.205150 |  0.837758 |
+-- |  1 | 37.299835 |  1.134464 |
+-- |  2 |  0.000000 |  1.553343 |
+-- |  3 | -7.339109 | -1.745329 |
+-- |  4 |  1.207942 |  2.129302 |
+-- |  5 |  0.000000 |  1.012291 |
 SELECT id, RADIANS(number) AS [NUM], RADIANS(integer) AS [INT] FROM test;
 
 -- round

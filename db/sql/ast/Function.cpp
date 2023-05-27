@@ -356,6 +356,11 @@ static void setup_sql_functions() {
 
         return Core::Value::create_float(std::pow(a, b));
     });
+    register_sql_function("RADIANS", [](ArgumentList args) -> Core::DbErrorOr<Core::Value> {
+        auto a = TRY(TRY(args.get_required(0, "number")).to_float());
+
+        return Core::Value::create_float(a / 180.f * M_PI);
+    });
     register_sql_function("RAND", [](ArgumentList args) -> Core::DbErrorOr<Core::Value> {
         unsigned seed = time(NULL);
         if (args.size() == 1)
