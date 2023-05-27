@@ -14,16 +14,26 @@
 #include <ostream>
 #include <regex>
 #include <sstream>
+#include <string>
 #include <type_traits>
 
 namespace Db::Core {
 
-time_t Date::to_utc_epoch() const {
+tm Date::to_tm_struct() const{
     tm tm {};
     tm.tm_year = year - 1900;
     tm.tm_mon = month - 1;
     tm.tm_mday = day;
+    tm.tm_hour = hour;
+    tm.tm_min = min;
+    tm.tm_sec = sec;
     tm.tm_zone = "UTC";
+
+    return tm;
+}
+
+time_t Date::to_utc_epoch() const {
+    tm tm = to_tm_struct();
     return mktime(&tm);
 }
 
@@ -34,6 +44,9 @@ Date Date::from_utc_epoch(time_t time) {
         .year = tm->tm_year + 1900,
         .month = tm->tm_mon + 1,
         .day = tm->tm_mday,
+        .hour = tm->tm_hour,
+        .min = tm->tm_min,
+        .sec = tm->tm_sec
     };
 }
 
@@ -50,20 +63,33 @@ Value::Type find_type(const std::string& str) {
 }
 
 DbErrorOr<Date> Date::from_iso8601_string(std::string const& string) {
-    std::regex regex { "^(\\d{4})-(\\d{2})-(\\d{2})$" };
+    std::regex regex { "^(\\d{4})-(\\d{2})-(\\d{2}) (\\d{1,2}):(\\d{2}):(\\d{2})$" };
     std::smatch match;
-    if (!std::regex_search(string, match, regex)) {
+    std::string str = string + (string.length() == 10 ? " 00:00:00" : "");
+    if (!std::regex_search(str, match, regex)) {
         return DbError { "Invalid ISO8601 date" };
     }
     Date date;
     date.year = std::stoi(match[1]);
     date.month = std::stoi(match[2]);
     if (date.month < 1 || date.month > 12) {
-        return DbError { fmt::format("Date must be in range 1..12, {} given", date.month) };
+        return DbError { fmt::format("Month must be in range 1..12, {} given", date.month) };
     }
     date.day = std::stoi(match[3]);
     if (date.day < 1 || date.day > 31) {
         return DbError { fmt::format("Date must be in range 1..31, {} given", date.day) };
+    }
+    date.hour = std::stoi(match[4]);
+    if (date.hour < 0 || date.hour > 23) {
+        return DbError { fmt::format("Hours must be in range 0..23, {} given", date.hour) };
+    }
+    date.min = std::stoi(match[5]);
+    if (date.min < 0 || date.min > 59) {
+        return DbError { fmt::format("Minutes must be in range 0..59, {} given", date.min) };
+    }
+    date.sec = std::stoi(match[6]);
+    if (date.min < 0 || date.sec > 59) {
+        return DbError { fmt::format("Seconds must be in range 0..59, {} given", date.sec) };
     }
     return date;
 }
@@ -192,7 +218,7 @@ DbErrorOr<std::string> Value::to_string() const {
         return std::get<bool>(*this) ? "true" : "false";
     case Type::Time: {
         auto time_point = std::get<Date>(*this);
-        return fmt::format("{:04}-{:02}-{:02}", time_point.year, time_point.month, time_point.day);
+        return fmt::format("{:04}-{:02}-{:02} {:02}:{:02}:{:02}", time_point.year, time_point.month, time_point.day, time_point.hour, time_point.min, time_point.sec);
     }
     }
     __builtin_unreachable();

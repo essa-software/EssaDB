@@ -9,14 +9,14 @@ INSERT INTO test (id, number, integer, date) VALUES (3, 420, 100, #1990-02-12#);
 
 -- Select all
 -- output:
--- | id | number | string | integer |       date |
--- |  0 |     69 |   test |      48 | 1990-02-12 |
--- |  1 |   2137 |   null |      65 | 1990-02-12 |
--- |  2 |   null |   null |      89 | 1990-02-12 |
--- |  3 |    420 |   null |     100 | 1990-02-12 |
--- |  4 |     69 |  test1 |     122 | 1990-02-12 |
--- |  5 |     69 |  test2 |      58 | 1990-02-12 |
--- |  3 |    420 |   null |     100 | 1990-02-12 |
+-- | id | number | string | integer |                date |
+-- |  0 |     69 |   test |      48 | 1990-02-12 00:00:00 |
+-- |  1 |   2137 |   null |      65 | 1990-02-12 00:00:00 |
+-- |  2 |   null |   null |      89 | 1990-02-12 00:00:00 |
+-- |  3 |    420 |   null |     100 | 1990-02-12 00:00:00 |
+-- |  4 |     69 |  test1 |     122 | 1990-02-12 00:00:00 |
+-- |  5 |     69 |  test2 |      58 | 1990-02-12 00:00:00 |
+-- |  3 |    420 |   null |     100 | 1990-02-12 00:00:00 |
 SELECT * FROM test;
 
 -- Select specific
@@ -33,19 +33,19 @@ SELECT number, string FROM test;
 
 -- Top X
 -- output:
--- | id | number | string | integer |       date |
--- |  0 |     69 |   test |      48 | 1990-02-12 |
--- |  1 |   2137 |   null |      65 | 1990-02-12 |
+-- | id | number | string | integer |                date |
+-- |  0 |     69 |   test |      48 | 1990-02-12 00:00:00 |
+-- |  1 |   2137 |   null |      65 | 1990-02-12 00:00:00 |
 SELECT TOP 2 * FROM test;
 
 -- Top perc
 -- output:
--- | id | number | string | integer |       date |
--- |  0 |     69 |   test |      48 | 1990-02-12 |
--- |  1 |   2137 |   null |      65 | 1990-02-12 |
--- |  2 |   null |   null |      89 | 1990-02-12 |
--- |  3 |    420 |   null |     100 | 1990-02-12 |
--- |  4 |     69 |  test1 |     122 | 1990-02-12 |
+-- | id | number | string | integer |                date |
+-- |  0 |     69 |   test |      48 | 1990-02-12 00:00:00 |
+-- |  1 |   2137 |   null |      65 | 1990-02-12 00:00:00 |
+-- |  2 |   null |   null |      89 | 1990-02-12 00:00:00 |
+-- |  3 |    420 |   null |     100 | 1990-02-12 00:00:00 |
+-- |  4 |     69 |  test1 |     122 | 1990-02-12 00:00:00 |
 SELECT TOP 75 PERC * FROM test;
 
 -- Top on empty set
