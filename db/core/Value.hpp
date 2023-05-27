@@ -21,6 +21,7 @@ struct Date {
     time_t to_utc_epoch() const;
     tm to_tm_struct() const;
     static Date from_utc_epoch(time_t d);
+    static Date from_local_epoch(time_t d);
     static DbErrorOr<Date> from_iso8601_string(std::string const& string);
 };
 

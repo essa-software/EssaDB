@@ -1,6 +1,7 @@
 #include "Function.hpp"
 
 #include <EssaUtil/ScopeGuard.hpp>
+#include <bits/chrono.h>
 #include <cctype>
 #include <cmath>
 #include <cstddef>
@@ -9,6 +10,7 @@
 #include <db/sql/Parser.hpp>
 #include <functional>
 #include <limits>
+#include <chrono>
 
 namespace Db::Sql::AST {
 
@@ -418,8 +420,17 @@ static void setup_sql_functions() {
     register_sql_function("DAY", [](ArgumentList args) -> Core::DbErrorOr<Core::Value> {
         return Core::Value::create_int(TRY(TRY(args.get_required(0, "date")).to_time()).day);
     });
+    register_sql_function("GETDATE", [](ArgumentList) -> Core::DbErrorOr<Core::Value> {
+        return Core::Value::create_time(Core::Date::from_local_epoch(std::chrono::duration_cast<std::chrono::seconds>(std::chrono::high_resolution_clock::now().time_since_epoch()).count()));
+    });
+    register_sql_function("GETUTCDATE", [](ArgumentList) -> Core::DbErrorOr<Core::Value> {
+        return Core::Value::create_time(Core::Date::from_utc_epoch(std::chrono::duration_cast<std::chrono::seconds>(std::chrono::high_resolution_clock::now().time_since_epoch()).count()));
+    });
     register_sql_function("MONTH", [](ArgumentList args) -> Core::DbErrorOr<Core::Value> {
         return Core::Value::create_int(TRY(TRY(args.get_required(0, "date")).to_time()).month);
+    });
+    register_sql_function("SYSGETTIME", [](ArgumentList) -> Core::DbErrorOr<Core::Value> {
+        return Core::Value::create_time(Core::Date::from_local_epoch(std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch()).count()));
     });
     register_sql_function("YEAR", [](ArgumentList args) -> Core::DbErrorOr<Core::Value> {
         return Core::Value::create_int(TRY(TRY(args.get_required(0, "date")).to_time()).year);

@@ -1,7 +1,16 @@
 -- output:
--- | 2022-11-11 00:00:00 |
--- | 2022-11-11 00:00:00 |
-SELECT #2022-11-11#;
+-- | 2022-11-11 21:37:00 |
+-- | 2022-11-11 21:37:00 |
+SELECT #2022-11-11 21:37:00#;
+
+-- skip: shit varies
+SELECT GETDATE();
+
+-- skip: shit varies
+SELECT GETUTCDATE();
+
+-- skip: shit varies
+SELECT SYSGETTIME();
 
 -- error: Invalid ISO8601 date
 SELECT #2022-11-1#;

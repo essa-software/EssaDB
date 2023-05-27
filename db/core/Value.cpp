@@ -10,6 +10,7 @@
 
 #include <cctype>
 #include <ctime>
+#include <iostream>
 #include <limits>
 #include <ostream>
 #include <regex>
@@ -39,6 +40,19 @@ time_t Date::to_utc_epoch() const {
 
 Date Date::from_utc_epoch(time_t time) {
     auto tm = gmtime(&time);
+
+    return {
+        .year = tm->tm_year + 1900,
+        .month = tm->tm_mon + 1,
+        .day = tm->tm_mday,
+        .hour = tm->tm_hour,
+        .min = tm->tm_min,
+        .sec = tm->tm_sec
+    };
+}
+
+Date Date::from_local_epoch(time_t time) {
+    auto tm = localtime(&time);
 
     return {
         .year = tm->tm_year + 1900,
