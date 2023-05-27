@@ -5,10 +5,12 @@
 #include <cctype>
 #include <cmath>
 #include <cstddef>
+#include <ctime>
 #include <db/core/DbError.hpp>
 #include <db/core/Value.hpp>
 #include <db/sql/Parser.hpp>
 #include <functional>
+#include <iostream>
 #include <limits>
 #include <chrono>
 
@@ -416,6 +418,14 @@ static void setup_sql_functions() {
         auto start = TRY(TRY(args.get_required(0, "start")).to_time()).to_utc_epoch();
         auto end = TRY(TRY(args.get_required(1, "end")).to_time()).to_utc_epoch();
         return Core::Value::create_int((end - start) / (24 * 60 * 60));
+    });
+    register_sql_function("DATE_FORMAT", [](ArgumentList args) -> Core::DbErrorOr<Core::Value> {
+        char buf[256]{0};
+        auto time = TRY(TRY(args.get_required(0, "date")).to_time());
+        auto fmt = TRY(TRY(args.get_required(1, "format string")).to_string());
+        auto tp = time.to_tm_struct();
+        strftime(buf, sizeof(buf), fmt.c_str(), &tp);
+        return Core::Value::create_varchar(buf);
     });
     register_sql_function("DAY", [](ArgumentList args) -> Core::DbErrorOr<Core::Value> {
         return Core::Value::create_int(TRY(TRY(args.get_required(0, "date")).to_time()).day);
