@@ -5,25 +5,49 @@ file format being [clever implementation of data heap](docs/EDBFileFormat.md).
 
 ## How to build our code?
 
-To build EssaDB to your local machine, you will need CMake tool and some project generator (we prefer Ninja to work with Essa Products). Clone this repository and EssaGUI (dependency for EssaDB): https://github.com/essa-software/EssaGUI.
+You will require:
+- `cmake` and `ninja` for building
+- `mysql` for MySQL support
 
-You will also need MySQL C++ Connector for MySQL Database connection support. You can get it from: https://github.com/mysql/mysql-connector-cpp
+For the most basic development setup:
 
-Follow installation instructions for EssaGUI, then prepare a workspace for yourself (see commands below, run it in EssaDB root folder):
-
-```
+1. Create and go to a build directory:
+```sh
 mkdir build
 cd build
-cmake -GNinja ..
+```
+
+2. Configure project with CMake:
+```sh
+cmake .. -GNinja
+```
+
+3. Build
+```sh
 ninja
 ```
 
-Let your generator with CMake take care of the rest. After successful compilation, several new folders should occur:
+4. Run
+```sh
+./repl/essadb-repl
+./gui/essadb-gui
+```
 
+For release / production, add `-DCMAKE_BUILD_TYPE=Release` to CMake command (step 2). Note that running as before [won't work](https://github.com/essa-software/EssaGUI/blob/main/docs/Packaging.md#build-types), you need to install:
+
+```sh
+ninja install
+
+# By default it outputs executables in /usr/local/bin:
+$ which essadb-repl
+/usr/local/bin/essadb-repl
+
+# Run as normal command if you have /usr/local/bin in PATH:
+essadb-repl
+essadb-gui
 ```
-ls .
-CMakeCache.txt  CMakeFiles  build.ninja  cmake_install.cmake  compile_commands.json  db  gui  repl  tests
-```
+
+## Directory structure
 
 * *db* - stores compiled EssaDB Engine
 * *gui* - EssaDB with GUI
