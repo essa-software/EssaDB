@@ -4,7 +4,7 @@ project(EssaDB)
 include(FetchContent)
 FetchContent_Declare(Essa
     GIT_REPOSITORY https://github.com/essa-software/EssaGUI.git
-    GIT_TAG f53265bb4eff3c6d030eabadc2c774d9355cd508
+    GIT_TAG 72cb5ce915b9937cd9ba13ffe423dc2086ebff64
     OVERRIDE_FIND_PACKAGE
 )
 FetchContent_MakeAvailable(Essa)
