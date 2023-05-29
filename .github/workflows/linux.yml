@@ -27,11 +27,6 @@ jobs:
         cmake .. -GNinja -DBUILD_SHARED_LIBS=1 -DFMT_TEST=0
         ninja
         sudo ninja install
-    - name: Build & install EssaGUI
-      run: |
-        git clone https://github.com/essa-software/EssaGUI.git
-        cd EssaGUI
-        ./install.sh
     - name: Generate build system
       run: |
         mkdir build
