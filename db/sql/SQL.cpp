@@ -30,6 +30,7 @@ void display_error(SQLError const& error, ssize_t error_start, ssize_t error_end
     Util::ReadableMemoryStream stream { { reinterpret_cast<uint8_t const*>(query.c_str()), query.size() } };
     Util::display_error(stream,
         Util::DisplayedError {
+            .file_name = "<query>",
             .message = Util::UString { error.message() },
             .start_offset = static_cast<size_t>(error_start),
             .end_offset = static_cast<size_t>(error_end),
