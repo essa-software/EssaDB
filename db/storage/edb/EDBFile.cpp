@@ -279,7 +279,7 @@ Util::OsErrorOr<BlockIndex> EDBFile::allocate_block(BlockType block_type) {
 
 Util::OsErrorOr<void> EDBFile::write_header_first_pass(Db::Core::TableSetup const& setup) {
     uint32_t block_size = 0;
-    block_size += sizeof(Table::RowSpec) - 1;
+    block_size += sizeof(Table::RowSpec);
     for (auto const& column : setup.columns) {
         if (!column.not_null()) {
             block_size += 1;
@@ -287,7 +287,7 @@ Util::OsErrorOr<void> EDBFile::write_header_first_pass(Db::Core::TableSetup cons
         block_size += value_size_for_type(column.type());
     }
     block_size *= 255;
-    block_size += sizeof(Table::TableBlock);
+    block_size += sizeof(Table::TableBlock) + sizeof(Block);
 
     // This will be overridden later, but it is needed for allocate_block and heap_allocate to work
     m_header.block_size = block_size;
