@@ -37,6 +37,7 @@ public:
     template<class T>
     AlignedAccess<T> access(HeapPtr ptr) {
         assert(!ptr.is_null());
+        assert(ptr.offset + sizeof(T) <= block_size());
         auto mapped_ptr = heap_ptr_to_mapped_ptr(ptr);
         // fmt::print(":: access: {}:{} +{} = {:x}\n", ptr.block, ptr.offset, sizeof(T), mapped_ptr - m_mapped_file.data().data());
         assert(mapped_ptr + sizeof(T) <= m_mapped_file.data().end().base());
@@ -46,6 +47,7 @@ public:
     template<class T>
     AllocatingAlignedAccess<T> access(HeapPtr ptr, size_t size) {
         assert(!ptr.is_null());
+        assert(ptr.offset + size <= block_size());
         auto mapped_ptr = heap_ptr_to_mapped_ptr(ptr);
         // fmt::print(":: allocating access: {}:{} +{} = {:x}\n", ptr.block, ptr.offset, size, mapped_ptr - m_mapped_file.data().data());
         // fmt::print("   address range: {}..{}\n", fmt::ptr(mapped_ptr), fmt::ptr(mapped_ptr + size));
