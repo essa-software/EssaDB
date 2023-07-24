@@ -89,6 +89,9 @@ public:
     Core::Value read_edb_value(Core::Value::Type, Value const&) const;
     Util::OsErrorOr<Value> write_edb_value(Core::Value const&);
 
+    // Find first free block or expand file if it is not possible (Max O(n))
+    Util::OsErrorOr<BlockIndex> allocate_block(BlockType);
+
 private:
     EDBFile(Util::File, MappedFile);
 
@@ -105,9 +108,6 @@ private:
 
     // Add `blocks` blocks to file without initializing them.
     Util::OsErrorOr<void> expand(size_t blocks);
-
-    // Find first free block or expand file if it is not possible (Max O(n))
-    Util::OsErrorOr<BlockIndex> allocate_block(BlockType);
 
     size_t block_count() const { return (m_file_size - header_size()) / block_size(); }
 

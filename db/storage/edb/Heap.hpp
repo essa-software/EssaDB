@@ -46,7 +46,6 @@ public:
 
 private:
     void place_edge_headers(EDBFile&);
-    void ensure_top_level_block();
     Util::OsErrorOr<void> merge_and_cleanup(EDBFile&);
     size_t data_size(EDBFile&) const;
 

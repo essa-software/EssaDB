@@ -1,6 +1,8 @@
 #include "Heap.hpp"
 
 #include "EDBFile.hpp"
+#include "EssaUtil/Config.hpp"
+#include "db/storage/edb/Definitions.hpp"
 
 #include <algorithm>
 
@@ -64,10 +66,6 @@ void HeapBlock::init(EDBFile& file) {
     memset(m_data + sizeof(HeapHeader), 0xef, data_size(file) - sizeof(HeapHeader) * 2);
 }
 
-void HeapBlock::ensure_top_level_block() {
-    fmt::print("TODO: ensure_top_level_block\n");
-}
-
 Util::OsErrorOr<void> HeapBlock::merge_and_cleanup(EDBFile& edb_file) {
     // TODO
     (void)edb_file;
@@ -85,7 +83,7 @@ Util::OsErrorOr<std::optional<uint32_t>> HeapBlock::alloc(EDBFile& file, size_t 
         AlignedAccess<HeapHeader> header { header_ptr };
         if (!header->has_valid_signature()) {
             fmt::print("heap_alloc_impl: Invalid header signature {:x}\n", (uint32_t)header->signature);
-            return Util::OsError { .error = 0, .function = "EDB HeapBlock::alloc: Invalid header signature" };
+            return Util::OsError { .error = 0, .function = "Corruption: EDB HeapBlock::alloc: Invalid header signature" };
         }
         if (header->is_available()) {
             // Calculate total free size
@@ -116,7 +114,7 @@ Util::OsErrorOr<std::optional<uint32_t>> HeapBlock::alloc(EDBFile& file, size_t 
         // Try out next header, if it exists.
         header_ptr += header->size + sizeof(HeapHeader);
         if (header_ptr > m_data + data_size(file)) {
-            return Util::OsError { .error = 0, .function = "EDB HeapBlock::alloc: Out of range without end edge (This is corruption)" };
+            return Util::OsError { .error = 0, .function = "Corruption: EDB HeapBlock::alloc: Out of range without end edge" };
         }
     }
 }
@@ -157,12 +155,40 @@ Util::OsErrorOr<HeapPtr> Heap::alloc(size_t size) {
         return Util::OsError { .error = 0, .function = "TODO: Big blocks" };
     }
 
-    auto block = m_file.access<HeapBlock>(HeapPtr { 2, sizeof(Block) }, m_file.block_size() - sizeof(Block));
-    auto result = TRY(block->alloc(m_file, size));
-    if (!result) {
-        return Util::OsError { .error = 0, .function = "TODO: Allocate new blocks" };
+    // First, try to allocate in every block in the list.
+    {
+        // Note: First heap block is always 2.
+        size_t current_block = 2;
+        while (true) {
+            auto block = m_file.access<Block>(HeapPtr { current_block, 0 }, m_file.block_size());
+            if (block->type != BlockType::Heap) {
+                return Util::OsError { .error = 0, .function = "Corruption: Found non-heap block in heap block list" };
+            }
+
+            auto& heap_block = reinterpret_cast<HeapBlock&>(block->data);
+            auto result = TRY(heap_block.alloc(m_file, size));
+            if (result) {
+                return HeapPtr { current_block, *result + sizeof(Block) };
+            }
+            // FIXME: Merge&cleanup here
+
+            if (!block->next_block) {
+                break;
+            }
+            current_block = block->next_block;
+        }
     }
-    return HeapPtr { 2, *result + sizeof(Block) };
+
+    // If there is free space in existing blocks, allocate a new block
+    auto new_block_idx = TRY(m_file.allocate_block(BlockType::Heap));
+    auto block = m_file.access<Block>(HeapPtr { new_block_idx, 0 }, m_file.block_size());
+    auto& heap_block = reinterpret_cast<HeapBlock&>(block->data);
+    auto result = TRY(heap_block.alloc(m_file, size));
+    if (!result) {
+        // We should always have space in a newly allocated block!
+        ESSA_UNREACHABLE;
+    }
+    return HeapPtr { new_block_idx, *result + sizeof(Block) };
 }
 
 void Heap::dump() const {
