@@ -25,6 +25,7 @@ public:
     virtual int increment(std::string const& column) override;
     virtual Core::DbErrorOr<void> rename(std::string const& new_name) override;
     virtual Core::DbErrorOr<void> insert_unchecked(Core::Tuple const&) override;
+    virtual void dump_storage_debug() override;
 
     std::string edb_file_path() const;
 

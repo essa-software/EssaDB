@@ -90,6 +90,93 @@ void EDBFile::dump_blocks() {
     }
 }
 
+// This is required because packed fields can't be bound to
+// reference, which is normally done by fmt::print
+template<class T>
+T copy(T ref) {
+    return ref;
+}
+
+void EDBFile::dump() {
+    fmt::print("--- EDB File Dump ---\n");
+    fmt::print("Header:\n");
+    fmt::print("  magic = ");
+    for (auto c : m_header.magic) {
+        fmt::print("{:02x} ", c);
+    }
+    fmt::print("\n");
+    fmt::print("  version = {}\n", copy(m_header.version));
+    fmt::print("  block_size = {}\n", copy(m_header.block_size));
+    fmt::print("  row_count = {}\n", copy(m_header.row_count));
+    fmt::print("  column_count = {}\n", copy(m_header.column_count));
+    fmt::print("  first_row_ptr = {}\n", copy(m_header.first_row_ptr));
+    fmt::print("  last_row_ptr = {}\n", copy(m_header.last_row_ptr));
+    fmt::print("  last_table_block = {}\n", copy(m_header.last_table_block));
+    fmt::print("  last_heap_block = {}\n", copy(m_header.last_heap_block));
+    fmt::print("  auto_increment_value_count = {}\n", copy(m_header.auto_increment_value_count));
+    fmt::print("  key_count = {}\n", copy(m_header.key_count));
+    fmt::print("  row size = {}\n", row_size());
+    fmt::print("  columns: TODO\n");
+
+    for (size_t s = 1; s < m_block_count; s++) {
+        fmt::print("Block {}\n", s);
+        auto block = access<Block>({ s, 0 });
+        auto type = block->type;
+        fmt::print("  prev={}\n  next={}\n  type=", block->prev_block, block->next_block);
+        switch (type) {
+        case BlockType::Free:
+            fmt::print("FREE");
+            break;
+        case BlockType::Table:
+            fmt::print("TABLE");
+            break;
+        case BlockType::Heap:
+            fmt::print("HEAP");
+            break;
+        case BlockType::Big:
+            fmt::print("BIG");
+            break;
+        }
+        fmt::print("\n");
+
+        switch (type) {
+        case BlockType::Free:
+            break;
+        case BlockType::Table: {
+            auto table_block = access<Table::TableBlock>({ s, sizeof(Block) });
+            fmt::print("    rows_in_block = {}\n", table_block->rows_in_block);
+            HeapPtr ptr { s, sizeof(Block) + sizeof(Table::TableBlock) };
+            auto row_size = sizeof(Table::RowSpec) + this->row_size();
+            size_t idx = 0;
+            while (true) {
+                if (ptr.offset + row_size > block_size()) {
+                    break;
+                }
+                auto row = access<Table::RowSpec>(ptr, row_size);
+                auto old_ptr = ptr;
+                ptr.offset = ptr.offset + row_size;
+                // if (!row->is_used) {
+                //     continue;
+                // }
+                fmt::print("    {:<3} @{} used={} next={} data=", idx, old_ptr, row->is_used, row->next_row);
+                for (size_t s = 0; s < row_size - sizeof(Table::RowSpec); s++) {
+                    fmt::print("{:02x} ", row->row[s]);
+                }
+                fmt::print("\n");
+                idx++;
+            }
+        } break;
+        case BlockType::Heap: {
+            auto heap_block = access<Data::HeapBlock>({ s, sizeof(Block) }, block_size() - sizeof(Block));
+            heap_block->dump(*this, s);
+        } break;
+        case BlockType::Big:
+            fmt::print("  TODO\n");
+            break;
+        }
+    }
+}
+
 Util::Buffer EDBFile::read_heap(HeapSpan span) const {
     auto ptr = heap_ptr_to_mapped_ptr(span.offset);
     // fmt::print("read_heap({}:{} +{}) = [", span.offset.block, span.offset.offset, (uint32_t)span.size);

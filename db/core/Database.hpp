@@ -50,6 +50,8 @@ public:
         m_tables.clear();
     }
 
+    void dump_storage_debug();
+
 private:
     Database() = default;
 

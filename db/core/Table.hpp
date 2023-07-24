@@ -35,6 +35,8 @@ public:
     void export_to_csv(const std::string& path) const;
     DbErrorOr<void> import_from_csv(Database* db, Storage::CSVFile const& file);
 
+    virtual void dump_storage_debug() { }
+
 protected:
     // Check integrity with database, i.e foreign keys, checks, constraints, ...
     virtual DbErrorOr<void> perform_database_integrity_checks(Database* db, Tuple const& row) const;

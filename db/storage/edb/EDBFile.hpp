@@ -59,6 +59,7 @@ public:
     Util::Buffer read_heap(HeapSpan) const;
 
     void dump_blocks();
+    void dump();
 
     Util::OsErrorOr<HeapSpan> heap_allocate(size_t size);
 

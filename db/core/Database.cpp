@@ -149,4 +149,11 @@ DbErrorOr<Table*> Database::import_to_table(std::string const& path, std::string
     ESSA_UNREACHABLE;
 }
 
+void Database::dump_storage_debug() {
+    for (auto const& table : m_tables) {
+        fmt::print("Table {}:\n", table.first);
+        table.second->dump_storage_debug();
+    }
+}
+
 }

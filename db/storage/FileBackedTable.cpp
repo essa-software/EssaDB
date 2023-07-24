@@ -94,6 +94,11 @@ Core::DbErrorOr<void> FileBackedTable::insert_unchecked(Core::Tuple const& tuple
     return {};
 }
 
+void FileBackedTable::dump_storage_debug() {
+    fmt::print("path={}\n", m_database_path);
+    m_file->dump();
+}
+
 std::string FileBackedTable::edb_file_path() const {
     return fmt::format("{}/{}.edb", m_database_path, m_table_name);
 }
