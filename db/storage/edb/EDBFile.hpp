@@ -34,9 +34,6 @@ public:
     size_t block_size() const;
     size_t row_size() const;
 
-    uint8_t* heap_ptr_to_mapped_ptr(HeapPtr);
-    uint8_t const* heap_ptr_to_mapped_ptr(HeapPtr) const;
-
     template<class T>
     AlignedAccess<T> access(HeapPtr ptr) {
         assert(!ptr.is_null());
@@ -95,6 +92,9 @@ public:
 
 private:
     EDBFile(Util::File, MappedFile);
+
+    uint8_t* heap_ptr_to_mapped_ptr(HeapPtr);
+    uint8_t const* heap_ptr_to_mapped_ptr(HeapPtr) const;
 
     size_t header_size() const;
     size_t block_offset(BlockIndex) const;
