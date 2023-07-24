@@ -103,7 +103,6 @@ Util::OsErrorOr<std::optional<uint32_t>> HeapBlock::alloc(EDBFile& file, size_t 
 
         // Check for overflow
         if (header->signature == Signature::EndEdge) {
-            fmt::print("EDB HeapBlock::alloc: Reached end edge\n");
             return std::optional<uint32_t> {};
         }
 
