@@ -24,7 +24,7 @@ public:
     auto& file() { return m_iterator.m_file; }
 
     ~EDBRowReference() {
-        if (m_removed) {
+        if (!m_should_write) {
             return;
         }
         auto row = file().access<Table::RowSpec>(m_row_ptr, file().row_size() + sizeof(Table::RowSpec));
@@ -41,10 +41,11 @@ private:
     }
     virtual void write(Core::Tuple const& tuple) override {
         m_tuple = tuple;
+        m_should_write = true;
     }
     virtual void remove() override {
         file().remove(m_row_ptr, m_prev_row_ptr).release_value_but_fixme_should_propagate_errors();
-        m_removed = true;
+        m_should_write = false;
         m_iterator.m_prev_row_ptr = m_prev_row_ptr;
     }
     virtual std::unique_ptr<RowReference> clone() const override {
@@ -54,7 +55,7 @@ private:
     Core::Tuple m_tuple;
     HeapPtr m_row_ptr;
     HeapPtr m_prev_row_ptr { 0, 0 };
-    bool m_removed = false;
+    bool m_should_write = false;
     EDBRelationIteratorImpl& m_iterator;
 };
 
