@@ -412,14 +412,15 @@ Util::OsErrorOr<void> EDBFile::insert(Core::Tuple const& tuple) {
     // fmt::print("Place for allocation: {}:{}\n", place_for_allocation->block, place_for_allocation->offset);
 
     // 3. Actually write row
-    auto row = access<Table::RowSpec>(*place_for_allocation, sizeof(Table::RowSpec) + row_size());
-    row->is_used = 1;
-    row->next_row = {};
-
     {
         Util::WritableMemoryStream stream;
         Util::Writer writer { stream };
+        // Note: This invalidates all Accesses.
         TRY(Serializer::write_row(*this, writer, m_columns, tuple));
+
+        auto row = access<Table::RowSpec>(*place_for_allocation, sizeof(Table::RowSpec) + row_size());
+        row->is_used = 1;
+        row->next_row = {};
         std::copy(stream.data().begin(), stream.data().end(), row->row);
     }
 
