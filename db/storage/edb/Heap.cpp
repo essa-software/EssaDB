@@ -8,10 +8,6 @@
 
 namespace Db::Storage::EDB {
 
-uint8_t* deref_impl(HeapPtr ptr, EDBFile& file) {
-    return file.heap_ptr_to_mapped_ptr(ptr);
-}
-
 namespace Data {
 
 struct HeapHeader {
