@@ -1,7 +1,7 @@
 #include "CommandLine.hpp"
+#include <EssaUtil/ArgParser.hpp>
 #include <EssaUtil/DisplayError.hpp>
 #include <EssaUtil/Stream.hpp>
-#include <EssaUtil/Stream/File.hpp>
 #include <db/core/Database.hpp>
 #include <db/core/DatabaseEngine.hpp>
 #include <db/sql/Lexer.hpp>
@@ -86,10 +86,37 @@ int run_sql_file(Db::Core::Database& db, std::string const& file_name) {
 }
 
 int main(int argc, char* argv[]) {
-    auto db = Db::Core::Database::create_memory_backed();
+    Util::ArgParser parser(argc, argv);
 
-    if (argc == 1) {
-        MUST(db.create_table({ "test", {} }, nullptr, Db::Core::DatabaseEngine::Memory));
+    std::string engine_str = "memory";
+    parser.option("-e", engine_str);
+    std::optional<std::string> db_path_str;
+    parser.option("-d", db_path_str);
+    std::optional<std::string> input;
+    parser.parameter("input_file", input);
+
+    if (auto res = parser.parse(); res.is_error()) {
+        auto error = res.release_error();
+        fmt::print("{}\n", error);
+        return 1;
+    }
+
+    bool is_edb = engine_str == "edb";
+    if (is_edb && !db_path_str) {
+        fmt::print("Error: edb engine requires -d <db_path> argument\n");
+        return 1;
+    }
+    auto maybe_db = is_edb ? Db::Core::Database::create_or_open_file_backed(*db_path_str) : Db::Core::Database::create_memory_backed();
+    if (maybe_db.is_error()) {
+        fmt::print("Error: failed to open db: {}\n", maybe_db.release_error());
+        return 1;
+    }
+    auto db = maybe_db.release_value();
+
+    if (input) {
+        return run_sql_file(db, *input);
+    }
+    else {
         CommandLine::Line line;
         line.set_prompt("> \e[32m");
 
@@ -118,13 +145,6 @@ int main(int argc, char* argv[]) {
             std::cout << "\e[m";
             run_query(db, query.release_value().encode());
         }
-    }
-    else if (argc == 2) {
-        return run_sql_file(db, argv[1]);
-    }
-    else {
-        fmt::print("Usage: essadb-repl [file name]\n");
-        return 1;
     }
     return 0;
 }
