@@ -1,3 +1,5 @@
+// ConnectToEssaDB.eml
+
 @Container {
     layout: @VerticalBoxLayout {
         padding: 15
@@ -6,32 +8,38 @@
 
     @RadioGroup memory_or_file_backed {
         layout: @VerticalBoxLayout
-        @RadioButton {
+        @RadioButton create_temporary_database {
             caption: "Create temporary database"
         }
-        @RadioButton {
-            caption: "Load from file"
-        }
-    }
+        @Container {
+            layout: @VerticalBoxLayout
 
-    define ValueField : @Container {
-        layout: @HorizontalBoxLayout {
-            spacing: 10
-        }
-        height: 30px
-    }
+            @RadioButton load_from_file {
+                caption: "Load from file"
+            }
 
-    @ValueField {
-        @Textfield {
-            content: "Database directory:"
-            width: 170px
-        }
-        @TextEditor database_directory {
-            multiline: false
-        }
-        @TextButton load_file {
-            content: "Browse..."
-            width: 150px
+            @Container {
+                height: 32px
+                layout: @HorizontalBoxLayout {
+                    spacing: 5
+                }
+
+                @Textfield {
+                    content: "Database directory:"
+                    width: 170px
+                    height: auto
+                }
+                @TextEditor database_directory {
+                    multiline: false
+                    height: auto
+                }
+                @TextButton load_file {
+                    content: "Browse..."
+                    width: 150px
+                    height: auto
+                }
+            }
         }
     }
 }
+
