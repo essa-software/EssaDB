@@ -61,3 +61,19 @@ requires(sizeof(T) == 8) struct BigEndian<T> : public BigEndian<uint64_t> {
 };
 
 }
+
+template<class T>
+class fmt::formatter<Db::Storage::EDB::LittleEndian<T>> : public fmt::formatter<T> {
+public:
+    auto format(Db::Storage::EDB::LittleEndian<T> const& p, fmt::format_context& ctx) const {
+        return fmt::format_to(ctx.out(), "{}", p.value());
+    }
+};
+
+template<class T>
+class fmt::formatter<Db::Storage::EDB::BigEndian<T>> : public fmt::formatter<T> {
+public:
+    auto format(Db::Storage::EDB::BigEndian<T> const& p, fmt::format_context& ctx) const {
+        return fmt::format_to(ctx.out(), "{}", p.value());
+    }
+};

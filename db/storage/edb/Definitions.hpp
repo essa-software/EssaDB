@@ -113,8 +113,7 @@ struct TableBlock {
 template<>
 class fmt::formatter<Db::Storage::EDB::HeapPtr> : public fmt::formatter<std::string_view> {
 public:
-    template<typename FormatContext>
-    constexpr auto format(Db::Storage::EDB::HeapPtr const& p, FormatContext& ctx) const {
+    auto format(Db::Storage::EDB::HeapPtr const& p, fmt::format_context& ctx) const {
         fmt::format_to(ctx.out(), "{}:{}", p.block, p.offset);
         return ctx.out();
     }
