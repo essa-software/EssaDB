@@ -8,7 +8,7 @@ namespace EssaDB {
 
 class SelectConnectionTypeDialog : public GUI::ToolWindow {
 public:
-    explicit SelectConnectionTypeDialog(GUI::HostWindow&);
+    explicit SelectConnectionTypeDialog(GUI::MDI::Host&);
 
     std::optional<std::string_view> selected_database_type() const { return m_selected_database_type; }
 

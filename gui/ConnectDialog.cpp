@@ -9,7 +9,7 @@
 
 namespace EssaDB {
 
-SelectConnectionTypeDialog::SelectConnectionTypeDialog(GUI::HostWindow& host_window)
+SelectConnectionTypeDialog::SelectConnectionTypeDialog(GUI::MDI::Host& host_window)
     : GUI::ToolWindow(host_window) {
     set_title("Select connection type");
     set_size({ 250, 120 });

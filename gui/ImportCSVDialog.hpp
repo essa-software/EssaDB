@@ -10,7 +10,7 @@ namespace EssaDB {
 
 class ImportCSVDialog : public GUI::ToolWindow {
 public:
-    ImportCSVDialog(GUI::HostWindow& window)
+    ImportCSVDialog(GUI::MDI::Host& window)
         : GUI::ToolWindow(window) {
         (void)load_from_eml_resource(resource_manager().require<EML::EMLResource>("ImportCSV.eml"));
 
