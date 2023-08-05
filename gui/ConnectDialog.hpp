@@ -3,12 +3,13 @@
 #include "client/DatabaseClient.hpp"
 #include <Essa/GUI/HostWindow.hpp>
 #include <Essa/GUI/Overlays/ToolWindow.hpp>
+#include <Essa/GUI/WindowRoot.hpp>
 
 namespace EssaDB {
 
-class SelectConnectionTypeDialog : public GUI::ToolWindow {
+class SelectConnectionTypeDialog : public GUI::WindowRoot {
 public:
-    explicit SelectConnectionTypeDialog(GUI::MDI::Host&);
+    explicit SelectConnectionTypeDialog(GUI::WidgetTreeRoot&);
 
     std::optional<std::string_view> selected_database_type() const { return m_selected_database_type; }
 

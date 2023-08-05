@@ -37,7 +37,7 @@ int main() {
 
     auto& window = app.create_host_window({ 1200, 700 }, "EssaDB");
 
-    auto& container = window.set_main_widget<GUI::Container>();
+    auto& container = window.set_root_widget<GUI::Container>();
     if (!container.load_from_eml_resource(app.resource_manager().require<EML::EMLResource>("MainWidget.eml")))
         return 1;
 
@@ -131,9 +131,9 @@ int main() {
             return;
         }
 
-        auto& import_csv_dialog = window.open_overlay<EssaDB::ImportCSVDialog>();
-        import_csv_dialog.on_ok = [&window, &console, &import_csv_dialog, &client, &update_db_model]() {
-            auto maybe_error = client->import(import_csv_dialog.csv_file(), import_csv_dialog.table_name(), Db::Core::ImportMode::Csv);
+        auto import_csv_dialog = GUI::Application::the().open_host_window<EssaDB::ImportCSVDialog>();
+        import_csv_dialog.root.on_ok = [&window, &console, &import_csv_dialog, &client, &update_db_model]() {
+            auto maybe_error = client->import(import_csv_dialog.root.csv_file(), import_csv_dialog.root.table_name(), Db::Core::ImportMode::Csv);
             if (maybe_error.is_error()) {
                 auto message = maybe_error.release_error().message();
                 console->append_content({ .color = Util::Colors::Red, .text = Util::UString { message } });
@@ -144,13 +144,13 @@ int main() {
             console->append_content({
                 .color = Util::Colors::Lime,
                 .text = Util::UString {
-                    fmt::format("Successfully imported CSV {} to {}", import_csv_dialog.csv_file(), import_csv_dialog.table_name()) },
+                    fmt::format("Successfully imported CSV {} to {}", import_csv_dialog.root.csv_file(), import_csv_dialog.root.table_name()) },
             });
 
             update_db_model();
             return true;
         };
-        import_csv_dialog.show_modal();
+        import_csv_dialog.window.show_modal();
         update_db_model();
     };
 

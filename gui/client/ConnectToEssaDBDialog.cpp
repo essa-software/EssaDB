@@ -10,14 +10,11 @@ void ConnectToEssaDBDialog::on_init() {
 
     auto load_file = find_widget_of_type_by_id_recursively<GUI::TextButton>("load_file");
     load_file->on_click = [&]() {
-        auto& file_explorer_wnd = host_window().open_overlay<GUI::FileExplorer>();
-        file_explorer_wnd.set_size({ 1000, 600 });
-        file_explorer_wnd.center_on_screen();
-        file_explorer_wnd.on_submit = [this](std::filesystem::path path) {
-            m_database_directory->set_content(Util::UString { path.string() });
-        };
-
-        file_explorer_wnd.show_modal();
+        auto path = GUI::FileExplorer::get_path_to_open();
+        if (!path) {
+            return;
+        }
+        m_database_directory->set_content(Util::UString(path->string()));
     };
 }
 

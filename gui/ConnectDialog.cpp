@@ -1,19 +1,19 @@
 #include "ConnectDialog.hpp"
 
-#include <Essa/GUI/Widgets/Container.hpp>
+#include <Essa/GUI/Application.hpp>
 #include <Essa/GUI/Overlays/MessageBox.hpp>
+#include <Essa/GUI/Overlays/ToolWindow.hpp>
+#include <Essa/GUI/Widgets/Container.hpp>
 #include <Essa/GUI/Widgets/RadioButton.hpp>
 #include <Essa/GUI/Widgets/RadioGroup.hpp>
 #include <Essa/GUI/Widgets/TextButton.hpp>
-#include <Essa/GUI/Overlays/ToolWindow.hpp>
 
 namespace EssaDB {
 
-SelectConnectionTypeDialog::SelectConnectionTypeDialog(GUI::MDI::Host& host_window)
-    : GUI::ToolWindow(host_window) {
-    set_title("Select connection type");
-    set_size({ 250, 120 });
-    center_on_screen();
+SelectConnectionTypeDialog::SelectConnectionTypeDialog(GUI::WidgetTreeRoot& window)
+    : GUI::WindowRoot(window) {
+    window.setup("Select connection type", { 250, 120 }, {});
+    window.center_on_screen();
     auto& container = set_main_widget<GUI::Container>();
     container.set_layout<GUI::VerticalBoxLayout>().set_padding(GUI::Boxi::all_equal(10));
 
@@ -22,7 +22,7 @@ SelectConnectionTypeDialog::SelectConnectionTypeDialog(GUI::MDI::Host& host_wind
     std::vector<std::string_view> database_type_ids;
     for (auto const& type : DatabaseClient::types()) {
         database_type_ids.push_back(type.first);
-        auto* btn =  radio_group->add_widget<GUI::RadioButton>();
+        auto* btn = radio_group->add_widget<GUI::RadioButton>();
         btn->set_caption(type.second->name());
     }
 
@@ -49,9 +49,9 @@ SelectConnectionTypeDialog::SelectConnectionTypeDialog(GUI::MDI::Host& host_wind
 }
 
 std::unique_ptr<DatabaseClient> connect_to_user_selected_database(GUI::HostWindow& window) {
-    auto& select_connection_type = window.open_overlay<SelectConnectionTypeDialog>();
-    select_connection_type.show_modal();
-    auto dbclient_type = select_connection_type.selected_database_type();
+    auto select_connection_type = GUI::Application::the().open_host_window<SelectConnectionTypeDialog>();
+    select_connection_type.window.show_modal();
+    auto dbclient_type = select_connection_type.root.selected_database_type();
     if (!dbclient_type) {
         return nullptr;
     }
@@ -59,12 +59,10 @@ std::unique_ptr<DatabaseClient> connect_to_user_selected_database(GUI::HostWindo
     auto settings_widget = DatabaseClient::create_settings_widget(*dbclient_type);
     std::unique_ptr<DatabaseClient> client;
     if (settings_widget) {
-        auto& tool_window = window.open_overlay<GUI::ToolWindow>();
-        tool_window.set_size({ 500, 250 });
-        tool_window.set_title("Create " + DatabaseClient::types().at(*dbclient_type)->name() + " connection");
-        tool_window.center_on_screen();
+        auto& window = GUI::Application::the().create_host_window({ 500, 250 }, "Create " + DatabaseClient::types().at(*dbclient_type)->name() + " connection");
+        window.center_on_screen();
 
-        auto& container = tool_window.set_main_widget<GUI::Container>();
+        auto& container = window.set_root_widget<GUI::Container>();
         container.set_layout<GUI::VerticalBoxLayout>().set_padding(GUI::Boxi::all_equal(10));
 
         container.add_created_widget(settings_widget);
@@ -78,8 +76,8 @@ std::unique_ptr<DatabaseClient> connect_to_user_selected_database(GUI::HostWindo
         auto cancel = submit_container->add_widget<GUI::TextButton>();
         cancel->set_size({ 100.0_px, Util::Length::Auto });
         cancel->set_content("Cancel");
-        cancel->on_click = [&tool_window]() {
-            tool_window.close();
+        cancel->on_click = [&window]() {
+            window.close();
         };
 
         auto submit = submit_container->add_widget<GUI::TextButton>();
@@ -92,10 +90,10 @@ std::unique_ptr<DatabaseClient> connect_to_user_selected_database(GUI::HostWindo
                 return;
             }
             client = maybe_client.release_value();
-            tool_window.close();
+            window.close();
         };
 
-        tool_window.show_modal();
+        window.show_modal();
         return client;
     }
 
