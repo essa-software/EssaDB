@@ -267,8 +267,8 @@ std::vector<Token> Lexer::lex() {
             tokens.push_back(Token { .type = Token::Type::Date, .value = id, .start = start, .end = tell() });
         }
         else {
-            tokens.push_back(Token { .type = Token::Type::Garbage, .value = { next }, .start = start, .end = tell() });
             m_in.get();
+            tokens.push_back(Token { .type = Token::Type::Garbage, .value = { next }, .start = start, .end = tell() });
         }
     }
 }
