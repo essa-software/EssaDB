@@ -15,10 +15,14 @@ SelectConnectionTypeDialog::SelectConnectionTypeDialog(GUI::WidgetTreeRoot& wind
     window.setup("Select connection type", { 250, 120 }, {});
     window.center_on_screen();
     auto& container = set_main_widget<GUI::Container>();
-    container.set_layout<GUI::VerticalBoxLayout>().set_padding(GUI::Boxi::all_equal(10));
+    {
+        auto& layout = container.set_layout<GUI::VerticalBoxLayout>();
+        layout.set_padding(GUI::Boxi::all_equal(10));
+        layout.set_spacing(10);
+    }
 
     auto radio_group = container.add_widget<GUI::RadioGroup>();
-    radio_group->set_layout<GUI::VerticalBoxLayout>().set_spacing(10);
+    radio_group->set_layout<GUI::VerticalBoxLayout>();
     std::vector<std::string_view> database_type_ids;
     for (auto const& type : DatabaseClient::types()) {
         database_type_ids.push_back(type.first);
