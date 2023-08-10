@@ -32,16 +32,13 @@
         }
     }
 
-    @Container {
-        layout: @HorizontalBoxLayout
-
+    @HorizontalSplitter {
         @Container outline_container {
             layout: @HorizontalBoxLayout
             width: 250px
         }
 
-        @Container editors_container {
-            layout: @VerticalBoxLayout
+        @VerticalSplitter editors_container {
             @TextEditor sql_query_editor {
                 placeholder: "Enter SQL query (Press Ctrl + Enter to run)"
                 multiline: true
