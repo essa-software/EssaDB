@@ -10,7 +10,7 @@ void ConnectToEssaDBDialog::on_init() {
 
     auto load_file = find_widget_of_type_by_id_recursively<GUI::TextButton>("load_file");
     load_file->on_click = [&]() {
-        auto path = GUI::FileExplorer::get_path_to_open();
+        auto path = GUI::FileExplorer::get_directory_to_open();
         if (!path) {
             return;
         }
