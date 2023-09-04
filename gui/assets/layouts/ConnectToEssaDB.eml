@@ -2,12 +2,13 @@
 
 @Container {
     layout: @VerticalBoxLayout {
-        padding: 15
-        spacing: 15
+        padding: 5
+        spacing: 10
     }
 
     @RadioGroup memory_or_file_backed {
         layout: @VerticalBoxLayout
+        height: auto
         @RadioButton create_temporary_database {
             caption: "Create temporary database"
         }
