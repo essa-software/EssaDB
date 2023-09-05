@@ -3,8 +3,6 @@
     }
 
     @Container {
-        width: auto
-        height: 32px
         layout: @HorizontalBoxLayout
 
         @TextButton run_sql {
