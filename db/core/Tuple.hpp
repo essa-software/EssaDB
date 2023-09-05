@@ -79,3 +79,19 @@ struct TupleWithSource {
 };
 
 }
+
+template<>
+class fmt::formatter<Db::Core::Tuple> : public fmt::formatter<std::string_view> {
+public:
+    auto format(Db::Core::Tuple const& tuple, fmt::format_context& ctx) const {
+        fmt::format_to(ctx.out(), "(");
+        for (size_t s = 0; s < tuple.value_count(); s++) {
+            fmt::format_to(ctx.out(), "{}", tuple.value(s).to_debug_string());
+            if (s != tuple.value_count() - 1) {
+                fmt::format_to(ctx.out(), ", ");
+            }
+        }
+        fmt::format_to(ctx.out(), ")");
+        return ctx.out();
+    }
+};
