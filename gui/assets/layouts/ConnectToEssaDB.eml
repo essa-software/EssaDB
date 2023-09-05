@@ -1,5 +1,3 @@
-// ConnectToEssaDB.eml
-
 @Container {
     layout: @VerticalBoxLayout {
         spacing: 10
