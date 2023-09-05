@@ -206,8 +206,9 @@ SQLErrorOr<std::vector<Core::TupleWithSource>> Select::collect_rows(EvaluationCo
         }
     }
 
-    if (m_options.group_by->type == GroupBy::GroupOrPartition::PARTITION)
+    if (m_options.group_by && m_options.group_by->type == GroupBy::GroupOrPartition::PARTITION) {
         should_group = false;
+    }
 
     // Special-case for empty sets
     if (table.size() == 0) {
