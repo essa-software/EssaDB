@@ -8,9 +8,10 @@
 namespace EssaDB {
 
 Util::OsErrorOr<std::unique_ptr<EssaDBDatabaseClient>> EssaDBDatabaseClient::create(std::optional<std::string> path) {
-    return std::unique_ptr<EssaDBDatabaseClient>(new EssaDBDatabaseClient(path
-            ? TRY(Db::Core::Database::create_or_open_file_backed(*path))
-            : Db::Core::Database::create_memory_backed()));
+    auto db = path
+        ? TRY(Db::Core::Database::create_or_open_file_backed(*path))
+        : Db::Core::Database::create_memory_backed();
+    return std::unique_ptr<EssaDBDatabaseClient>(new EssaDBDatabaseClient(std::move(db)));
 }
 
 Db::Sql::SQLErrorOr<Db::Core::ValueOrResultSet> EssaDBDatabaseClient::run_query(std::string const& source) {
