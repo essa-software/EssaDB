@@ -125,13 +125,14 @@ SQLErrorOr<std::unique_ptr<AST::Statement>> Parser::parse_statement_impl() {
     }
     else if (keyword.type == Token::Type::KeywordShow) {
         auto type = m_tokens[++m_offset];
+        ++m_offset;
         switch (type.type) {
         case Token::Type::KeywordTables:
             return std::make_unique<AST::Show>(m_offset - 1, AST::Show::Type::Tables);
         default:
             break;
         }
-        return expected("'TABLES'", m_tokens[m_offset], m_offset);
+        return expected("'TABLES'", m_tokens[m_offset - 1], m_offset - 1);
     }
     else if (keyword.type == Token::Type::KeywordPrint) {
         return TRY(parse_print());
