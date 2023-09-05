@@ -1,14 +1,13 @@
 @Container {
     layout: @VerticalBoxLayout {
-        padding: 15
-        spacing: 15
+        padding: [0, 0, 10, 0]
+        spacing: 10
     }
 
     define ValueField : @Container {
         layout: @HorizontalBoxLayout {
             spacing: 10
         }
-        height: 30px
     }
 
     @ValueField {

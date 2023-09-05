@@ -12,7 +12,7 @@ namespace EssaDB {
 
 SelectConnectionTypeDialog::SelectConnectionTypeDialog(GUI::WidgetTreeRoot& window)
     : GUI::WindowRoot(window) {
-    window.setup("Select connection type", { 250, 120 }, {});
+    window.setup("Select connection type", { 250, 130 }, {});
     window.center_on_screen();
     auto& container = set_main_widget<GUI::Container>();
     {
@@ -23,6 +23,7 @@ SelectConnectionTypeDialog::SelectConnectionTypeDialog(GUI::WidgetTreeRoot& wind
 
     auto radio_group = container.add_widget<GUI::RadioGroup>();
     radio_group->set_layout<GUI::VerticalBoxLayout>();
+    radio_group->set_size({ Util::Length::Auto, Util::Length::Auto });
     std::vector<std::string_view> database_type_ids;
     for (auto const& type : DatabaseClient::types()) {
         database_type_ids.push_back(type.first);
@@ -34,17 +35,15 @@ SelectConnectionTypeDialog::SelectConnectionTypeDialog(GUI::WidgetTreeRoot& wind
     auto& layout = submit_container->set_layout<GUI::HorizontalBoxLayout>();
     layout.set_spacing(10);
     layout.set_content_alignment(GUI::BoxLayout::ContentAlignment::BoxEnd);
-    submit_container->set_size({ Util::Length::Auto, 30.0_px });
+    submit_container->set_size({ Util::Length::Auto, Util::Length::Initial });
 
     auto cancel = submit_container->add_widget<GUI::TextButton>();
-    cancel->set_size({ 100.0_px, Util::Length::Auto });
     cancel->set_content("Cancel");
     cancel->on_click = [this]() {
         close();
     };
 
     auto submit = submit_container->add_widget<GUI::TextButton>();
-    submit->set_size({ 100.0_px, Util::Length::Auto });
     submit->set_content("OK");
     submit->on_click = [database_type_ids = std::move(database_type_ids), radio_group, this]() {
         m_selected_database_type = database_type_ids[radio_group->get_index()];

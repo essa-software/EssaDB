@@ -2,7 +2,7 @@
 
 @Container {
     layout: @VerticalBoxLayout {
-        padding: 5
+        padding: [0, 0, 10, 0]
         spacing: 10
     }
 
@@ -20,24 +20,19 @@
             }
 
             @Container {
-                height: 32px
                 layout: @HorizontalBoxLayout {
                     spacing: 5
                 }
 
                 @Textfield {
                     content: "Database directory:"
-                    width: 170px
-                    height: auto
+                    height: 32px // FIXME: this should maybe be in textfield itself
                 }
                 @TextEditor database_directory {
                     multiline: false
-                    height: auto
                 }
                 @TextButton load_file {
                     content: "Browse..."
-                    width: 150px
-                    height: auto
                 }
             }
         }
