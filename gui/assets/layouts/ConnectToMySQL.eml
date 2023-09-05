@@ -1,6 +1,5 @@
 @Container {
     layout: @VerticalBoxLayout {
-        padding: [0, 0, 10, 0]
         spacing: 10
     }
 

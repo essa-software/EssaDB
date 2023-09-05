@@ -2,13 +2,12 @@
 
 @Container {
     layout: @VerticalBoxLayout {
-        padding: [0, 0, 10, 0]
         spacing: 10
     }
 
     @RadioGroup memory_or_file_backed {
         layout: @VerticalBoxLayout
-        height: auto
+        
         @RadioButton create_temporary_database {
             caption: "Create temporary database"
         }
@@ -26,7 +25,6 @@
 
                 @Textfield {
                     content: "Database directory:"
-                    height: 32px // FIXME: this should maybe be in textfield itself
                 }
                 @TextEditor database_directory {
                     multiline: false

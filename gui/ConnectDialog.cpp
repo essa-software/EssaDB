@@ -67,8 +67,8 @@ std::unique_ptr<DatabaseClient> connect_to_user_selected_database(GUI::HostWindo
 
         auto& container = window.set_root_widget<GUI::Container>();
         container.set_layout<GUI::VerticalBoxLayout>().set_padding(GUI::Boxi::all_equal(10));
-
         container.add_created_widget(settings_widget);
+        settings_widget->set_size({ Util::Length::Auto, Util::Length::Auto });
 
         auto submit_container = container.add_widget<GUI::Container>();
         auto& layout = submit_container->set_layout<GUI::HorizontalBoxLayout>();
